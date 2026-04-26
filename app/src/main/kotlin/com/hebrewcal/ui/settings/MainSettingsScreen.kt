@@ -24,6 +24,8 @@ fun MainSettingsScreen(
     val prefs by viewModel.preferences.collectAsState()
     val geocodeStatus by viewModel.geocodeStatus.collectAsState()
     var cityInput by remember { mutableStateOf("") }
+    var cityDropdownExpanded by remember { mutableStateOf(false) }
+    val citySuggestions = remember(cityInput) { CityDatabase.search(cityInput) }
 
     Scaffold(
         topBar = {
@@ -120,76 +122,94 @@ fun MainSettingsScreen(
                     options  = listOf("GPS (Auto)", "Manual City"),
                     selected = if (prefs.zmanimLocationSource == ZmanimLocationSource.GPS) 0 else 1,
                     onSelect = { idx ->
-                        val src = if (idx == 0) ZmanimLocationSource.GPS else ZmanimLocationSource.MANUAL
-                        viewModel.setZmanimLocationSource(src)
-                        if (src == ZmanimLocationSource.GPS) onRequestLocationPermission()
+                        viewModel.setZmanimLocationSource(
+                            if (idx == 0) ZmanimLocationSource.GPS else ZmanimLocationSource.MANUAL
+                        )
                     }
                 )
 
-                // Manual city input
+                // GPS mode — detect nearest city
+                if (prefs.zmanimLocationSource == ZmanimLocationSource.GPS) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (!viewModel.hasLocationPermission) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(Icons.Default.LocationOff, contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error)
+                                    Text(
+                                        "Location permission required. Tap below to grant.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                                Button(
+                                    onClick  = onRequestLocationPermission,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) { Text("Grant Location Permission") }
+                            } else {
+                                Button(
+                                    onClick  = { viewModel.detectNearestCity() },
+                                    enabled  = geocodeStatus !is SettingsViewModel.GeoCodeStatus.Loading,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(Icons.Default.MyLocation, contentDescription = null,
+                                        modifier = Modifier.padding(end = 8.dp))
+                                    Text("Detect Nearest City")
+                                }
+                                GeoStatusRow(geocodeStatus, prefs.zmanimManualCity)
+                            }
+                        }
+                    }
+                }
+
+                // Manual mode — autocomplete city picker
                 if (prefs.zmanimLocationSource == ZmanimLocationSource.MANUAL) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("City Name", style = MaterialTheme.typography.labelMedium,
+                            Text("Search City", style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            ExposedDropdownMenuBox(
+                                expanded = cityDropdownExpanded && citySuggestions.isNotEmpty(),
+                                onExpandedChange = { cityDropdownExpanded = it }
                             ) {
                                 OutlinedTextField(
-                                    value         = cityInput.ifEmpty { prefs.zmanimManualCity },
-                                    onValueChange = { cityInput = it },
-                                    modifier      = Modifier.weight(1f),
-                                    placeholder   = { Text("e.g. Jerusalem, New York") },
-                                    singleLine    = true
+                                    value         = cityInput,
+                                    onValueChange = { cityInput = it; cityDropdownExpanded = true },
+                                    modifier      = Modifier.fillMaxWidth().menuAnchor(),
+                                    placeholder   = { Text("Type a city name…") },
+                                    singleLine    = true,
+                                    trailingIcon  = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(
+                                            expanded = cityDropdownExpanded && citySuggestions.isNotEmpty()
+                                        )
+                                    }
                                 )
-                                Button(
-                                    onClick  = { viewModel.geocodeAndSaveCity(cityInput) },
-                                    enabled  = cityInput.isNotBlank() &&
-                                            geocodeStatus !is SettingsViewModel.GeoCodeStatus.Loading
+                                ExposedDropdownMenu(
+                                    expanded = cityDropdownExpanded && citySuggestions.isNotEmpty(),
+                                    onDismissRequest = { cityDropdownExpanded = false }
                                 ) {
-                                    Text("Set")
+                                    citySuggestions.forEach { city ->
+                                        DropdownMenuItem(
+                                            text    = { Text(city.displayName) },
+                                            onClick = {
+                                                cityInput = city.displayName
+                                                cityDropdownExpanded = false
+                                                viewModel.selectCity(city)
+                                            }
+                                        )
+                                    }
                                 }
                             }
-                            when (val status = geocodeStatus) {
-                                is SettingsViewModel.GeoCodeStatus.Loading ->
-                                    LinearProgressIndicator(Modifier.fillMaxWidth())
-                                is SettingsViewModel.GeoCodeStatus.Success ->
-                                    Text("✓ Location set: ${status.city}",
-                                        color = MaterialTheme.colorScheme.primary,
-                                        style = MaterialTheme.typography.bodySmall)
-                                is SettingsViewModel.GeoCodeStatus.Error ->
-                                    Text(status.message,
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.bodySmall)
-                                else -> {}
-                            }
-                        }
-                    }
-                }
-
-                // GPS permission hint
-                if (prefs.zmanimLocationSource == ZmanimLocationSource.GPS &&
-                    !viewModel.hasLocationPermission) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                    ) {
-                        Row(
-                            Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(Icons.Default.LocationOff, contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onErrorContainer)
-                            Text(
-                                "Location permission required for GPS mode. Tap to grant.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
+                            GeoStatusRow(geocodeStatus, prefs.zmanimManualCity)
                         }
                     }
                 }
@@ -311,5 +331,27 @@ fun SegmentedSettingRow(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun GeoStatusRow(status: SettingsViewModel.GeoCodeStatus, currentCity: String) {
+    when (status) {
+        is SettingsViewModel.GeoCodeStatus.Loading ->
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+        is SettingsViewModel.GeoCodeStatus.Success ->
+            Text("✓ ${status.city}",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodySmall)
+        is SettingsViewModel.GeoCodeStatus.Error ->
+            Text(status.message,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall)
+        is SettingsViewModel.GeoCodeStatus.Idle ->
+            if (currentCity.isNotEmpty()) {
+                Text("Current: $currentCity",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall)
+            }
     }
 }

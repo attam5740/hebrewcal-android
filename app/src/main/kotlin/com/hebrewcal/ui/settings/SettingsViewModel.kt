@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     private val prefsRepo = UserPreferencesRepository(app)
-    private val locationHelper = LocationHelper(app)
+    private val locationHelper by lazy { LocationHelper(getApplication()) }
 
     val preferences: StateFlow<UserPreferences> = prefsRepo.preferences
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserPreferences())
@@ -61,15 +61,22 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         notifyServiceRefresh()
     }
 
-    fun geocodeAndSaveCity(city: String) = viewModelScope.launch {
+    fun selectCity(city: CityData) = viewModelScope.launch {
+        prefsRepo.updateZmanimManualLocation(city.name, city.latitude, city.longitude)
+        _geocodeStatus.value = GeoCodeStatus.Success(city.displayName)
+        notifyServiceRefresh()
+    }
+
+    fun detectNearestCity() = viewModelScope.launch {
         _geocodeStatus.value = GeoCodeStatus.Loading
-        val result = locationHelper.geocodeCity(city)
-        if (result != null) {
-            prefsRepo.updateZmanimManualLocation(city, result.latitude, result.longitude)
-            _geocodeStatus.value = GeoCodeStatus.Success(city)
+        try {
+            val loc = locationHelper.getCurrentLocation()
+            val nearest = CityDatabase.findNearest(loc.latitude, loc.longitude)
+            prefsRepo.updateZmanimManualLocation(nearest.name, nearest.latitude, nearest.longitude)
+            _geocodeStatus.value = GeoCodeStatus.Success(nearest.displayName)
             notifyServiceRefresh()
-        } else {
-            _geocodeStatus.value = GeoCodeStatus.Error("City not found. Try a different spelling.")
+        } catch (e: Exception) {
+            _geocodeStatus.value = GeoCodeStatus.Error("Could not get GPS location.")
         }
     }
 

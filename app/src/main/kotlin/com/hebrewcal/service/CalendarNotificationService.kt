@@ -6,6 +6,8 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
@@ -27,15 +29,22 @@ class CalendarNotificationService : Service() {
     override fun onCreate() {
         super.onCreate()
         LockscreenNotificationBuilder.createNotificationChannel(this)
-        // Start as foreground immediately with a placeholder
-        startForeground(
-            LockscreenNotificationBuilder.NOTIFICATION_ID,
-            LockscreenNotificationBuilder.build(
-                this,
-                HebrewDateInfo("", "", null, null, false, 0, "", 0),
-                null, false, true, true
-            )
+        // Start as foreground immediately with a placeholder.
+        // Android 14+ requires the foreground service type to be passed explicitly.
+        val placeholder = LockscreenNotificationBuilder.build(
+            this,
+            HebrewDateInfo("", "", null, null, false, 0, "", 0),
+            null, false, true, true
         )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                LockscreenNotificationBuilder.NOTIFICATION_ID,
+                placeholder,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        } else {
+            startForeground(LockscreenNotificationBuilder.NOTIFICATION_ID, placeholder)
+        }
         refreshAndSchedule()
     }
 
@@ -107,7 +116,8 @@ class CalendarNotificationService : Service() {
                 ) {
                     try {
                         val loc = LocationHelper(applicationContext).getCurrentLocation()
-                        Pair(loc.latitude, loc.longitude)
+                        val nearest = CityDatabase.findNearest(loc.latitude, loc.longitude)
+                        Pair(nearest.latitude, nearest.longitude)
                     } catch (e: Exception) {
                         Pair(prefs.zmanimManualLat, prefs.zmanimManualLng)
                     }
