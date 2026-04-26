@@ -26,7 +26,14 @@ class LocationHelper(private val context: Context) {
                 if (location != null) {
                     cont.resume(LatLng(location.latitude, location.longitude))
                 } else {
-                    cont.resumeWithException(Exception("Location unavailable"))
+                    // getCurrentLocation returns null when no recent fix is cached;
+                    // fall back to lastLocation before giving up.
+                    fusedLocationClient.lastLocation
+                        .addOnSuccessListener { last ->
+                            if (last != null) cont.resume(LatLng(last.latitude, last.longitude))
+                            else cont.resumeWithException(Exception("Location unavailable"))
+                        }
+                        .addOnFailureListener { e -> cont.resumeWithException(e) }
                 }
             }
             .addOnFailureListener { e -> cont.resumeWithException(e) }

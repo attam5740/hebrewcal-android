@@ -5,11 +5,9 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
 import com.hebrewcal.data.*
 import com.hebrewcal.receiver.ZmanAlarmReceiver
@@ -115,26 +113,11 @@ class CalendarNotificationService : Service() {
         }
     }
 
-    private suspend fun resolveLocation(prefs: UserPreferences): Pair<Double, Double> {
-        return when (prefs.zmanimLocationSource) {
-            ZmanimLocationSource.GPS -> {
-                if (ActivityCompat.checkSelfPermission(
-                        applicationContext, android.Manifest.permission.ACCESS_FINE_LOCATION
-                    ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    try {
-                        val loc = LocationHelper(applicationContext).getCurrentLocation()
-                        val nearest = CityDatabase.findNearest(loc.latitude, loc.longitude)
-                        Pair(nearest.latitude, nearest.longitude)
-                    } catch (e: Exception) {
-                        Pair(prefs.zmanimManualLat, prefs.zmanimManualLng)
-                    }
-                } else {
-                    Pair(prefs.zmanimManualLat, prefs.zmanimManualLng)
-                }
-            }
-            ZmanimLocationSource.MANUAL -> Pair(prefs.zmanimManualLat, prefs.zmanimManualLng)
-        }
+    private fun resolveLocation(prefs: UserPreferences): Pair<Double, Double> {
+        // Always use the stored city coordinates. In GPS mode the user taps "Detect Nearest
+        // City" in Settings which resolves GPS → nearest city and saves it to manual prefs.
+        // Doing live GPS here in the background is unreliable on OEM ROMs (OPPO, etc.).
+        return Pair(prefs.zmanimManualLat, prefs.zmanimManualLng)
     }
 
     private fun scheduleZmanAlarms(lat: Double, lng: Double, prefs: UserPreferences) {
