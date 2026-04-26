@@ -16,17 +16,21 @@ import com.hebrewcal.ui.settings.SettingsActivity
 
 object LockscreenNotificationBuilder {
 
-    const val CHANNEL_ID = "hebrew_calendar_lockscreen"
+    // Channel ID bumped to force re-creation with IMPORTANCE_DEFAULT so the
+    // notification appears on the lockscreen (IMPORTANCE_LOW is suppressed by many OEM ROMs).
+    const val CHANNEL_ID = "hebrew_calendar_lockscreen_v2"
     const val NOTIFICATION_ID = 1001
 
     fun createNotificationChannel(context: Context) {
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Hebrew Calendar",
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
             description = "Hebrew date and zmanim on lockscreen"
             setShowBadge(false)
+            setSound(null, null)          // silent — no alert sound
+            enableVibration(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         val nm = context.getSystemService(NotificationManager::class.java)
@@ -119,14 +123,22 @@ object LockscreenNotificationBuilder {
             expandedViews.setViewVisibility(R.id.ll_zmanim_container, android.view.View.GONE)
         }
 
+        // Build a sub-text for standard lockscreen fallback (shown when custom view isn't rendered)
+        val subText = listOfNotNull(
+            dateInfo.holidayName,
+            dateInfo.parshaName
+        ).joinToString(" · ").ifEmpty { dateInfo.gregorianDateString }
+
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_star_of_david)
+            .setContentTitle(dateInfo.hebrewDateString.ifEmpty { "Hebrew Calendar" })
+            .setContentText(subText)
             .setCustomContentView(remoteViews)
             .setCustomBigContentView(expandedViews)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
