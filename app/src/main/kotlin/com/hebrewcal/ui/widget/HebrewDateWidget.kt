@@ -1,6 +1,7 @@
 package com.hebrewcal.ui.widget
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.glance.GlanceId
@@ -46,6 +47,7 @@ class HebrewDateWidget : GlanceAppWidget() {
 
         provideContent {
             HebrewDateWidgetContent(
+                context    = context,
                 dateInfo   = dateInfo,
                 zmanimData = zmanimData,
                 prefs      = prefs
@@ -56,6 +58,7 @@ class HebrewDateWidget : GlanceAppWidget() {
 
 @Composable
 fun HebrewDateWidgetContent(
+    context: Context,
     dateInfo: HebrewDateInfo,
     zmanimData: ZmanimData?,
     prefs: UserPreferences
@@ -71,7 +74,7 @@ fun HebrewDateWidgetContent(
             .fillMaxSize()
             .background(bgColor)
             .cornerRadius(16)
-            .clickable(actionStartActivity<SettingsActivity>()),
+            .clickable(actionStartActivity(Intent(context, SettingsActivity::class.java))),
         contentAlignment = Alignment.TopStart
     ) {
         Column(

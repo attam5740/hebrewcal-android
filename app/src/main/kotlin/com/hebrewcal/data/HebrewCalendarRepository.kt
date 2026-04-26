@@ -70,7 +70,7 @@ class HebrewCalendarRepository {
 
     private fun getHolidayInfo(cal: JewishCalendar, language: CalendarLanguage): HolidayInfo? {
         val index = cal.yomTovIndex
-        if (index == JewishCalendar.NO_SPECIAL_JEWISH_DAY) {
+        if (index == -1) {
             return if (cal.dayOfWeek == 7) HolidayInfo(
                 if (language == CalendarLanguage.HEBREW) "שַׁבָּת" else "Shabbat", 6
             ) else null
@@ -80,21 +80,29 @@ class HebrewCalendarRepository {
             // Major Yom Tov - priority 1
             JewishCalendar.ROSH_HASHANA        -> Pair("Rosh Hashana", 1)
             JewishCalendar.YOM_KIPPUR          -> Pair("Yom Kippur", 1)
-            JewishCalendar.SUCCOS              -> Pair("Sukkot I", 1)
-            JewishCalendar.SECOND_DAY_OF_SUCCOS -> Pair("Sukkot II", 1)
-            JewishCalendar.SHEMINI_ATZERES     -> Pair("Shemini Atzeret", 1)
-            JewishCalendar.SIMCHAS_TORAH       -> Pair("Simchat Torah", 1)
-            JewishCalendar.PESACH              -> Pair("Pesach I", 1)
-            JewishCalendar.SECOND_DAY_OF_PESACH -> Pair("Pesach II", 1)
-            JewishCalendar.SHAVUOS             -> Pair("Shavuot I", 1)
-            JewishCalendar.SECOND_DAY_OF_SHAVUOS -> Pair("Shavuot II", 1)
+            JewishCalendar.SUCCOS          -> {
+                if (cal.jewishDayOfMonth == 15) Pair("Sukkot I", 1) else Pair("Sukkot II", 1)
+            }
+            JewishCalendar.SHEMINI_ATZERES -> Pair("Shemini Atzeret", 1)
+            JewishCalendar.SIMCHAS_TORAH   -> Pair("Simchat Torah", 1)
+            JewishCalendar.PESACH          -> {
+                when (cal.jewishDayOfMonth) {
+                    15 -> Pair("Pesach I", 1)
+                    16 -> Pair("Pesach II", 1)
+                    21 -> Pair("Pesach VII", 1)
+                    else -> Pair("Pesach VIII", 1)
+                }
+            }
+            JewishCalendar.SHAVUOS         -> {
+                if (cal.jewishDayOfMonth == 6) Pair("Shavuot I", 1) else Pair("Shavuot II", 1)
+            }
             // Chol HaMoed - priority 2
             JewishCalendar.CHOL_HAMOED_SUCCOS  -> {
                 // Sukkot: 15 Tishrei = day 1 (Yom Tov), Chol HaMoed = days 2-6 (16-20 Tishrei)
                 val day = cal.jewishDayOfMonth - 15
                 Pair("Chol HaMoed Sukkot Day $day", 2)
             }
-            JewishCalendar.HOSHANA_RABA        -> Pair("Hoshana Raba", 2)
+            JewishCalendar.HOSHANA_RABBA       -> Pair("Hoshana Raba", 2)
             JewishCalendar.CHOL_HAMOED_PESACH  -> {
                 // Pesach: 15 Nisan = day 1 (Yom Tov), Chol HaMoed = days 2-6 (16-20 Nisan)
                 val day = cal.jewishDayOfMonth - 15
@@ -107,12 +115,13 @@ class HebrewCalendarRepository {
                 }
                 // When it's the 30th, we're in the first day of Rosh Chodesh (month not yet changed).
                 // We want to display the month that is *beginning*, i.e. next month.
-                val rcCal = JewishCalendar(cal.time).apply { inIsrael = cal.inIsrael }
+                val rcCal = JewishCalendar(cal.localDate).apply { inIsrael = cal.inIsrael }
                 if (rcCal.jewishDayOfMonth == 30) {
                     // Move to next Jewish month
                     var nextMonth = rcCal.jewishMonth + 1
                     var nextYear  = rcCal.jewishYear
-                    if (nextMonth > JewishDate.getLastMonthOfJewishYear(nextYear)) {
+                    val isLeapYear = ((7L * nextYear) + 1) % 19 < 7
+                    if (nextMonth > (if (isLeapYear) JewishDate.ADAR_II else JewishDate.ADAR)) {
                         nextMonth = JewishDate.NISSAN
                         nextYear++
                     }
@@ -163,8 +172,8 @@ class HebrewCalendarRepository {
     ): String? {
         if (cal.dayOfWeek != 7) return null // only show on Shabbat
         return try {
-            val parsha = cal.parshaIndex
-            if (parsha == JewishCalendar.NONE) null
+            val parsha = cal.parshah
+            if (parsha == JewishCalendar.Parsha.NONE) null
             else {
                 val parshaStr = formatter.formatParsha(cal)
                 if (parshaStr.isBlank()) null

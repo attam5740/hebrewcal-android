@@ -20,7 +20,7 @@ class DateChangeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             Intent.ACTION_DATE_CHANGED,
-            Intent.ACTION_TIME_SET,
+            "android.intent.action.TIME_SET",
             Intent.ACTION_TIMEZONE_CHANGED -> {
                 CalendarNotificationService.refresh(context)
             }

@@ -142,6 +142,7 @@ private fun ZmanimGroupHeader(title: String) {
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ZmanCheckRow(
     key: String,
