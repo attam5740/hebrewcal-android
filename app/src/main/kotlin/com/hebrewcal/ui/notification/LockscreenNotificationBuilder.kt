@@ -16,22 +16,25 @@ import com.hebrewcal.ui.settings.SettingsActivity
 
 object LockscreenNotificationBuilder {
 
-    // Channel ID bumped to force re-creation with IMPORTANCE_DEFAULT so the
-    // notification appears on the lockscreen (IMPORTANCE_LOW is suppressed by many OEM ROMs).
-    const val CHANNEL_ID = "hebrew_calendar_lockscreen_v2"
+    // Channel ID bumped to v3: OxygenOS requires IMPORTANCE_HIGH (4) for lockscreen display.
+    // IMPORTANCE_DEFAULT (3) sets mShowBanner=false in OxygenOS and is silently excluded
+    // from the lockscreen regardless of VISIBILITY_PUBLIC. Sound/vibration are suppressed
+    // at the channel level so HIGH importance is silent-but-visible.
+    const val CHANNEL_ID = "hebrew_calendar_lockscreen_v3"
     const val NOTIFICATION_ID = 1001
 
     fun createNotificationChannel(context: Context) {
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Hebrew Calendar",
-            NotificationManager.IMPORTANCE_DEFAULT
+            NotificationManager.IMPORTANCE_HIGH   // OxygenOS requires HIGH to set mShowBanner=true
         ).apply {
             description = "Hebrew date and zmanim on lockscreen"
             setShowBadge(false)
-            setSound(null, null)          // silent — no alert sound
+            setSound(null, null)          // silent — no alert sound despite HIGH importance
             enableVibration(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            setBypassDnd(true)            // show through Bedtime/DND if user grants policy access
         }
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(channel)
@@ -138,7 +141,7 @@ object LockscreenNotificationBuilder {
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_STATUS)

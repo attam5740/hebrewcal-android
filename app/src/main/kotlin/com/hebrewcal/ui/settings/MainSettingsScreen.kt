@@ -1,5 +1,8 @@
 package com.hebrewcal.ui.settings
 
+import android.app.NotificationManager
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -10,8 +13,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.hebrewcal.data.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -21,9 +26,13 @@ fun MainSettingsScreen(
     onNavigateToZmanimSelection: () -> Unit,
     onRequestLocationPermission: () -> Unit
 ) {
+    val context = LocalContext.current
     val prefs by viewModel.preferences.collectAsState()
     val geocodeStatus by viewModel.geocodeStatus.collectAsState()
     var cityInput by remember { mutableStateOf("") }
+
+    val nm = context.getSystemService(NotificationManager::class.java)
+    val hasDndAccess = nm.isNotificationPolicyAccessGranted
     var cityDropdownExpanded by remember { mutableStateOf(false) }
     val citySuggestions = remember(cityInput) { CityDatabase.search(cityInput) }
 
@@ -50,6 +59,48 @@ fun MainSettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+
+            // ── DND / Bedtime warning ─────────────────────────────────────
+            if (!hasDndAccess) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            Icons.Default.NotificationsOff,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                "Bedtime / Do Not Disturb blocks lockscreen",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Text(
+                                "If Bedtime mode is on, the notification won't appear on the lockscreen. Grant Do Not Disturb access so the Hebrew Calendar can show through.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            OutlinedButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Grant Do Not Disturb Access") }
+                        }
+                    }
+                }
+            }
 
             // ── Calendar Section ──────────────────────────────────────────
             SettingsSectionHeader(icon = Icons.Default.CalendarMonth, title = "Calendar")
