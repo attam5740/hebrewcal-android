@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hebrew Calendar</string>
+    <string name="widget_description">Displays the Hebrew date and upcoming zmanim</string>
+    <string name="notification_channel_name">Hebrew Calendar</string>
+    <string name="notification_channel_desc">Hebrew date and zmanim on lockscreen</string>
+    <string name="settings_title">Hebrew Calendar Settings</string>
+    <string name="section_calendar">Calendar</string>
+    <string name="section_zmanim">Zmanim</string>
+    <string name="pref_language">Display Language</string>
+    <string name="pref_location">Holiday Location</string>
+    <string name="pref_show_parsha">Show Weekly Parsha</string>
+    <string name="pref_show_gregorian">Show Gregorian Date</string>
+    <string name="pref_show_zmanim">Show Zmanim</string>
+    <string name="pref_time_format">Time Format</string>
+    <string name="pref_location_source">Location for Zmanim</string>
+    <string name="pref_select_zmanim">Select Zmanim to Display</string>
+</resources>

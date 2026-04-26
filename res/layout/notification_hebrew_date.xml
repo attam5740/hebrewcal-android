@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="4dp"
+    android:gravity="start">
+
+    <!-- Hebrew date — primary large text -->
+    <TextView
+        android:id="@+id/tv_hebrew_date"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#E8D5B7"
+        android:fontFamily="serif"
+        android:text="כ״ב ניסן תשפ״ו"
+        android:gravity="start" />
+
+    <!-- Gregorian date -->
+    <TextView
+        android:id="@+id/tv_gregorian"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="#AA9977"
+        android:text="April 22, 2026"
+        android:layout_marginTop="1dp" />
+
+    <!-- Holiday label -->
+    <TextView
+        android:id="@+id/tv_holiday"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="#D4AF37"
+        android:text=""
+        android:layout_marginTop="2dp" />
+
+    <!-- Next zman (collapsed) -->
+    <TextView
+        android:id="@+id/tv_next_zman"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="#7EC8E3"
+        android:text=""
+        android:layout_marginTop="3dp"
+        android:visibility="gone" />
+
+</LinearLayout>

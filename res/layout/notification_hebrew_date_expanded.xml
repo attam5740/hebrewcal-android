@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:gravity="start">
+
+    <!-- Hebrew date — large -->
+    <TextView
+        android:id="@+id/tv_hebrew_date_exp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="#E8D5B7"
+        android:fontFamily="serif"
+        android:text="כ״ב ניסן תשפ״ו" />
+
+    <!-- Gregorian date -->
+    <TextView
+        android:id="@+id/tv_gregorian_exp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="#AA9977"
+        android:text="April 22, 2026"
+        android:layout_marginTop="2dp" />
+
+    <!-- Holiday -->
+    <TextView
+        android:id="@+id/tv_holiday_exp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="#D4AF37"
+        android:layout_marginTop="2dp"
+        android:text="" />
+
+    <!-- Parsha -->
+    <TextView
+        android:id="@+id/tv_parsha_exp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="#B8A888"
+        android:layout_marginTop="1dp"
+        android:text=""
+        android:visibility="gone" />
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#33FFFFFF"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="6dp" />
+
+    <!-- Zmanim container — rows added dynamically -->
+    <LinearLayout
+        android:id="@+id/ll_zmanim_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone" />
+
+</LinearLayout>

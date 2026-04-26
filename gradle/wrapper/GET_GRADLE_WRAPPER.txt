@@ -1,0 +1,17 @@
+The gradle-wrapper.jar file must be added here before building.
+
+OPTION 1 — Android Studio (easiest):
+  Open the project in Android Studio. It will automatically detect the missing
+  wrapper jar and offer to generate it. Click "OK" when prompted.
+
+OPTION 2 — Command line (if you have Gradle installed):
+  cd <project-root>
+  gradle wrapper --gradle-version 8.4
+
+OPTION 3 — Download manually:
+  Download gradle-wrapper.jar from:
+  https://github.com/gradle/gradle/blob/v8.4.0/gradle/wrapper/gradle-wrapper.jar
+  Place it in: gradle/wrapper/gradle-wrapper.jar
+
+This is a standard Android project requirement. The jar is not included in
+version control by some teams, but Android Studio always handles it automatically.

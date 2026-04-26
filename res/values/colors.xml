@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#1A1A25</color>
+    <color name="gold">#D4AF37</color>
+    <color name="parchment">#E8D5B7</color>
+    <color name="sky_blue">#7EC8E3</color>
+    <color name="dark_bg">#121218</color>
+    <color name="surface">#1A1A25</color>
+    <color name="muted_gold">#AA9977</color>
+</resources>
