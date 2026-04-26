@@ -49,8 +49,8 @@
         android:text=""
         android:visibility="gone" />
 
-    <!-- Divider -->
-    <View
+    <!-- Divider — plain View is not in RemoteViews whitelist; use TextView instead -->
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="#33FFFFFF"
