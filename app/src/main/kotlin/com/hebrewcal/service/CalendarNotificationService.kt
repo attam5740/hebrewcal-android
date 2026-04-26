@@ -58,7 +58,33 @@ class CalendarNotificationService : Service() {
 
     override fun onDestroy() {
         scope.cancel()
+        scheduleRestartAlarm()
         super.onDestroy()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        scheduleRestartAlarm()
+        super.onTaskRemoved(rootIntent)
+    }
+
+    private fun scheduleRestartAlarm() {
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(applicationContext, ZmanAlarmReceiver::class.java).apply {
+            action = ZmanAlarmReceiver.ACTION_SERVICE_RESTART
+        }
+        val pi = PendingIntent.getBroadcast(
+            applicationContext,
+            RESTART_REQUEST_CODE,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        try {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                System.currentTimeMillis() + RESTART_DELAY_MS,
+                pi
+            )
+        } catch (e: Exception) { /* non-fatal */ }
     }
 
     private fun refreshAndSchedule() {
@@ -200,6 +226,8 @@ class CalendarNotificationService : Service() {
     companion object {
         const val ZMAN_ALARM_BASE_REQUEST_CODE = 2000
         const val MIDNIGHT_ALARM_REQUEST_CODE = 2100
+        const val RESTART_REQUEST_CODE = 2200
+        const val RESTART_DELAY_MS = 5_000L
 
         fun start(context: Context) {
             val intent = Intent(context, CalendarNotificationService::class.java)

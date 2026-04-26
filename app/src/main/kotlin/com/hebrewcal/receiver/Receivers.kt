@@ -32,15 +32,17 @@ class ZmanAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             ACTION_ZMAN_TRANSITION,
-            ACTION_MIDNIGHT_REFRESH -> {
+            ACTION_MIDNIGHT_REFRESH,
+            ACTION_SERVICE_RESTART -> {
                 CalendarNotificationService.refresh(context)
             }
         }
     }
 
     companion object {
-        const val ACTION_ZMAN_TRANSITION = "com.hebrewcal.ZMAN_TRANSITION"
+        const val ACTION_ZMAN_TRANSITION  = "com.hebrewcal.ZMAN_TRANSITION"
         const val ACTION_MIDNIGHT_REFRESH = "com.hebrewcal.MIDNIGHT_REFRESH"
+        const val ACTION_SERVICE_RESTART  = "com.hebrewcal.SERVICE_RESTART"
         const val EXTRA_ZMAN_KEY = "zman_key"
     }
 }

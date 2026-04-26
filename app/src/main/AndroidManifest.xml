@@ -36,6 +36,7 @@
         <service
             android:name=".service.CalendarNotificationService"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
@@ -63,12 +64,14 @@
             </intent-filter>
         </receiver>
 
-        <!-- Alarm receiver for zman transitions -->
+        <!-- Alarm receiver for zman transitions and service restart -->
         <receiver
             android:name=".receiver.ZmanAlarmReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.hebrewcal.ZMAN_TRANSITION" />
+                <action android:name="com.hebrewcal.MIDNIGHT_REFRESH" />
+                <action android:name="com.hebrewcal.SERVICE_RESTART" />
             </intent-filter>
         </receiver>
 
