@@ -16,6 +16,9 @@ import androidx.glance.background
 import androidx.glance.layout.*
 import androidx.glance.text.*
 import androidx.glance.unit.ColorProvider
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.TextUnitType
+import androidx.compose.ui.unit.dp
 import com.hebrewcal.data.*
 import com.hebrewcal.ui.settings.SettingsActivity
 import kotlinx.coroutines.flow.first
