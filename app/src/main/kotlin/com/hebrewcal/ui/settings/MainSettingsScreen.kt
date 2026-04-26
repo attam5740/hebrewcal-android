@@ -91,7 +91,7 @@ fun MainSettingsScreen(
                             OutlinedButton(
                                 onClick = {
                                     context.startActivity(
-                                        Intent(Settings.ACTION_NOTIFICATION_SETTINGS)
+                                        Intent("android.settings.NOTIFICATION_SETTINGS")
                                     )
                                 },
                                 modifier = Modifier.fillMaxWidth()
