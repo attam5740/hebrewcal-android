@@ -33,6 +33,11 @@ fun MainSettingsScreen(
 
     val nm = context.getSystemService(NotificationManager::class.java)
     val hasDndAccess = nm.isNotificationPolicyAccessGranted
+
+    // Detect OxygenOS/Android master lockscreen-notifications switch
+    val lockscreenNotificationsEnabled = android.provider.Settings.Secure.getInt(
+        context.contentResolver, "lock_screen_show_notifications", 1
+    ) != 0
     var cityDropdownExpanded by remember { mutableStateOf(false) }
     val citySuggestions = remember(cityInput) { CityDatabase.search(cityInput) }
 
@@ -59,6 +64,42 @@ fun MainSettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+
+            // ── Lockscreen master switch warning ──────────────────────────
+            if (!lockscreenNotificationsEnabled) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(Icons.Default.LockOpen, contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(top = 2.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("Lock screen notifications are OFF",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onErrorContainer)
+                            Text(
+                                "Your device has \"Show notifications on lock screen\" disabled globally. No app can show on the lockscreen until you turn this on.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer)
+                            OutlinedButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(Settings.ACTION_NOTIFICATION_SETTINGS)
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Open Notification Settings") }
+                        }
+                    }
+                }
+            }
 
             // ── DND / Bedtime warning ─────────────────────────────────────
             if (!hasDndAccess) {
