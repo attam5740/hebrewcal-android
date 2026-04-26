@@ -7,9 +7,7 @@ import com.hebrewcal.service.MidnightUpdateWorker
 class HebrewCalendarApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        // Start persistent lockscreen notification service
-        CalendarNotificationService.start(this)
-        // Schedule daily WorkManager backup refresh
-        MidnightUpdateWorker.schedule(this)
+        try { CalendarNotificationService.start(this) } catch (e: Exception) { /* non-fatal */ }
+        try { MidnightUpdateWorker.schedule(this) }    catch (e: Exception) { /* non-fatal */ }
     }
 }

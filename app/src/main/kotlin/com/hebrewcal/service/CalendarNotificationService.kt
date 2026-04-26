@@ -20,7 +20,8 @@ import java.util.*
 
 class CalendarNotificationService : Service() {
 
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val exceptionHandler = CoroutineExceptionHandler { _, _ -> /* keep service alive */ }
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob() + exceptionHandler)
     private val calRepo = HebrewCalendarRepository()
     private val zmanimRepo = ZmanimRepository()
 
@@ -28,22 +29,26 @@ class CalendarNotificationService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        LockscreenNotificationBuilder.createNotificationChannel(this)
-        // Start as foreground immediately with a placeholder.
-        // Android 14+ requires the foreground service type to be passed explicitly.
-        val placeholder = LockscreenNotificationBuilder.build(
-            this,
-            HebrewDateInfo("", "", null, null, false, 0, "", 0),
-            null, false, true, true
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(
-                LockscreenNotificationBuilder.NOTIFICATION_ID,
-                placeholder,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+        try {
+            LockscreenNotificationBuilder.createNotificationChannel(this)
+            val placeholder = LockscreenNotificationBuilder.build(
+                this,
+                HebrewDateInfo("", "", null, null, false, 0, "", 0),
+                null, false, true, true
             )
-        } else {
-            startForeground(LockscreenNotificationBuilder.NOTIFICATION_ID, placeholder)
+            // Android 14+ requires the foreground service type passed explicitly to startForeground.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    LockscreenNotificationBuilder.NOTIFICATION_ID,
+                    placeholder,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else {
+                startForeground(LockscreenNotificationBuilder.NOTIFICATION_ID, placeholder)
+            }
+        } catch (e: Exception) {
+            stopSelf()
+            return
         }
         refreshAndSchedule()
     }
@@ -60,50 +65,53 @@ class CalendarNotificationService : Service() {
 
     private fun refreshAndSchedule() {
         scope.launch {
-            val prefsRepo = UserPreferencesRepository(applicationContext)
-            val prefs = prefsRepo.preferences.first()
+            try {
+                val prefsRepo = UserPreferencesRepository(applicationContext)
+                val prefs = prefsRepo.preferences.first()
 
-            // Resolve location for zmanim
-            val (lat, lng) = resolveLocation(prefs)
+                val (lat, lng) = resolveLocation(prefs)
 
-            // Build date info
-            val dateInfo = calRepo.getDateInfo(
-                date     = Date(),
-                language = prefs.language,
-                location = prefs.location
-            )
+                val dateInfo = try {
+                    calRepo.getDateInfo(
+                        date     = Date(),
+                        language = prefs.language,
+                        location = prefs.location
+                    )
+                } catch (e: Exception) {
+                    HebrewDateInfo("", "", null, null, false, 0, "", 0)
+                }
 
-            // Build zmanim if enabled and we have location
-            val zmanimData = if (prefs.showZmanim && lat != 0.0 && lng != 0.0) {
-                zmanimRepo.getZmanim(
-                    latitude       = lat,
-                    longitude      = lng,
-                    timeZone       = TimeZone.getDefault(),
-                    date           = Date(),
-                    selectedZmanim = prefs.selectedZmanim,
-                    timeFormat     = prefs.zmanimTimeFormat
+                val zmanimData = if (prefs.showZmanim && lat != 0.0 && lng != 0.0) {
+                    try {
+                        zmanimRepo.getZmanim(
+                            latitude       = lat,
+                            longitude      = lng,
+                            timeZone       = TimeZone.getDefault(),
+                            date           = Date(),
+                            selectedZmanim = prefs.selectedZmanim,
+                            timeFormat     = prefs.zmanimTimeFormat
+                        )
+                    } catch (e: Exception) { null }
+                } else null
+
+                val notification = LockscreenNotificationBuilder.build(
+                    context       = applicationContext,
+                    dateInfo      = dateInfo,
+                    zmanimData    = zmanimData,
+                    showZmanim    = prefs.showZmanim,
+                    showGregorian = prefs.showGregorianDate,
+                    showParsha    = prefs.showParsha
                 )
-            } else null
+                NotificationManagerCompat.from(applicationContext)
+                    .notify(LockscreenNotificationBuilder.NOTIFICATION_ID, notification)
 
-            // Post notification
-            val notification = LockscreenNotificationBuilder.build(
-                context      = applicationContext,
-                dateInfo     = dateInfo,
-                zmanimData   = zmanimData,
-                showZmanim   = prefs.showZmanim,
-                showGregorian = prefs.showGregorianDate,
-                showParsha   = prefs.showParsha
-            )
-            NotificationManagerCompat.from(applicationContext)
-                .notify(LockscreenNotificationBuilder.NOTIFICATION_ID, notification)
-
-            // Schedule zman transition alarms
-            if (prefs.showZmanim && lat != 0.0 && lng != 0.0) {
-                scheduleZmanAlarms(lat, lng, prefs)
+                if (prefs.showZmanim && lat != 0.0 && lng != 0.0) {
+                    try { scheduleZmanAlarms(lat, lng, prefs) } catch (e: Exception) { /* non-fatal */ }
+                }
+                try { scheduleMidnightAlarm() } catch (e: Exception) { /* non-fatal */ }
+            } catch (e: Exception) {
+                // Outer guard — service stays alive even if everything above fails
             }
-
-            // Schedule midnight refresh
-            scheduleMidnightAlarm()
         }
     }
 
