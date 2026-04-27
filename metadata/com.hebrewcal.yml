@@ -21,14 +21,11 @@ Repo: https://github.com/attam5740/hebrewcal-android
 Builds:
   - versionName: '1.0'
     versionCode: 1
-    # Tag this commit as v1.0 before submitting to fdroiddata:
-    #   git tag v1.0 af92d2046538feb0edd7062c8af7f55239b4734e
-    #   git push origin v1.0
     commit: v1.0
     gradle:
       - yes
 
-AutoUpdateMode: Version v%v
+AutoUpdateMode: Version +v%v
 UpdateCheckMode: Tags
 CurrentVersion: '1.0'
 CurrentVersionCode: 1
