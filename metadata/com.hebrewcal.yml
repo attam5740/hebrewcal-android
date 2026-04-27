@@ -2,11 +2,7 @@ Categories:
   - Time
 License: MIT
 AuthorName: matta
-SourceCode: https://github.com/attam5740/hebrewcal-android
-IssueTracker: https://github.com/attam5740/hebrewcal-android/issues
-
-# F-Droid reads title/description from fastlane/metadata/android/en-US/
-# if present in the source repo; the fields below are fallbacks.
+AutoName: Hebrew Calendar
 Summary: Hebrew date and zmanim on your lockscreen
 Description: |-
   Displays the current Hebrew date as a persistent lockscreen notification
@@ -14,6 +10,9 @@ Description: |-
   prayer times (zmanim), and Omer count.
 
   See the full description in fastlane/metadata/android/en-US/.
+
+SourceCode: https://github.com/attam5740/hebrewcal-android
+IssueTracker: https://github.com/attam5740/hebrewcal-android/issues
 
 RepoType: git
 Repo: https://github.com/attam5740/hebrewcal-android
