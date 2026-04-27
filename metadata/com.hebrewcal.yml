@@ -6,7 +6,6 @@ SourceCode: https://github.com/attam5740/hebrewcal-android
 IssueTracker: https://github.com/attam5740/hebrewcal-android/issues
 
 AutoName: Hebrew Calendar
-Summary: Hebrew date and zmanim on your lockscreen
 Description: |-
   Hebrew Calendar displays the current Hebrew date as a persistent lockscreen
   notification and home screen widget, with Jewish calendar information and
