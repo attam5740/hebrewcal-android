@@ -1,0 +1,46 @@
+Categories:
+  - Time
+License: MIT
+AuthorName: matta
+SourceCode: https://github.com/attam5740/hebrewcal-android
+IssueTracker: https://github.com/attam5740/hebrewcal-android/issues
+
+# F-Droid reads title/description from fastlane/metadata/android/en-US/
+# if present in the source repo; the fields below are fallbacks.
+Summary: Hebrew date and zmanim on your lockscreen
+Description: |-
+  Displays the current Hebrew date as a persistent lockscreen notification
+  and home screen widget, with Jewish holidays, weekly parsha, halachic
+  prayer times (zmanim), and Omer count.
+
+  See the full description in fastlane/metadata/android/en-US/.
+
+RepoType: git
+Repo: https://github.com/attam5740/hebrewcal-android
+
+Builds:
+  - versionName: '1.0'
+    versionCode: 1
+    # Tag this commit as v1.0 before submitting to fdroiddata:
+    #   git tag v1.0 af92d2046538feb0edd7062c8af7f55239b4734e
+    #   git push origin v1.0
+    commit: v1.0
+    gradle:
+      - yes
+
+AutoUpdateMode: Version v%v
+UpdateCheckMode: Tags
+CurrentVersion: '1.0'
+CurrentVersionCode: 1
+
+# ── BLOCKER before F-Droid submission ────────────────────────────────────────
+# F-Droid policy requires all dependencies to be free software.
+# app/build.gradle currently includes:
+#
+#   com.google.android.gms:play-services-location    ← NON-FREE, must be removed
+#   org.jetbrains.kotlinx:kotlinx-coroutines-play-services ← depends on the above
+#
+# Replace LocationHelper.kt to use android.location.LocationManager directly
+# (available since API 1, no Play Services required). Once removed, delete
+# these two lines from app/build.gradle and re-test GPS city detection.
+# ─────────────────────────────────────────────────────────────────────────────

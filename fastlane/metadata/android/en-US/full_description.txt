@@ -1,0 +1,26 @@
+Hebrew Calendar displays the current Hebrew date as a persistent lockscreen notification and home screen widget, with Jewish calendar information and optional halachic prayer times.
+
+<b>Calendar</b>
+• Hebrew date in Hebrew script (כ״ב ניסן תשפ״ו) or English transliteration
+• Jewish holidays — Yom Tov, Chol HaMoed, Rosh Chodesh, fast days, and minor holidays
+• Shabbat label with weekly Torah portion (parsha)
+• Upcoming parsha displayed throughout the week, not only on Shabbat
+• Omer count during the 49 days between Pesach and Shavuot
+• Diaspora and Israel holiday modes
+
+<b>Zmanim (Prayer Times)</b>
+• Halachic times calculated by KosherJava — Alot HaShachar, HaNetz, Sof Zman Shema (GRA &amp; MGA), Chatzot, Mincha, Shkiah, Tzet HaKochavim, and more
+• City selected from a built-in database covering hundreds of Jewish communities worldwide
+• Next upcoming zman highlighted in the collapsed notification
+• 12-hour or 24-hour time format
+
+<b>Display</b>
+• Persistent lockscreen notification — always visible without unlocking
+• Home screen widget
+• Gregorian date shown alongside the Hebrew date
+• Survives Do Not Disturb and Bedtime mode with optional DND bypass permission
+
+<b>Privacy</b>
+• No internet connection required
+• No analytics or tracking
+• Location used only once to match the nearest city; stored locally and never transmitted

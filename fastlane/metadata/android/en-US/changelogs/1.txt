@@ -1,0 +1,7 @@
+Initial release.
+
+• Hebrew date on the lockscreen and home screen widget
+• Jewish holidays, Shabbat, parsha, and Omer count
+• Zmanim (prayer times) via KosherJava
+• Diaspora / Israel modes
+• Hebrew and English display languages
