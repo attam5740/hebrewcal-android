@@ -189,6 +189,14 @@ fun MainSettingsScreen(
                 )
             }
 
+            // Show Omer
+            SwitchSettingRow(
+                label    = "Show Omer Count",
+                subtitle = "Displayed during the 49 days between Pesach and Shavuot",
+                checked  = prefs.showOmer,
+                onCheck  = viewModel::setShowOmer
+            )
+
             // Show Gregorian
             SwitchSettingRow(
                 label   = "Show Gregorian Date",

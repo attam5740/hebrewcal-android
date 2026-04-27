@@ -46,7 +46,8 @@ object LockscreenNotificationBuilder {
         zmanimData: ZmanimData?,
         showZmanim: Boolean,
         showGregorian: Boolean,
-        showParsha: Boolean
+        showParsha: Boolean,
+        showOmer: Boolean = true
     ): Notification {
         val settingsIntent = Intent(context, SettingsActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -58,11 +59,15 @@ object LockscreenNotificationBuilder {
         val remoteViews = RemoteViews(context.packageName, R.layout.notification_hebrew_date)
         val expandedViews = RemoteViews(context.packageName, R.layout.notification_hebrew_date_expanded)
 
+        val omerText = if (showOmer && dateInfo.omerDay > 0) dateInfo.omerText else null
+
         // --- Collapsed view ---
         remoteViews.setTextViewText(R.id.tv_hebrew_date, dateInfo.hebrewDateString)
         remoteViews.setTextViewText(
             R.id.tv_holiday,
-            dateInfo.holidayName ?: if (dateInfo.isShabbat) "שַׁבָּת" else ""
+            dateInfo.holidayName
+                ?: if (dateInfo.isShabbat) "שַׁבָּת"
+                else omerText ?: ""
         )
         if (showGregorian) {
             remoteViews.setTextViewText(R.id.tv_gregorian, dateInfo.gregorianDateString)
@@ -98,6 +103,13 @@ object LockscreenNotificationBuilder {
             expandedViews.setViewVisibility(R.id.tv_parsha_exp, android.view.View.VISIBLE)
         } else {
             expandedViews.setViewVisibility(R.id.tv_parsha_exp, android.view.View.GONE)
+        }
+
+        if (omerText != null) {
+            expandedViews.setTextViewText(R.id.tv_omer_exp, omerText)
+            expandedViews.setViewVisibility(R.id.tv_omer_exp, android.view.View.VISIBLE)
+        } else {
+            expandedViews.setViewVisibility(R.id.tv_omer_exp, android.view.View.GONE)
         }
 
         // Zmanim list in expanded view

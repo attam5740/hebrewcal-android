@@ -14,6 +14,7 @@ data class UserPreferences(
     val location: CalendarLocation = CalendarLocation.DIASPORA,
     val showParsha: Boolean = true,
     val showParshaOnWeekdays: Boolean = false,
+    val showOmer: Boolean = true,
     val showGregorianDate: Boolean = true,
     val showZmanim: Boolean = false,
     val zmanimTimeFormat: ZmanimTimeFormat = ZmanimTimeFormat.TWELVE_HOUR,
@@ -89,6 +90,7 @@ object PreferenceKeys {
     val LOCATION = stringPreferencesKey("location")
     val SHOW_PARSHA = booleanPreferencesKey("show_parsha")
     val SHOW_PARSHA_WEEKDAYS = booleanPreferencesKey("show_parsha_weekdays")
+    val SHOW_OMER = booleanPreferencesKey("show_omer")
     val SHOW_GREGORIAN = booleanPreferencesKey("show_gregorian")
     val SHOW_ZMANIM = booleanPreferencesKey("show_zmanim")
     val ZMANIM_TIME_FORMAT = stringPreferencesKey("zmanim_time_format")
@@ -111,6 +113,7 @@ class UserPreferencesRepository(private val context: Context) {
             ),
             showParsha = prefs[PreferenceKeys.SHOW_PARSHA] ?: true,
             showParshaOnWeekdays = prefs[PreferenceKeys.SHOW_PARSHA_WEEKDAYS] ?: false,
+            showOmer = prefs[PreferenceKeys.SHOW_OMER] ?: true,
             showGregorianDate = prefs[PreferenceKeys.SHOW_GREGORIAN] ?: true,
             showZmanim = prefs[PreferenceKeys.SHOW_ZMANIM] ?: false,
             zmanimTimeFormat = ZmanimTimeFormat.valueOf(
@@ -140,6 +143,10 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateShowParshaOnWeekdays(show: Boolean) {
         context.dataStore.edit { it[PreferenceKeys.SHOW_PARSHA_WEEKDAYS] = show }
+    }
+
+    suspend fun updateShowOmer(show: Boolean) {
+        context.dataStore.edit { it[PreferenceKeys.SHOW_OMER] = show }
     }
 
     suspend fun updateShowGregorianDate(show: Boolean) {

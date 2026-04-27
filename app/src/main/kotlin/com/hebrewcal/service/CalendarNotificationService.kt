@@ -125,7 +125,8 @@ class CalendarNotificationService : Service() {
                     zmanimData    = zmanimData,
                     showZmanim    = prefs.showZmanim,
                     showGregorian = prefs.showGregorianDate,
-                    showParsha    = prefs.showParsha
+                    showParsha    = prefs.showParsha,
+                    showOmer      = prefs.showOmer
                 )
                 NotificationManagerCompat.from(applicationContext)
                     .notify(LockscreenNotificationBuilder.NOTIFICATION_ID, notification)

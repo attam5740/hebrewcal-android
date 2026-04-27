@@ -110,7 +110,8 @@ fun HebrewDateWidgetContent(
 
             val subLine = listOfNotNull(
                 dateInfo.holidayName,
-                if (prefs.showParsha) dateInfo.parshaName else null
+                if (prefs.showParsha) dateInfo.parshaName else null,
+                if (prefs.showOmer && dateInfo.omerDay > 0) dateInfo.omerText else null
             ).joinToString(" · ")
 
             if (subLine.isNotEmpty()) {

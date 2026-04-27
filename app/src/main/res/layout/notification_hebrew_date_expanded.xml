@@ -49,6 +49,17 @@
         android:text=""
         android:visibility="gone" />
 
+    <!-- Omer count -->
+    <TextView
+        android:id="@+id/tv_omer_exp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="#7EC8E3"
+        android:layout_marginTop="1dp"
+        android:text=""
+        android:visibility="gone" />
+
     <!-- Divider — plain View is not in RemoteViews whitelist; use TextView instead -->
     <TextView
         android:layout_width="match_parent"

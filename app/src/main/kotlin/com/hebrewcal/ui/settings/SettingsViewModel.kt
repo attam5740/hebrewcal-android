@@ -46,6 +46,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         notifyServiceRefresh()
     }
 
+    fun setShowOmer(show: Boolean) = viewModelScope.launch {
+        prefsRepo.updateShowOmer(show)
+        notifyServiceRefresh()
+    }
+
     fun setShowGregorian(show: Boolean) = viewModelScope.launch {
         prefsRepo.updateShowGregorianDate(show)
         notifyServiceRefresh()

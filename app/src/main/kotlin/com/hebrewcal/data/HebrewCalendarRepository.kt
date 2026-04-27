@@ -13,7 +13,9 @@ data class HebrewDateInfo(
     val isShabbat: Boolean,
     val hebrewDayNumber: Int,
     val hebrewMonthName: String,
-    val hebrewYear: Int
+    val hebrewYear: Int,
+    val omerDay: Int = 0,               // 1-49 during the Omer, 0 otherwise
+    val omerText: String? = null        // formatted display string, e.g. "Day 3 of the Omer"
 )
 
 data class HolidayInfo(
@@ -46,6 +48,8 @@ class HebrewCalendarRepository {
         val gregorianStr = formatGregorianDate(date)
         val holidayInfo = getHolidayInfo(jewishCalendar, language)
         val parsha = getParshaName(jewishCalendar, formatter, language, showParshaOnWeekdays)
+        val omerDay = jewishCalendar.dayOfOmer.coerceAtLeast(0)
+        val omerText = if (omerDay > 0) formatOmer(omerDay, language) else null
 
         return HebrewDateInfo(
             hebrewDateString  = hebrewDateStr,
@@ -55,7 +59,9 @@ class HebrewCalendarRepository {
             isShabbat         = jewishCalendar.dayOfWeek == 7,
             hebrewDayNumber   = jewishCalendar.jewishDayOfMonth,
             hebrewMonthName   = formatter.formatMonth(jewishCalendar),
-            hebrewYear        = jewishCalendar.jewishYear
+            hebrewYear        = jewishCalendar.jewishYear,
+            omerDay           = omerDay,
+            omerText          = omerText
         )
     }
 
@@ -68,6 +74,10 @@ class HebrewCalendarRepository {
         val sdf = java.text.SimpleDateFormat("MMMM d, yyyy", java.util.Locale.ENGLISH)
         return sdf.format(date)
     }
+
+    private fun formatOmer(day: Int, language: CalendarLanguage): String =
+        if (language == CalendarLanguage.HEBREW) "יום $day בעומר"
+        else "Day $day of the Omer"
 
     private fun getHolidayInfo(cal: JewishCalendar, language: CalendarLanguage): HolidayInfo? {
         val index = cal.yomTovIndex
