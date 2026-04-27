@@ -2,9 +2,10 @@ package com.hebrewcal.data
 
 import android.annotation.SuppressLint
 import android.content.Context
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
-import com.google.android.gms.tasks.CancellationTokenSource
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.os.Looper
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -13,30 +14,54 @@ data class LatLng(val latitude: Double, val longitude: Double)
 
 class LocationHelper(private val context: Context) {
 
-    private val fusedLocationClient by lazy {
-        LocationServices.getFusedLocationProviderClient(context)
-    }
-
     @SuppressLint("MissingPermission")
     suspend fun getCurrentLocation(): LatLng = suspendCancellableCoroutine { cont ->
-        val cts = CancellationTokenSource()
-        fusedLocationClient
-            .getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, cts.token)
-            .addOnSuccessListener { location ->
-                if (location != null) {
-                    cont.resume(LatLng(location.latitude, location.longitude))
-                } else {
-                    // getCurrentLocation returns null when no recent fix is cached;
-                    // fall back to lastLocation before giving up.
-                    fusedLocationClient.lastLocation
-                        .addOnSuccessListener { last ->
-                            if (last != null) cont.resume(LatLng(last.latitude, last.longitude))
-                            else cont.resumeWithException(Exception("Location unavailable"))
-                        }
-                        .addOnFailureListener { e -> cont.resumeWithException(e) }
-                }
+        val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+        // Return a cached fix immediately if one is available.
+        val providers = listOf(
+            LocationManager.GPS_PROVIDER,
+            LocationManager.NETWORK_PROVIDER,
+            LocationManager.PASSIVE_PROVIDER
+        )
+        for (provider in providers) {
+            val last = try { lm.getLastKnownLocation(provider) } catch (_: Exception) { null }
+            if (last != null) {
+                cont.resume(LatLng(last.latitude, last.longitude))
+                return@suspendCancellableCoroutine
             }
-            .addOnFailureListener { e -> cont.resumeWithException(e) }
-        cont.invokeOnCancellation { cts.cancel() }
+        }
+
+        // No cached fix — request a single fresh update.
+        val enabledProvider = when {
+            lm.isProviderEnabled(LocationManager.GPS_PROVIDER)     -> LocationManager.GPS_PROVIDER
+            lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
+            else -> {
+                cont.resumeWithException(Exception("No location provider available"))
+                return@suspendCancellableCoroutine
+            }
+        }
+
+        val listener = object : LocationListener {
+            override fun onLocationChanged(location: Location) {
+                lm.removeUpdates(this)
+                if (cont.isActive) cont.resume(LatLng(location.latitude, location.longitude))
+            }
+            @Deprecated("Deprecated in Java")
+            override fun onStatusChanged(provider: String, status: Int, extras: android.os.Bundle?) = Unit
+            override fun onProviderDisabled(provider: String) {
+                lm.removeUpdates(this)
+                if (cont.isActive) cont.resumeWithException(Exception("Location provider disabled"))
+            }
+        }
+
+        try {
+            @Suppress("DEPRECATION")
+            lm.requestSingleUpdate(enabledProvider, listener, Looper.getMainLooper())
+        } catch (e: Exception) {
+            cont.resumeWithException(e)
+        }
+
+        cont.invokeOnCancellation { lm.removeUpdates(listener) }
     }
 }

@@ -32,15 +32,3 @@ AutoUpdateMode: Version v%v
 UpdateCheckMode: Tags
 CurrentVersion: '1.0'
 CurrentVersionCode: 1
-
-# ── BLOCKER before F-Droid submission ────────────────────────────────────────
-# F-Droid policy requires all dependencies to be free software.
-# app/build.gradle currently includes:
-#
-#   com.google.android.gms:play-services-location    ← NON-FREE, must be removed
-#   org.jetbrains.kotlinx:kotlinx-coroutines-play-services ← depends on the above
-#
-# Replace LocationHelper.kt to use android.location.LocationManager directly
-# (available since API 1, no Play Services required). Once removed, delete
-# these two lines from app/build.gradle and re-test GPS city detection.
-# ─────────────────────────────────────────────────────────────────────────────

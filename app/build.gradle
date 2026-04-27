@@ -71,13 +71,9 @@ dependencies {
     // KosherJava - Hebrew calendar engine
     implementation 'com.kosherjava:zmanim:2.4.0'
 
-    // Location
-    implementation 'com.google.android.gms:play-services-location:21.1.0'
-
     // Serialization
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2'
 
     // Coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3'
 }
