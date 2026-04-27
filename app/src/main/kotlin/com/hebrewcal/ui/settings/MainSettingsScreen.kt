@@ -29,7 +29,7 @@ fun MainSettingsScreen(
     val context = LocalContext.current
     val prefs by viewModel.preferences.collectAsState()
     val geocodeStatus by viewModel.geocodeStatus.collectAsState()
-    var cityInput by remember { mutableStateOf("") }
+    var cityInput by remember(prefs.zmanimManualCity) { mutableStateOf(prefs.zmanimManualCity) }
 
     val nm = context.getSystemService(NotificationManager::class.java)
     val hasDndAccess = nm.isNotificationPolicyAccessGranted
@@ -85,17 +85,22 @@ fun MainSettingsScreen(
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onErrorContainer)
                             Text(
-                                "Your device has \"Show notifications on lock screen\" disabled globally. No app can show on the lockscreen until you turn this on.",
+                                "Your device has \"Show notifications on lock screen\" disabled globally. Go to Settings → Notifications & status bar → Lock screen and enable \"Show notifications\".",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer)
                             OutlinedButton(
                                 onClick = {
-                                    context.startActivity(
-                                        Intent("android.settings.NOTIFICATION_SETTINGS")
-                                    )
+                                    val lockScreenIntent = Intent("android.settings.LOCK_SCREEN_SETTINGS")
+                                    if (lockScreenIntent.resolveActivity(context.packageManager) != null) {
+                                        context.startActivity(lockScreenIntent)
+                                    } else {
+                                        context.startActivity(
+                                            Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                                        )
+                                    }
                                 },
                                 modifier = Modifier.fillMaxWidth()
-                            ) { Text("Open Notification Settings") }
+                            ) { Text("Open Lock Screen Settings") }
                         }
                     }
                 }
@@ -293,7 +298,7 @@ fun MainSettingsScreen(
                                         DropdownMenuItem(
                                             text    = { Text(city.displayName) },
                                             onClick = {
-                                                cityInput = city.displayName
+                                                cityInput = city.name
                                                 cityDropdownExpanded = false
                                                 viewModel.selectCity(city)
                                             }

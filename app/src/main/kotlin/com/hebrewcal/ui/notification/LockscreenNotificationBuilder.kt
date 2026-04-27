@@ -109,13 +109,15 @@ object LockscreenNotificationBuilder {
                 rowView.setTextViewText(R.id.tv_zman_name, entry.displayName)
                 rowView.setTextViewText(R.id.tv_zman_time, entry.timeString)
 
-                val alpha = when {
-                    entry.isNext -> 1.0f
-                    entry.isPast -> 0.4f
-                    else         -> 0.75f
+                // setAlpha via setFloat is blocked by OxygenOS RemoteViews policy;
+                // use setTextColor with ARGB values to achieve the same dimming effect.
+                val textColor = when {
+                    entry.isNext -> 0xFFCCCCCC.toInt()
+                    entry.isPast -> 0xFF525252.toInt()
+                    else         -> 0xFF999999.toInt()
                 }
-                rowView.setFloat(R.id.tv_zman_name, "setAlpha", alpha)
-                rowView.setFloat(R.id.tv_zman_time, "setAlpha", alpha)
+                rowView.setInt(R.id.tv_zman_name, "setTextColor", textColor)
+                rowView.setInt(R.id.tv_zman_time, "setTextColor", textColor)
 
                 if (entry.isNext) {
                     rowView.setTextViewText(R.id.tv_zman_name, "▶ ${entry.displayName}")
