@@ -97,9 +97,10 @@ class CalendarNotificationService : Service() {
 
                 val dateInfo = try {
                     calRepo.getDateInfo(
-                        date     = Date(),
-                        language = prefs.language,
-                        location = prefs.location
+                        date                 = Date(),
+                        language             = prefs.language,
+                        location             = prefs.location,
+                        showParshaOnWeekdays = prefs.showParshaOnWeekdays
                     )
                 } catch (e: Exception) {
                     HebrewDateInfo("", "", null, null, false, 0, "", 0)

@@ -180,6 +180,15 @@ fun MainSettingsScreen(
                 onCheck  = viewModel::setShowParsha
             )
 
+            if (prefs.showParsha) {
+                SwitchSettingRow(
+                    label    = "Show upcoming parsha on weekdays",
+                    subtitle = "Displays next Shabbat's reading throughout the week",
+                    checked  = prefs.showParshaOnWeekdays,
+                    onCheck  = viewModel::setShowParshaOnWeekdays
+                )
+            }
+
             // Show Gregorian
             SwitchSettingRow(
                 label   = "Show Gregorian Date",

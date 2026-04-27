@@ -41,6 +41,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         notifyServiceRefresh()
     }
 
+    fun setShowParshaOnWeekdays(show: Boolean) = viewModelScope.launch {
+        prefsRepo.updateShowParshaOnWeekdays(show)
+        notifyServiceRefresh()
+    }
+
     fun setShowGregorian(show: Boolean) = viewModelScope.launch {
         prefsRepo.updateShowGregorianDate(show)
         notifyServiceRefresh()

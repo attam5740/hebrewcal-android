@@ -26,7 +26,8 @@ class HebrewCalendarRepository {
     fun getDateInfo(
         date: Date = Date(),
         language: CalendarLanguage,
-        location: CalendarLocation
+        location: CalendarLocation,
+        showParshaOnWeekdays: Boolean = false
     ): HebrewDateInfo {
         val jewishCalendar = JewishCalendar(date).apply {
             inIsrael = (location == CalendarLocation.ISRAEL)
@@ -44,7 +45,7 @@ class HebrewCalendarRepository {
 
         val gregorianStr = formatGregorianDate(date)
         val holidayInfo = getHolidayInfo(jewishCalendar, language)
-        val parsha = getParshaName(jewishCalendar, formatter, language)
+        val parsha = getParshaName(jewishCalendar, formatter, language, showParshaOnWeekdays)
 
         return HebrewDateInfo(
             hebrewDateString  = hebrewDateStr,
@@ -168,14 +169,25 @@ class HebrewCalendarRepository {
     private fun getParshaName(
         cal: JewishCalendar,
         formatter: HebrewDateFormatter,
-        language: CalendarLanguage
+        language: CalendarLanguage,
+        showOnWeekdays: Boolean = false
     ): String? {
-        if (cal.dayOfWeek != 7) return null // only show on Shabbat
+        val targetCal = when {
+            cal.dayOfWeek == 7 -> cal
+            showOnWeekdays -> {
+                // Advance to the next Shabbat (dayOfWeek 1=Sun … 6=Fri → 7=Sat)
+                val daysAhead = 7 - cal.dayOfWeek
+                JewishCalendar(cal.localDate.plusDays(daysAhead.toLong())).apply {
+                    inIsrael = cal.inIsrael
+                }
+            }
+            else -> return null
+        }
         return try {
-            val parsha = cal.parshah
+            val parsha = targetCal.parshah
             if (parsha == JewishCalendar.Parsha.NONE) null
             else {
-                val parshaStr = formatter.formatParsha(cal)
+                val parshaStr = formatter.formatParsha(targetCal)
                 if (parshaStr.isBlank()) null
                 else if (language == CalendarLanguage.HEBREW) parshaStr
                 else "Parashat $parshaStr"

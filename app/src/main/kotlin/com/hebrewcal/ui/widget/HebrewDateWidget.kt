@@ -32,7 +32,7 @@ class HebrewDateWidget : GlanceAppWidget() {
         val zmanimRepo = ZmanimRepository()
 
         val prefs    = prefsRepo.preferences.first()
-        val dateInfo = calRepo.getDateInfo(Date(), prefs.language, prefs.location)
+        val dateInfo = calRepo.getDateInfo(Date(), prefs.language, prefs.location, prefs.showParshaOnWeekdays)
 
         val zmanimData = if (prefs.showZmanim &&
             prefs.zmanimLocationSource == ZmanimLocationSource.MANUAL &&
