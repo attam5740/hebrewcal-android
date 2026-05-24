@@ -93,6 +93,25 @@ class ZmanimRepository {
     }
 
     /**
+     * Returns tzet hakochavim (nightfall, the standard "three small stars" definition
+     * exposed by KosherJava's `ComplexZmanimCalendar.tzais`) for the civil day of
+     * [date] at the given location. Returns `null` when no usable location is set,
+     * which lets callers fall back to a midnight refresh.
+     */
+    fun getTzetHakochavim(
+        latitude: Double,
+        longitude: Double,
+        timeZone: TimeZone = TimeZone.getDefault(),
+        date: Date = Date(),
+        elevation: Double = 0.0
+    ): Date? {
+        if (latitude == 0.0 && longitude == 0.0) return null
+        val geoLocation = GeoLocation("User Location", latitude, longitude, elevation, timeZone)
+        val cal = ComplexZmanimCalendar(geoLocation).apply { calendar.time = date }
+        return cal.tzais
+    }
+
+    /**
      * Returns list of (key, time) for all selected zmanim in the future,
      * used for scheduling AlarmManager transitions.
      */

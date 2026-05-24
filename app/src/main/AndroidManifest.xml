@@ -72,6 +72,7 @@
             <intent-filter>
                 <action android:name="com.hebrewcal.ZMAN_TRANSITION" />
                 <action android:name="com.hebrewcal.MIDNIGHT_REFRESH" />
+                <action android:name="com.hebrewcal.WIDGET_REFRESH" />
                 <action android:name="com.hebrewcal.SERVICE_RESTART" />
             </intent-filter>
         </receiver>

@@ -33,7 +33,11 @@ class ZmanAlarmReceiver : BroadcastReceiver() {
         when (intent.action) {
             ACTION_ZMAN_TRANSITION,
             ACTION_MIDNIGHT_REFRESH,
+            ACTION_WIDGET_REFRESH,
             ACTION_SERVICE_RESTART -> {
+                // refresh() routes through CalendarNotificationService, which redraws
+                // both the lockscreen notification and the home-screen widget and
+                // re-arms the next tzet-hakochavim widget refresh.
                 CalendarNotificationService.refresh(context)
             }
         }
@@ -42,6 +46,7 @@ class ZmanAlarmReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_ZMAN_TRANSITION  = "com.hebrewcal.ZMAN_TRANSITION"
         const val ACTION_MIDNIGHT_REFRESH = "com.hebrewcal.MIDNIGHT_REFRESH"
+        const val ACTION_WIDGET_REFRESH   = "com.hebrewcal.WIDGET_REFRESH"
         const val ACTION_SERVICE_RESTART  = "com.hebrewcal.SERVICE_RESTART"
         const val EXTRA_ZMAN_KEY = "zman_key"
     }

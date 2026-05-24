@@ -32,7 +32,26 @@ class HebrewDateWidget : GlanceAppWidget() {
         val zmanimRepo = ZmanimRepository()
 
         val prefs    = prefsRepo.preferences.first()
-        val dateInfo = calRepo.getDateInfo(Date(), prefs.language, prefs.location, prefs.showParshaOnWeekdays)
+        val now      = Date()
+        val timeZone = TimeZone.getDefault()
+
+        // Today's tzet hakochavim so the Hebrew date rolls at nightfall, matching the
+        // halachic day. Returns null when no location is configured, in which case
+        // getDateInfo falls back to civil-midnight rollover.
+        val tzetToday = zmanimRepo.getTzetHakochavim(
+            latitude  = prefs.zmanimManualLat,
+            longitude = prefs.zmanimManualLng,
+            timeZone  = timeZone,
+            date      = now
+        )
+
+        val dateInfo = calRepo.getDateInfo(
+            date                 = now,
+            language             = prefs.language,
+            location             = prefs.location,
+            showParshaOnWeekdays = prefs.showParshaOnWeekdays,
+            advanceAfter         = tzetToday
+        )
 
         val zmanimData = if (prefs.showZmanim &&
             prefs.zmanimLocationSource == ZmanimLocationSource.MANUAL &&
@@ -41,8 +60,8 @@ class HebrewDateWidget : GlanceAppWidget() {
             zmanimRepo.getZmanim(
                 latitude       = prefs.zmanimManualLat,
                 longitude      = prefs.zmanimManualLng,
-                timeZone       = TimeZone.getDefault(),
-                date           = Date(),
+                timeZone       = timeZone,
+                date           = now,
                 selectedZmanim = prefs.selectedZmanim,
                 timeFormat     = prefs.zmanimTimeFormat
             )

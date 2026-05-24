@@ -29,10 +29,20 @@ class HebrewCalendarRepository {
         date: Date = Date(),
         language: CalendarLanguage,
         location: CalendarLocation,
-        showParshaOnWeekdays: Boolean = false
+        showParshaOnWeekdays: Boolean = false,
+        advanceAfter: Date? = null
     ): HebrewDateInfo {
+        // KosherJava's JewishCalendar rolls at civil midnight, but the halachic day
+        // changes at tzet hakochavim. When [advanceAfter] is non-null (typically today's
+        // tzet) and [date] is at or past it, advance the Hebrew calendar one day so the
+        // displayed Hebrew date, holiday, parsha, and omer reflect the actual halachic
+        // day between tzet and civil midnight. The Gregorian sub-line still uses the
+        // raw [date], so it correctly shows the civil day until civil midnight.
         val jewishCalendar = JewishCalendar(date).apply {
             inIsrael = (location == CalendarLocation.ISRAEL)
+            if (advanceAfter != null && !date.before(advanceAfter)) {
+                forward(java.util.Calendar.DATE, 1)
+            }
         }
         val formatter = HebrewDateFormatter().apply {
             isHebrewFormat = (language == CalendarLanguage.HEBREW)
