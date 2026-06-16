@@ -31,7 +31,7 @@ class SettingsActivity : ComponentActivity() {
                             viewModel   = viewModel,
                             onNavigateToZmanimSelection = { navController.navigate("zmanim_selection") },
                             onRequestLocationPermission = {
-                                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                                locationPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
                             }
                         )
                     }

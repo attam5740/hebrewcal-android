@@ -18,9 +18,11 @@ class LocationHelper(private val context: Context) {
     suspend fun getCurrentLocation(): LatLng = suspendCancellableCoroutine { cont ->
         val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
-        // Return a cached fix immediately if one is available.
+        // Return a cached fix immediately if one is available. Only coarse-compatible
+        // providers are queried — GPS_PROVIDER requires ACCESS_FINE_LOCATION, which the
+        // app no longer holds. City-level accuracy is enough (the fix is snapped to the
+        // nearest city in CityDatabase).
         val providers = listOf(
-            LocationManager.GPS_PROVIDER,
             LocationManager.NETWORK_PROVIDER,
             LocationManager.PASSIVE_PROVIDER
         )
@@ -32,9 +34,9 @@ class LocationHelper(private val context: Context) {
             }
         }
 
-        // No cached fix — request a single fresh update.
+        // No cached fix — request a single fresh update from the network provider
+        // (coarse-compatible). GPS is intentionally not requested.
         val enabledProvider = when {
-            lm.isProviderEnabled(LocationManager.GPS_PROVIDER)     -> LocationManager.GPS_PROVIDER
             lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
             else -> {
                 cont.resumeWithException(Exception("No location provider available"))

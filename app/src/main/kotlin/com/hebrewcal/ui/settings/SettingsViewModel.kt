@@ -20,7 +20,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     val hasLocationPermission: Boolean
         get() = ContextCompat.checkSelfPermission(
-            getApplication(), android.Manifest.permission.ACCESS_FINE_LOCATION
+            getApplication(), android.Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
     private val _geocodeStatus = MutableStateFlow<GeoCodeStatus>(GeoCodeStatus.Idle)
