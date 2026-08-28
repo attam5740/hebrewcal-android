@@ -3,6 +3,7 @@ package com.hebrewcal.data
 import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter
 import com.kosherjava.zmanim.hebrewcalendar.JewishCalendar
 import com.kosherjava.zmanim.hebrewcalendar.JewishDate
+import java.util.Calendar
 import java.util.Date
 
 data class HebrewDateInfo(
@@ -15,7 +16,8 @@ data class HebrewDateInfo(
     val hebrewMonthName: String,
     val hebrewYear: Int,
     val omerDay: Int = 0,               // 1-49 during the Omer, 0 otherwise
-    val omerText: String? = null        // formatted display string, e.g. "Day 3 of the Omer"
+    val omerText: String? = null,       // formatted display string, e.g. "Day 3 of the Omer"
+    val daysInMonth: Int = 30
 )
 
 data class HolidayInfo(
@@ -71,8 +73,30 @@ class HebrewCalendarRepository {
             hebrewMonthName   = formatter.formatMonth(jewishCalendar),
             hebrewYear        = jewishCalendar.jewishYear,
             omerDay           = omerDay,
-            omerText          = omerText
+            omerText          = omerText,
+            daysInMonth       = jewishCalendar.daysInJewishMonth
         )
+    }
+
+    /**
+     * Name of the parsha read on the upcoming Shabbat (or today if today is Shabbat),
+     * independent of the weekday-display preference. Returns null if none can be found
+     * (e.g. a run of festival Shabbatot), which the caller can treat as "no parsha".
+     */
+    fun upcomingParshaName(
+        date: Date,
+        location: CalendarLocation,
+        language: CalendarLanguage
+    ): String? {
+        val cal = JewishCalendar(date).apply { inIsrael = (location == CalendarLocation.ISRAEL) }
+        while (cal.dayOfWeek != Calendar.SATURDAY) cal.forward(Calendar.DATE, 1)
+        var guard = 0
+        while (cal.parshah == JewishCalendar.Parsha.NONE && guard < 8) {
+            cal.forward(Calendar.DATE, 7); guard++
+        }
+        if (cal.parshah == JewishCalendar.Parsha.NONE) return null
+        val formatter = HebrewDateFormatter().apply { isHebrewFormat = (language == CalendarLanguage.HEBREW) }
+        return formatter.formatParsha(cal).takeIf { it.isNotBlank() }
     }
 
     private fun formatEnglishDate(cal: JewishCalendar): String {
