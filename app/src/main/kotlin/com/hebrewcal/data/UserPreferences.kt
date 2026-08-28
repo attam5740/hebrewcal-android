@@ -22,7 +22,8 @@ data class UserPreferences(
     val zmanimManualCity: String = "",
     val zmanimManualLat: Double = 0.0,
     val zmanimManualLng: Double = 0.0,
-    val selectedZmanim: Set<String> = DEFAULT_SELECTED_ZMANIM
+    val selectedZmanim: Set<String> = DEFAULT_SELECTED_ZMANIM,
+    val readerTextSizeSp: Float = 18f
 )
 
 enum class CalendarLanguage { HEBREW, ENGLISH }
@@ -99,6 +100,7 @@ object PreferenceKeys {
     val ZMANIM_MANUAL_LAT = doublePreferencesKey("zmanim_manual_lat")
     val ZMANIM_MANUAL_LNG = doublePreferencesKey("zmanim_manual_lng")
     val SELECTED_ZMANIM = stringSetPreferencesKey("selected_zmanim")
+    val READER_TEXT_SIZE = floatPreferencesKey("reader_text_size")
 }
 
 class UserPreferencesRepository(private val context: Context) {
@@ -125,7 +127,8 @@ class UserPreferencesRepository(private val context: Context) {
             zmanimManualCity = prefs[PreferenceKeys.ZMANIM_MANUAL_CITY] ?: "",
             zmanimManualLat = prefs[PreferenceKeys.ZMANIM_MANUAL_LAT] ?: 0.0,
             zmanimManualLng = prefs[PreferenceKeys.ZMANIM_MANUAL_LNG] ?: 0.0,
-            selectedZmanim = prefs[PreferenceKeys.SELECTED_ZMANIM] ?: DEFAULT_SELECTED_ZMANIM
+            selectedZmanim = prefs[PreferenceKeys.SELECTED_ZMANIM] ?: DEFAULT_SELECTED_ZMANIM,
+            readerTextSizeSp = prefs[PreferenceKeys.READER_TEXT_SIZE] ?: 18f
         )
     }
 
@@ -175,5 +178,9 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateSelectedZmanim(selected: Set<String>) {
         context.dataStore.edit { it[PreferenceKeys.SELECTED_ZMANIM] = selected }
+    }
+
+    suspend fun updateReaderTextSize(sp: Float) {
+        context.dataStore.edit { it[PreferenceKeys.READER_TEXT_SIZE] = sp }
     }
 }

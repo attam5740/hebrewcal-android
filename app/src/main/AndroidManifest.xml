@@ -40,6 +40,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Translucent reader overlay for Tehillim / Parsha text -->
+        <activity
+            android:name=".ui.reader.TextReaderActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HebrewCalendar.Reader" />
+
         <!-- Foreground Service for persistent notification -->
         <service
             android:name=".service.CalendarNotificationService"
