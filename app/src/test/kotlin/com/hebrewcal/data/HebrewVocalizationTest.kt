@@ -26,5 +26,19 @@ class HebrewVocalizationTest {
         assertEquals("Happy is the one", HebrewVocalization.strip("Happy is the one", false, false))
     }
 
+    @Test fun removesMetegWhenTeamimOff() {
+        val s = "אָֽב"
+        val out = HebrewVocalization.strip(s, showNikkud = true, showTeamim = false)
+        assertEquals(false, out.contains('ֽ'))
+        assertEquals(true, out.contains('ָ'))
+    }
+
+    @Test fun keepsPunctuationWhenNikkudOff() {
+        val s = "ב־א׃"
+        val out = HebrewVocalization.strip(s, showNikkud = false, showTeamim = false)
+        assertEquals(true, out.contains('־'))
+        assertEquals(true, out.contains('׃'))
+    }
+
     private fun assertTrue(b: Boolean) = assertEquals(true, b)
 }
