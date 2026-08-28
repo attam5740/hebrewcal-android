@@ -18,13 +18,13 @@ object SefariaTextParser {
 
     fun parse(json: String): SefariaText {
         val obj = Json.parseToJsonElement(json).jsonObject
-        val heRef = obj["heRef"]?.jsonPrimitive?.contentOrNull ?: ""
-        val sections = obj["sections"]?.jsonArray?.map { it.jsonPrimitive.content } ?: listOf("1")
+        val heRef = (obj["heRef"] as? JsonPrimitive)?.contentOrNull ?: ""
+        val sections = (obj["sections"] as? JsonArray)?.map { (it as? JsonPrimitive)?.content ?: "" } ?: listOf("1")
         val startChapter = sections.getOrNull(0)?.toIntOrNull() ?: 1
         val startVerse = sections.getOrNull(1)?.toIntOrNull() ?: 1
 
-        val he = obj["he"]?.jsonArray ?: JsonArray(emptyList())
-        val en = obj["text"]?.jsonArray ?: JsonArray(emptyList())
+        val he = (obj["he"] as? JsonArray) ?: JsonArray(emptyList())
+        val en = (obj["text"] as? JsonArray) ?: JsonArray(emptyList())
         val nested = he.firstOrNull() is JsonArray
 
         val chapters = mutableListOf<Chapter>()

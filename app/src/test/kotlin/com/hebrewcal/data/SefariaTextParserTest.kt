@@ -40,4 +40,16 @@ class SefariaTextParserTest {
         assertEquals(47, t.chapters[0].number)
         assertEquals(listOf(28, 29, 30), t.chapters[0].verses.map { it.num })
     }
+
+    @Test fun handlesNullLanguageFieldWithoutCrashing() {
+        val json = """
+            {"heRef":"תהילים א׳","sections":["1"],"toSections":["1"],
+             "he":null,"text":["v1","v2"]}
+        """.trimIndent()
+        val t = SefariaTextParser.parse(json)
+        assertEquals(1, t.chapters.size)
+        assertEquals(2, t.chapters[0].verses.size)
+        assertEquals("", t.chapters[0].verses[0].he)   // he missing -> empty
+        assertEquals("v1", t.chapters[0].verses[0].en)
+    }
 }
