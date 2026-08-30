@@ -26,8 +26,9 @@ class SefariaRepository(context: Context) {
             "&ven=" + URLEncoder.encode(enVersion, "UTF-8")
         runCatching {
             val body = httpGet(url)
+            val parsed = SefariaTextParser.parse(body)
             cacheFile.writeText(body)
-            SefariaTextParser.parse(body)
+            parsed
         }.recoverCatching {
             if (cacheFile.exists()) SefariaTextParser.parse(cacheFile.readText()) else throw it
         }
@@ -38,8 +39,9 @@ class SefariaRepository(context: Context) {
         val url = "https://www.sefaria.org/api/calendars?diaspora=${if (diaspora) 1 else 0}"
         runCatching {
             val body = httpGet(url)
+            val parsed = ParshaCalendarsParser.parse(body) ?: error("No parsha in calendars response")
             cacheFile.writeText(body)
-            ParshaCalendarsParser.parse(body) ?: error("No parsha in calendars response")
+            parsed
         }.recoverCatching {
             val cached = if (cacheFile.exists()) ParshaCalendarsParser.parse(cacheFile.readText()) else null
             cached ?: throw it

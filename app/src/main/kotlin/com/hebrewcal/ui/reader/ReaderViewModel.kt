@@ -21,7 +21,9 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         val loading: Boolean = true,
         val error: String? = null,
         val title: String = "",
-        val text: SefariaText? = null
+        val text: SefariaText? = null,
+        val mode: String = "tehillim",
+        val bookNameEn: String? = null
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -36,7 +38,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         val key = "$mode|$ref|$diaspora"
         if (loadedKey == key) return
         loadedKey = key
-        _state.value = UiState(loading = true, title = title)
+        _state.value = UiState(loading = true, title = title, mode = mode)
         viewModelScope.launch {
             val resolvedRef: String
             var resolvedTitle = title
@@ -52,10 +54,13 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
             } else {
                 resolvedRef = ref
             }
+            val bookNameEn = if (mode == "parsha") resolvedRef.substringBefore('.', "").ifBlank { null } else null
             val res = repo.fetchText(resolvedRef)
             res.fold(
-                onSuccess = { text -> _state.value = UiState(false, null, resolvedTitle.ifBlank { text.heRef }, text) },
-                onFailure = { _state.value = UiState(false, OFFLINE, resolvedTitle, null) }
+                onSuccess = { text ->
+                    _state.value = UiState(false, null, resolvedTitle.ifBlank { text.heRef }, text, mode, bookNameEn)
+                },
+                onFailure = { _state.value = UiState(false, OFFLINE, resolvedTitle, null, mode, bookNameEn) }
             )
         }
     }

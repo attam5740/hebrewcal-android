@@ -107,7 +107,7 @@ class TextReaderActivity : ComponentActivity() {
                         state.error != null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
                             Text(if (lang == CalendarLanguage.HEBREW) "אין חיבור לאינטרנט" else "No internet connection", color = Color.White)
                         }
-                        state.text != null -> ReaderBody(state.text!!, lang, nikkud, teamim, sliderValue)
+                        state.text != null -> ReaderBody(state.text!!, lang, nikkud, teamim, sliderValue, state.mode, state.bookNameEn)
                     }
                 }
             }
@@ -153,15 +153,28 @@ private fun ReaderBar(
 }
 
 @Composable
-private fun ReaderBody(text: SefariaText, lang: CalendarLanguage, nikkud: Boolean, teamim: Boolean, sizeSp: Float) {
+private fun ReaderBody(
+    text: SefariaText,
+    lang: CalendarLanguage,
+    nikkud: Boolean,
+    teamim: Boolean,
+    sizeSp: Float,
+    mode: String = "tehillim",
+    bookNameEn: String? = null
+) {
     val listState = rememberLazyListState()
     val hebrew = lang == CalendarLanguage.HEBREW
     // Flatten to display rows for a simple fast-scrollable list.
     data class Row(val header: String?, val verseNum: Int?, val body: String)
-    val rows = remember(text, lang, nikkud, teamim) {
+    val rows = remember(text, lang, nikkud, teamim, mode, bookNameEn) {
         buildList {
             text.chapters.forEach { ch ->
-                add(Row(if (hebrew) "פרק ${ch.number}" else "Psalm ${ch.number}", null, ""))
+                val header = when {
+                    hebrew -> "פרק ${ch.number}"
+                    mode == "parsha" -> "${bookNameEn ?: "Chapter"} ${ch.number}"
+                    else -> "Psalm ${ch.number}"
+                }
+                add(Row(header, null, ""))
                 ch.verses.forEach { v ->
                     val body = if (hebrew) HebrewVocalization.strip(v.he, nikkud, teamim) else v.en
                     add(Row(null, v.num, body))
