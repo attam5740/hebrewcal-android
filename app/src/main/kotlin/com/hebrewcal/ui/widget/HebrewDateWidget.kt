@@ -20,9 +20,18 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import com.hebrewcal.data.*
+import com.hebrewcal.data.TehillimSchedule
+import com.hebrewcal.data.CalendarLocation
+import com.hebrewcal.ui.reader.TextReaderActivity
 import com.hebrewcal.ui.settings.SettingsActivity
 import kotlinx.coroutines.flow.first
 import java.util.*
+
+private fun chapterRangeLabel(first: Int, last: Int, hebrew: Boolean): String {
+    val fmt = com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter()
+    fun n(x: Int) = if (hebrew) fmt.formatHebrewNumber(x) else x.toString()
+    return if (first == last) n(first) else "${n(first)}–${n(last)}"
+}
 
 class HebrewDateWidget : GlanceAppWidget() {
 
@@ -67,12 +76,26 @@ class HebrewDateWidget : GlanceAppWidget() {
             )
         } else null
 
+        val hebrew = prefs.language == CalendarLanguage.HEBREW
+        val portion = TehillimSchedule.portionFor(dateInfo.hebrewDayNumber, dateInfo.daysInMonth)
+        val tehillimLabel = (if (hebrew) "תהילים יומי" else "Daily Tehillim") + " · " +
+            chapterRangeLabel(portion.firstChapter, portion.lastChapter, hebrew)
+        val parshaName = calRepo.upcomingParshaName(now, prefs.location, prefs.language)
+        val parshaLabel = parshaName?.let {
+            (if (hebrew) "פרשת השבוע" else "Weekly Parsha") + " · " + it
+        }
+        val diaspora = prefs.location == CalendarLocation.DIASPORA
+
         provideContent {
             HebrewDateWidgetContent(
-                context    = context,
-                dateInfo   = dateInfo,
-                zmanimData = zmanimData,
-                prefs      = prefs
+                context       = context,
+                dateInfo      = dateInfo,
+                zmanimData    = zmanimData,
+                prefs         = prefs,
+                tehillimLabel = tehillimLabel,
+                tehillimRef   = portion.sefariaRef,
+                parshaLabel   = parshaLabel,
+                diaspora      = diaspora
             )
         }
     }
@@ -83,7 +106,11 @@ fun HebrewDateWidgetContent(
     context: Context,
     dateInfo: HebrewDateInfo,
     zmanimData: ZmanimData?,
-    prefs: UserPreferences
+    prefs: UserPreferences,
+    tehillimLabel: String,
+    tehillimRef: String,
+    parshaLabel: String?,
+    diaspora: Boolean
 ) {
     val bgColor        = ColorProvider(Color(0xFF1A1A2E))
     val goldColor      = ColorProvider(Color(0xFFD4AF37))
@@ -166,6 +193,44 @@ fun HebrewDateWidgetContent(
                         )
                     )
                 }
+            }
+
+            Spacer(GlanceModifier.height(8.dp))
+            Text(
+                text = tehillimLabel,
+                style = TextStyle(color = goldColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Medium),
+                modifier = GlanceModifier.clickable(
+                    actionStartActivity(
+                        Intent(context, TextReaderActivity::class.java).apply {
+                            putExtra(TextReaderActivity.EXTRA_MODE, "tehillim")
+                            putExtra(TextReaderActivity.EXTRA_REF, tehillimRef)
+                            putExtra(TextReaderActivity.EXTRA_TITLE, tehillimLabel)
+                            putExtra(TextReaderActivity.EXTRA_LANG, prefs.language.name)
+                            putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
+                            putExtra(TextReaderActivity.EXTRA_TEAMIM, false)
+                        }
+                    )
+                )
+            )
+            if (parshaLabel != null) {
+                Spacer(GlanceModifier.height(4.dp))
+                Text(
+                    text = parshaLabel,
+                    style = TextStyle(color = goldColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Medium),
+                    modifier = GlanceModifier.clickable(
+                        actionStartActivity(
+                            Intent(context, TextReaderActivity::class.java).apply {
+                                putExtra(TextReaderActivity.EXTRA_MODE, "parsha")
+                                putExtra(TextReaderActivity.EXTRA_REF, "")
+                                putExtra(TextReaderActivity.EXTRA_TITLE, parshaLabel)
+                                putExtra(TextReaderActivity.EXTRA_DIASPORA, diaspora)
+                                putExtra(TextReaderActivity.EXTRA_LANG, prefs.language.name)
+                                putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
+                                putExtra(TextReaderActivity.EXTRA_TEAMIM, true)
+                            }
+                        )
+                    )
+                )
             }
         }
     }
