@@ -30,9 +30,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,10 +66,14 @@ class TextReaderActivity : ComponentActivity() {
         setContent {
             val state by vm.state.collectAsState()
             val sizeSp by vm.textSize.collectAsState()
-            var lang by remember { mutableStateOf(lang0) }
-            var nikkud by remember { mutableStateOf(nikkud0) }
-            var teamim by remember { mutableStateOf(teamim0) }
+            var langName by rememberSaveable { mutableStateOf(lang0.name) }
+            val lang = if (langName == CalendarLanguage.HEBREW.name) CalendarLanguage.HEBREW else CalendarLanguage.ENGLISH
+            var nikkud by rememberSaveable { mutableStateOf(nikkud0) }
+            var teamim by rememberSaveable { mutableStateOf(teamim0) }
             val contentInteractionSource = remember { MutableInteractionSource() }
+            // Local live slider value for smooth dragging; persisted to DataStore only on release.
+            var sliderValue by remember { mutableStateOf(sizeSp) }
+            LaunchedEffect(sizeSp) { sliderValue = sizeSp }
 
             Box(
                 Modifier.fillMaxSize()
@@ -76,22 +82,24 @@ class TextReaderActivity : ComponentActivity() {
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
                     ) { finish() }, // tap scrim to dismiss
-                contentAlignment = Alignment.TopCenter
+                contentAlignment = Alignment.Center
             ) {
+                // Content is 92% height so ~4% scrim strips remain tappable top/bottom to dismiss.
                 // Inner column consumes clicks (no-op, no ripple) so taps on content don't dismiss.
                 Column(
-                    Modifier.fillMaxSize().clickable(
+                    Modifier.fillMaxWidth().fillMaxHeight(0.92f).align(Alignment.Center).clickable(
                         interactionSource = contentInteractionSource,
                         indication = null
                     ) {}
                 ) {
                     ReaderBar(
                         title = state.title,
-                        lang = lang, nikkud = nikkud, teamim = teamim, sizeSp = sizeSp,
-                        onLang = { lang = if (lang == CalendarLanguage.HEBREW) CalendarLanguage.ENGLISH else CalendarLanguage.HEBREW },
+                        lang = lang, nikkud = nikkud, teamim = teamim, sizeSp = sliderValue,
+                        onLang = { langName = if (lang == CalendarLanguage.HEBREW) CalendarLanguage.ENGLISH.name else CalendarLanguage.HEBREW.name },
                         onNikkud = { nikkud = it; if (!it) teamim = false },
                         onTeamim = { teamim = it; if (it) nikkud = true },
-                        onSize = { vm.setTextSize(it) },
+                        onSizeChange = { sliderValue = it },
+                        onSizeChangeFinished = { vm.setTextSize(sliderValue) },
                         onClose = { finish() }
                     )
                     when {
@@ -99,7 +107,7 @@ class TextReaderActivity : ComponentActivity() {
                         state.error != null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
                             Text(if (lang == CalendarLanguage.HEBREW) "אין חיבור לאינטרנט" else "No internet connection", color = Color.White)
                         }
-                        state.text != null -> ReaderBody(state.text!!, lang, nikkud, teamim, sizeSp)
+                        state.text != null -> ReaderBody(state.text!!, lang, nikkud, teamim, sliderValue)
                     }
                 }
             }
@@ -122,7 +130,7 @@ class TextReaderActivity : ComponentActivity() {
 private fun ReaderBar(
     title: String, lang: CalendarLanguage, nikkud: Boolean, teamim: Boolean, sizeSp: Float,
     onLang: () -> Unit, onNikkud: (Boolean) -> Unit, onTeamim: (Boolean) -> Unit,
-    onSize: (Float) -> Unit, onClose: () -> Unit
+    onSizeChange: (Float) -> Unit, onSizeChangeFinished: () -> Unit, onClose: () -> Unit
 ) {
     Column(Modifier.fillMaxWidth().background(Color(0xFF1A1A2E)).padding(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -135,7 +143,12 @@ private fun ReaderBar(
             Spacer(Modifier.width(6.dp))
             FilterChip(selected = teamim, onClick = { onTeamim(!teamim) }, enabled = nikkud, label = { Text("טעמים") })
         }
-        Slider(value = sizeSp, onValueChange = onSize, valueRange = 14f..34f)
+        Slider(
+            value = sizeSp,
+            onValueChange = onSizeChange,
+            onValueChangeFinished = onSizeChangeFinished,
+            valueRange = 14f..34f
+        )
     }
 }
 

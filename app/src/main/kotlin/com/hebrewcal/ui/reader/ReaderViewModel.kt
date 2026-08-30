@@ -30,7 +30,12 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
     val textSize = prefsRepo.preferences.map { it.readerTextSizeSp }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 18f)
 
+    private var loadedKey: String? = null
+
     fun load(mode: String, ref: String, title: String, diaspora: Boolean) {
+        val key = "$mode|$ref|$diaspora"
+        if (loadedKey == key) return
+        loadedKey = key
         _state.value = UiState(loading = true, title = title)
         viewModelScope.launch {
             val resolvedRef: String
