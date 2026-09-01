@@ -195,42 +195,47 @@ fun HebrewDateWidgetContent(
                 }
             }
 
-            Spacer(GlanceModifier.height(8.dp))
-            Text(
-                text = tehillimLabel,
-                style = TextStyle(color = goldColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Medium),
-                modifier = GlanceModifier.clickable(
-                    actionStartActivity(
-                        Intent(context, TextReaderActivity::class.java).apply {
-                            putExtra(TextReaderActivity.EXTRA_MODE, "tehillim")
-                            putExtra(TextReaderActivity.EXTRA_REF, tehillimRef)
-                            putExtra(TextReaderActivity.EXTRA_TITLE, tehillimLabel)
-                            putExtra(TextReaderActivity.EXTRA_LANG, prefs.language.name)
-                            putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
-                            putExtra(TextReaderActivity.EXTRA_TEAMIM, false)
-                        }
-                    )
-                )
-            )
-            if (parshaLabel != null) {
-                Spacer(GlanceModifier.height(4.dp))
+            // Glance/RemoteViews containers allow at most 10 children; with all optional
+            // rows enabled the outer Column would exceed that, so the pills live in a
+            // nested Column (which gets its own child budget).
+            Column {
+                Spacer(GlanceModifier.height(8.dp))
                 Text(
-                    text = parshaLabel,
+                    text = tehillimLabel,
                     style = TextStyle(color = goldColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Medium),
                     modifier = GlanceModifier.clickable(
                         actionStartActivity(
                             Intent(context, TextReaderActivity::class.java).apply {
-                                putExtra(TextReaderActivity.EXTRA_MODE, "parsha")
-                                putExtra(TextReaderActivity.EXTRA_REF, "")
-                                putExtra(TextReaderActivity.EXTRA_TITLE, parshaLabel)
-                                putExtra(TextReaderActivity.EXTRA_DIASPORA, diaspora)
+                                putExtra(TextReaderActivity.EXTRA_MODE, "tehillim")
+                                putExtra(TextReaderActivity.EXTRA_REF, tehillimRef)
+                                putExtra(TextReaderActivity.EXTRA_TITLE, tehillimLabel)
                                 putExtra(TextReaderActivity.EXTRA_LANG, prefs.language.name)
                                 putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
-                                putExtra(TextReaderActivity.EXTRA_TEAMIM, true)
+                                putExtra(TextReaderActivity.EXTRA_TEAMIM, false)
                             }
                         )
                     )
                 )
+                if (parshaLabel != null) {
+                    Spacer(GlanceModifier.height(4.dp))
+                    Text(
+                        text = parshaLabel,
+                        style = TextStyle(color = goldColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Medium),
+                        modifier = GlanceModifier.clickable(
+                            actionStartActivity(
+                                Intent(context, TextReaderActivity::class.java).apply {
+                                    putExtra(TextReaderActivity.EXTRA_MODE, "parsha")
+                                    putExtra(TextReaderActivity.EXTRA_REF, "")
+                                    putExtra(TextReaderActivity.EXTRA_TITLE, parshaLabel)
+                                    putExtra(TextReaderActivity.EXTRA_DIASPORA, diaspora)
+                                    putExtra(TextReaderActivity.EXTRA_LANG, prefs.language.name)
+                                    putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
+                                    putExtra(TextReaderActivity.EXTRA_TEAMIM, true)
+                                }
+                            )
+                        )
+                    )
+                }
             }
         }
     }
