@@ -161,15 +161,20 @@ object LockscreenNotificationBuilder {
                 putExtra(TextReaderActivity.EXTRA_TEAMIM, false)
                 data = android.net.Uri.parse("hebrewcal://reader/tehillim")
             }
-            expandedViews.setTextViewText(R.id.tv_btn_tehillim, tehillimActionLabel)
-            expandedViews.setViewVisibility(R.id.tv_btn_tehillim, android.view.View.VISIBLE)
-            expandedViews.setOnClickPendingIntent(R.id.tv_btn_tehillim, PendingIntent.getActivity(
+            val pi = PendingIntent.getActivity(
                 context, TEHILLIM_ACTION_REQUEST_CODE, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            ))
+            )
+            expandedViews.setTextViewText(R.id.tv_btn_tehillim, tehillimActionLabel)
+            expandedViews.setViewVisibility(R.id.tv_btn_tehillim, android.view.View.VISIBLE)
+            expandedViews.setOnClickPendingIntent(R.id.tv_btn_tehillim, pi)
+            remoteViews.setTextViewText(R.id.tv_btn_tehillim_c, tehillimActionLabel)
+            remoteViews.setViewVisibility(R.id.tv_btn_tehillim_c, android.view.View.VISIBLE)
+            remoteViews.setOnClickPendingIntent(R.id.tv_btn_tehillim_c, pi)
             anyReaderButton = true
         } else {
             expandedViews.setViewVisibility(R.id.tv_btn_tehillim, android.view.View.GONE)
+            remoteViews.setViewVisibility(R.id.tv_btn_tehillim_c, android.view.View.GONE)
         }
         if (parshaActionLabel != null) {
             val intent = Intent(context, TextReaderActivity::class.java).apply {
@@ -182,18 +187,27 @@ object LockscreenNotificationBuilder {
                 putExtra(TextReaderActivity.EXTRA_TEAMIM, true)
                 data = android.net.Uri.parse("hebrewcal://reader/parsha")
             }
-            expandedViews.setTextViewText(R.id.tv_btn_parsha, parshaActionLabel)
-            expandedViews.setViewVisibility(R.id.tv_btn_parsha, android.view.View.VISIBLE)
-            expandedViews.setOnClickPendingIntent(R.id.tv_btn_parsha, PendingIntent.getActivity(
+            val pi = PendingIntent.getActivity(
                 context, PARSHA_ACTION_REQUEST_CODE, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            ))
+            )
+            expandedViews.setTextViewText(R.id.tv_btn_parsha, parshaActionLabel)
+            expandedViews.setViewVisibility(R.id.tv_btn_parsha, android.view.View.VISIBLE)
+            expandedViews.setOnClickPendingIntent(R.id.tv_btn_parsha, pi)
+            remoteViews.setTextViewText(R.id.tv_btn_parsha_c, parshaActionLabel)
+            remoteViews.setViewVisibility(R.id.tv_btn_parsha_c, android.view.View.VISIBLE)
+            remoteViews.setOnClickPendingIntent(R.id.tv_btn_parsha_c, pi)
             anyReaderButton = true
         } else {
             expandedViews.setViewVisibility(R.id.tv_btn_parsha, android.view.View.GONE)
+            remoteViews.setViewVisibility(R.id.tv_btn_parsha_c, android.view.View.GONE)
         }
         expandedViews.setViewVisibility(
             R.id.ll_reader_buttons,
+            if (anyReaderButton) android.view.View.VISIBLE else android.view.View.GONE
+        )
+        remoteViews.setViewVisibility(
+            R.id.ll_reader_buttons_c,
             if (anyReaderButton) android.view.View.VISIBLE else android.view.View.GONE
         )
 
