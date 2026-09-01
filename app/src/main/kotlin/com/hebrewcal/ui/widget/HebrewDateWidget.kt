@@ -1,14 +1,16 @@
 package com.hebrewcal.ui.widget
 
 import android.content.Context
-import android.content.Intent
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
-import androidx.glance.appwidget.action.actionStartActivity
+import androidx.glance.action.ActionParameters
+import androidx.glance.action.actionParametersOf
+import androidx.glance.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.action.clickable
@@ -26,6 +28,8 @@ import com.hebrewcal.ui.reader.TextReaderActivity
 import com.hebrewcal.ui.settings.SettingsActivity
 import kotlinx.coroutines.flow.first
 import java.util.*
+
+private const val TAG = "HebrewCalWidget"
 
 class HebrewDateWidget : GlanceAppWidget() {
 
@@ -71,11 +75,19 @@ class HebrewDateWidget : GlanceAppWidget() {
         } else null
 
         val hebrew = prefs.language == CalendarLanguage.HEBREW
-        val portion = TehillimSchedule.portionFor(dateInfo.hebrewDayNumber, dateInfo.daysInMonth)
-        val tehillimLabel = if (prefs.showTehillimButton) ReaderButtons.tehillimLabel(portion, hebrew) else null
+        // Pill data is best-effort: a failure here must never take the widget down.
+        val portion = runCatching {
+            TehillimSchedule.portionFor(dateInfo.hebrewDayNumber, dateInfo.daysInMonth)
+        }.onFailure { Log.e(TAG, "tehillim portion failed", it) }.getOrNull()
+        val tehillimLabel = if (prefs.showTehillimButton && portion != null) {
+            runCatching { ReaderButtons.tehillimLabel(portion, hebrew) }
+                .onFailure { Log.e(TAG, "tehillim label failed", it) }.getOrNull()
+        } else null
         val parshaLabel = if (prefs.showParshaButton) {
-            calRepo.upcomingParshaName(now, prefs.location, prefs.language)
-                ?.let { ReaderButtons.parshaLabel(it, hebrew) }
+            runCatching {
+                calRepo.upcomingParshaName(now, prefs.location, prefs.language)
+                    ?.let { ReaderButtons.parshaLabel(it, hebrew) }
+            }.onFailure { Log.e(TAG, "parsha label failed", it) }.getOrNull()
         } else null
         val diaspora = prefs.location == CalendarLocation.DIASPORA
 
@@ -86,7 +98,7 @@ class HebrewDateWidget : GlanceAppWidget() {
                 zmanimData    = zmanimData,
                 prefs         = prefs,
                 tehillimLabel = tehillimLabel,
-                tehillimRef   = portion.sefariaRef,
+                tehillimRef   = portion?.sefariaRef ?: "",
                 parshaLabel   = parshaLabel,
                 diaspora      = diaspora
             )
@@ -117,7 +129,7 @@ fun HebrewDateWidgetContent(
             .fillMaxSize()
             .background(bgColor)
             .cornerRadius(16)
-            .clickable(actionStartActivity(Intent(context, SettingsActivity::class.java))),
+            .clickable(actionStartActivity<SettingsActivity>()),
         contentAlignment = Alignment.TopStart
     ) {
         Column(
@@ -198,17 +210,17 @@ fun HebrewDateWidgetContent(
                     text = tehillimLabel,
                     style = TextStyle(color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
                     modifier = GlanceModifier.clickable(
-                        actionStartActivity(
-                            Intent(context, TextReaderActivity::class.java).apply {
-                                putExtra(TextReaderActivity.EXTRA_MODE, "tehillim")
-                                putExtra(TextReaderActivity.EXTRA_REF, tehillimRef)
-                                putExtra(TextReaderActivity.EXTRA_TITLE, tehillimLabel)
-                                putExtra(TextReaderActivity.EXTRA_LANG, prefs.language.name)
-                                putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
-                                putExtra(TextReaderActivity.EXTRA_TEAMIM, false)
-                            }
+                    actionStartActivity<TextReaderActivity>(
+                        actionParametersOf(
+                            ActionParameters.Key<String>(TextReaderActivity.EXTRA_MODE) to "tehillim",
+                            ActionParameters.Key<String>(TextReaderActivity.EXTRA_REF) to tehillimRef,
+                            ActionParameters.Key<String>(TextReaderActivity.EXTRA_TITLE) to (tehillimLabel ?: ""),
+                            ActionParameters.Key<String>(TextReaderActivity.EXTRA_LANG) to prefs.language.name,
+                            ActionParameters.Key<Boolean>(TextReaderActivity.EXTRA_NIKKUD) to true,
+                            ActionParameters.Key<Boolean>(TextReaderActivity.EXTRA_TEAMIM) to false
                         )
                     )
+                )
                 )
                 if (parshaLabel != null) {
                     Spacer(GlanceModifier.height(4.dp))
@@ -216,16 +228,16 @@ fun HebrewDateWidgetContent(
                         text = parshaLabel,
                         style = TextStyle(color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
                         modifier = GlanceModifier.clickable(
-                            actionStartActivity(
-                                Intent(context, TextReaderActivity::class.java).apply {
-                                    putExtra(TextReaderActivity.EXTRA_MODE, "parsha")
-                                    putExtra(TextReaderActivity.EXTRA_REF, "")
-                                    putExtra(TextReaderActivity.EXTRA_TITLE, parshaLabel)
-                                    putExtra(TextReaderActivity.EXTRA_DIASPORA, diaspora)
-                                    putExtra(TextReaderActivity.EXTRA_LANG, prefs.language.name)
-                                    putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
-                                    putExtra(TextReaderActivity.EXTRA_TEAMIM, true)
-                                }
+                            actionStartActivity<TextReaderActivity>(
+                                actionParametersOf(
+                                    ActionParameters.Key<String>(TextReaderActivity.EXTRA_MODE) to "parsha",
+                                    ActionParameters.Key<String>(TextReaderActivity.EXTRA_REF) to "",
+                                    ActionParameters.Key<String>(TextReaderActivity.EXTRA_TITLE) to parshaLabel,
+                                    ActionParameters.Key<Boolean>(TextReaderActivity.EXTRA_DIASPORA) to diaspora,
+                                    ActionParameters.Key<String>(TextReaderActivity.EXTRA_LANG) to prefs.language.name,
+                                    ActionParameters.Key<Boolean>(TextReaderActivity.EXTRA_NIKKUD) to true,
+                                    ActionParameters.Key<Boolean>(TextReaderActivity.EXTRA_TEAMIM) to true
+                                )
                             )
                         )
                     )
