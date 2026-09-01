@@ -4,5 +4,6 @@ data class ParshaRef(
     val sefariaRef: String,
     val heRef: String,
     val nameEn: String,
-    val nameHe: String
+    val nameHe: String,
+    val aliyot: List<String> = emptyList()
 )

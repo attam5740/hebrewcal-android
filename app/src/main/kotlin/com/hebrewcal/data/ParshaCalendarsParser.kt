@@ -21,11 +21,16 @@ object ParshaCalendarsParser {
         val dotted = url ?: ref.replace(" ", ".").replace(":", ".")
         val display = item["displayValue"] as? JsonObject
 
+        val aliyot = ((item["extraDetails"] as? JsonObject)?.get("aliyot") as? JsonArray)
+            ?.mapNotNull { (it as? JsonPrimitive)?.content }
+            ?: emptyList()
+
         return ParshaRef(
             sefariaRef = dotted,
             heRef = (item["heRef"] as? JsonPrimitive)?.content ?: "",
             nameEn = display?.get("en")?.let { (it as? JsonPrimitive)?.content } ?: "",
-            nameHe = display?.get("he")?.let { (it as? JsonPrimitive)?.content } ?: ""
+            nameHe = display?.get("he")?.let { (it as? JsonPrimitive)?.content } ?: "",
+            aliyot = aliyot
         )
     }
 }

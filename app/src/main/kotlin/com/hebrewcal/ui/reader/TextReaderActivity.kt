@@ -9,10 +9,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +23,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -44,6 +49,8 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,6 +58,8 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hebrewcal.R
+import com.hebrewcal.data.AliyotPartitioner
 import com.hebrewcal.data.CalendarLanguage
 import com.hebrewcal.data.HebrewVocalization
 import com.hebrewcal.data.SefariaText
@@ -59,6 +68,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+
+/** Text rendering modes: English, Hebrew, or Tikkun (unvocalized STaM sofer script). */
+private const val MODE_EN = "EN"
+private const val MODE_HE = "HE"
+private const val MODE_TIKKUN = "TIKKUN"
 
 class TextReaderActivity : ComponentActivity() {
     private val vm: ReaderViewModel by viewModels()
@@ -69,7 +83,7 @@ class TextReaderActivity : ComponentActivity() {
         val ref = intent.getStringExtra(EXTRA_REF) ?: ""
         val title = intent.getStringExtra(EXTRA_TITLE) ?: ""
         val diaspora = intent.getBooleanExtra(EXTRA_DIASPORA, true)
-        val lang0 = if (intent.getStringExtra(EXTRA_LANG) == "HEBREW") CalendarLanguage.HEBREW else CalendarLanguage.ENGLISH
+        val textMode0 = if (intent.getStringExtra(EXTRA_LANG) == CalendarLanguage.HEBREW.name) MODE_HE else MODE_EN
         val nikkud0 = intent.getBooleanExtra(EXTRA_NIKKUD, true)
         val teamim0 = intent.getBooleanExtra(EXTRA_TEAMIM, false)
         vm.load(mode, ref, title, diaspora)
@@ -77,10 +91,10 @@ class TextReaderActivity : ComponentActivity() {
         setContent {
             val state by vm.state.collectAsState()
             val persistedSize by vm.textSize.collectAsState()
-            var langName by rememberSaveable { mutableStateOf(lang0.name) }
-            val lang = if (langName == CalendarLanguage.HEBREW.name) CalendarLanguage.HEBREW else CalendarLanguage.ENGLISH
+            var textMode by rememberSaveable { mutableStateOf(textMode0) }
             var nikkud by rememberSaveable { mutableStateOf(nikkud0) }
             var teamim by rememberSaveable { mutableStateOf(teamim0) }
+            var byAliyot by rememberSaveable { mutableStateOf(false) }
             val contentInteractionSource = remember { MutableInteractionSource() }
 
             // Live text size driven by pinch-to-zoom; persisted (debounced) to DataStore.
@@ -105,7 +119,6 @@ class TextReaderActivity : ComponentActivity() {
                 contentAlignment = Alignment.Center
             ) {
                 // Content is 92% height so ~4% scrim strips remain tappable top/bottom to dismiss.
-                // Inner column consumes clicks (no-op, no ripple) so taps on content don't dismiss.
                 Column(
                     Modifier.fillMaxWidth().fillMaxHeight(0.92f).align(Alignment.Center).clickable(
                         interactionSource = contentInteractionSource,
@@ -114,20 +127,27 @@ class TextReaderActivity : ComponentActivity() {
                 ) {
                     ReaderBar(
                         title = state.title,
-                        lang = lang, nikkud = nikkud, teamim = teamim,
-                        onLang = { langName = if (lang == CalendarLanguage.HEBREW) CalendarLanguage.ENGLISH.name else CalendarLanguage.HEBREW.name },
+                        textMode = textMode,
+                        nikkud = nikkud, teamim = teamim,
+                        showAliyotToggle = state.mode == "parsha" && state.aliyot.isNotEmpty(),
+                        byAliyot = byAliyot,
+                        onTextMode = { m ->
+                            textMode = m
+                        },
                         onNikkud = { nikkud = !nikkud; if (!nikkud) teamim = false },
                         onTeamim = { teamim = !teamim; if (teamim) nikkud = true },
+                        onAliyot = { byAliyot = !byAliyot },
                         onClose = { finish() }
                     )
                     when {
                         state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Color.White) }
                         state.error != null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                            Text(if (lang == CalendarLanguage.HEBREW) "אין חיבור לאינטרנט" else "No internet connection", color = Color.White)
+                            Text(if (textMode != MODE_EN) "אין חיבור לאינטרנט" else "No internet connection", color = Color.White)
                         }
                         state.text != null -> ReaderBody(
-                            text = state.text!!, lang = lang, nikkud = nikkud, teamim = teamim,
+                            text = state.text!!, textMode = textMode, nikkud = nikkud, teamim = teamim,
                             sizeSp = textSize, mode = state.mode, bookNameEn = state.bookNameEn,
+                            aliyot = if (byAliyot) state.aliyot else emptyList(),
                             onZoom = { factor -> textSize = (textSize * factor).coerceIn(14f, 40f) }
                         )
                     }
@@ -147,78 +167,136 @@ class TextReaderActivity : ComponentActivity() {
     }
 }
 
+private val ACTIVE_GOLD = Color(0xFFFFC94D)
+private val ACTIVE_BG = Color(0x33FFC94D)
+private val INACTIVE = Color(0xCCFFFFFF)
+private val DISABLED = Color(0x55FFFFFF)
+
+@Composable
+private fun BarToggle(label: String, active: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
+    Text(
+        label,
+        color = if (!enabled) DISABLED else if (active) ACTIVE_GOLD else INACTIVE,
+        fontSize = 14.sp,
+        modifier = Modifier
+            .padding(horizontal = 3.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (active && enabled) ACTIVE_BG else Color.Transparent)
+            .clickable(enabled = enabled) { onClick() }
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    )
+}
+
 /**
- * Single slim, translucent control row: close, title, vocalization toggles, language.
- * Deliberately low-key — the text below is the star.
+ * Two slim translucent rows: [✕  title] then the toggles — language (EN/עב/תיקון),
+ * vocalization (ניקוד/טעמים), and, for a parsha, partitioning (עליות).
  */
 @Composable
 private fun ReaderBar(
-    title: String, lang: CalendarLanguage, nikkud: Boolean, teamim: Boolean,
-    onLang: () -> Unit, onNikkud: () -> Unit, onTeamim: () -> Unit, onClose: () -> Unit
+    title: String, textMode: String, nikkud: Boolean, teamim: Boolean,
+    showAliyotToggle: Boolean, byAliyot: Boolean,
+    onTextMode: (String) -> Unit, onNikkud: () -> Unit, onTeamim: () -> Unit,
+    onAliyot: () -> Unit, onClose: () -> Unit
 ) {
-    val on  = Color(0xFFD4AF37)          // gold = active
-    val off = Color.White.copy(alpha = 0.35f)
-    Row(
-        Modifier.fillMaxWidth().background(Color(0x59101020)).padding(horizontal = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        TextButton(onClick = onClose) { Text("✕", color = off, fontSize = 13.sp) }
-        Text(
-            title, color = Color.White.copy(alpha = 0.55f), fontSize = 12.sp,
-            maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
-        TextButton(onClick = onNikkud) { Text("ניקוד", color = if (nikkud) on else off, fontSize = 12.sp) }
-        TextButton(onClick = onTeamim, enabled = nikkud) { Text("טעמים", color = if (teamim && nikkud) on else off, fontSize = 12.sp) }
-        TextButton(onClick = onLang) { Text(if (lang == CalendarLanguage.HEBREW) "EN" else "עב", color = off, fontSize = 12.sp) }
+    val tikkun = textMode == MODE_TIKKUN
+    Column(Modifier.fillMaxWidth().background(Color(0x59101020))) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onClose) { Text("✕", color = INACTIVE, fontSize = 14.sp) }
+            Text(
+                title, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 8.dp, end = 8.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BarToggle("EN", active = textMode == MODE_EN) { onTextMode(MODE_EN) }
+            BarToggle("עב", active = textMode == MODE_HE) { onTextMode(MODE_HE) }
+            BarToggle("תיקון", active = tikkun) { onTextMode(MODE_TIKKUN) }
+            Spacer(Modifier.width(10.dp))
+            BarToggle("ניקוד", active = nikkud && !tikkun, enabled = !tikkun, onClick = onNikkud)
+            BarToggle("טעמים", active = teamim && nikkud && !tikkun, enabled = nikkud && !tikkun, onClick = onTeamim)
+            if (showAliyotToggle) {
+                Spacer(Modifier.width(10.dp))
+                BarToggle("עליות", active = byAliyot, onClick = onAliyot)
+            }
+        }
     }
 }
 
 /**
- * Continuous flowing text per chapter (like a printed Tanach): verses run inline,
- * separated by small gold verse numerals (gematria in Hebrew). Hebrew renders in a
- * true RTL layout. Pinch anywhere on the text to zoom.
+ * Continuous flowing text (like a printed Tanach): verses run inline, separated by
+ * small gold numerals (gematria in Hebrew). Hebrew renders in true RTL; תיקון mode
+ * renders unvocalized text in STaM sofer script. Partitioned by chapter, or by
+ * aliyah when [aliyot] is non-empty. Pinch anywhere on the text to zoom.
  */
 @Composable
 private fun ReaderBody(
     text: SefariaText,
-    lang: CalendarLanguage,
+    textMode: String,
     nikkud: Boolean,
     teamim: Boolean,
     sizeSp: Float,
     mode: String = "tehillim",
     bookNameEn: String? = null,
+    aliyot: List<String> = emptyList(),
     onZoom: (Float) -> Unit = {}
 ) {
     val listState = rememberLazyListState()
-    val hebrew = lang == CalendarLanguage.HEBREW
+    val hebrew = textMode != MODE_EN
+    val tikkun = textMode == MODE_TIKKUN
     val gematria = remember { HebrewDateFormatter() }
+    val stam = remember { FontFamily(Font(R.font.stam_ashkenaz)) }
     val gold = Color(0xFFD4AF37)
     val zoomState = rememberTransformableState { zoomChange, _, _ -> onZoom(zoomChange) }
+
+    fun verseBody(heRaw: String, en: String): String = when {
+        tikkun -> HebrewVocalization.strip(heRaw, showNikkud = false, showTeamim = false)
+        hebrew -> HebrewVocalization.strip(heRaw, nikkud, teamim)
+        else -> en
+    }
+
+    // Section list: one per aliyah when partitioning, else one per chapter.
+    val sections = remember(text, mode, bookNameEn, aliyot, hebrew) {
+        if (aliyot.isNotEmpty()) {
+            val parts = AliyotPartitioner.partition(text.chapters, aliyot)
+            if (parts.isNotEmpty()) {
+                parts.map { sec ->
+                    ReaderSection(AliyotPartitioner.aliyahName(sec.index, aliyot.size, hebrew), sec.verses, markChapters = true)
+                }
+            } else chapterSections(text, mode, bookNameEn, hebrew, gematria)
+        } else chapterSections(text, mode, bookNameEn, hebrew, gematria)
+    }
 
     val direction = if (hebrew) LayoutDirection.Rtl else LayoutDirection.Ltr
     Box(Modifier.fillMaxSize().transformable(zoomState)) {
         CompositionLocalProvider(LocalLayoutDirection provides direction) {
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-                items(text.chapters) { ch ->
-                    val header = when {
-                        hebrew -> "פרק ${gematria.formatHebrewNumber(ch.number)}"
-                        mode == "parsha" -> "${bookNameEn ?: "Chapter"} ${ch.number}"
-                        else -> "Psalm ${ch.number}"
-                    }
+                items(sections) { section ->
                     Text(
-                        header, color = gold, fontSize = (sizeSp + 2).sp,
+                        section.title, color = gold, fontSize = (sizeSp + 2).sp,
                         modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp),
                         textAlign = TextAlign.Start
                     )
                     val paragraph = buildAnnotatedString {
-                        ch.verses.forEach { v ->
-                            val body = if (hebrew) HebrewVocalization.strip(v.he, nikkud, teamim) else v.en
+                        var lastChapter = -1
+                        section.verses.forEach { tv ->
+                            val body = verseBody(tv.verse.he, tv.verse.en)
                             if (body.isBlank()) return@forEach
-                            withStyle(SpanStyle(color = gold, fontSize = (sizeSp * 0.62f).sp)) {
-                                append(if (hebrew) gematria.formatHebrewNumber(v.num) else v.num.toString())
+                            if (section.markChapters && tv.chapter != lastChapter) {
+                                if (lastChapter != -1) {
+                                    withStyle(SpanStyle(color = gold, fontSize = (sizeSp * 0.7f).sp)) {
+                                        append(if (hebrew) " ‹פרק ${gematria.formatHebrewNumber(tv.chapter)}› " else " ‹Ch. ${tv.chapter}› ")
+                                    }
+                                }
+                                lastChapter = tv.chapter
                             }
-                            append(" ")
+                            withStyle(SpanStyle(color = gold, fontSize = (sizeSp * 0.62f).sp)) {
+                                append(if (hebrew) gematria.formatHebrewNumber(tv.verse.num) else tv.verse.num.toString())
+                            }
+                            append(" ")
                             append(body)
                             append("  ")
                         }
@@ -228,9 +306,10 @@ private fun ReaderBody(
                         style = TextStyle(
                             color = Color.White,
                             fontSize = sizeSp.sp,
-                            lineHeight = (sizeSp * 1.75f).sp,
+                            lineHeight = (sizeSp * if (tikkun) 1.5f else 1.75f).sp,
                             textAlign = TextAlign.Start,
-                            textDirection = TextDirection.Content
+                            textDirection = TextDirection.Content,
+                            fontFamily = if (tikkun) stam else null
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -238,11 +317,32 @@ private fun ReaderBody(
                 item { Text(if (hebrew) "מקור: ספריא" else "Source: Sefaria", color = Color(0xFFAA9977), fontSize = 11.sp, modifier = Modifier.padding(16.dp)) }
             }
         }
-        // Fast-scroll thumb: drag maps to chapter index. (CenterEnd flips to the left
+        // Fast-scroll thumb: drag maps to section index. (CenterEnd flips to the left
         // edge in RTL, which is where a Hebrew reader expects the scroller.)
-        FastScrollThumb(listState, text.chapters.size + 1, Modifier.align(Alignment.CenterEnd))
+        FastScrollThumb(listState, sections.size + 1, Modifier.align(Alignment.CenterEnd))
     }
 }
+
+private fun chapterSections(
+    text: SefariaText,
+    mode: String,
+    bookNameEn: String?,
+    hebrew: Boolean,
+    gematria: HebrewDateFormatter
+): List<ReaderSection> = text.chapters.map { ch ->
+    val header = when {
+        hebrew -> "פרק ${gematria.formatHebrewNumber(ch.number)}"
+        mode == "parsha" -> "${bookNameEn ?: "Chapter"} ${ch.number}"
+        else -> "Psalm ${ch.number}"
+    }
+    ReaderSection(header, ch.verses.map { AliyotPartitioner.TaggedVerse(ch.number, it) }, markChapters = false)
+}
+
+private data class ReaderSection(
+    val title: String,
+    val verses: List<AliyotPartitioner.TaggedVerse>,
+    val markChapters: Boolean
+)
 
 @Composable
 private fun FastScrollThumb(
