@@ -17,7 +17,8 @@ data class HebrewDateInfo(
     val hebrewYear: Int,
     val omerDay: Int = 0,               // 1-49 during the Omer, 0 otherwise
     val omerText: String? = null,       // formatted display string, e.g. "Day 3 of the Omer"
-    val daysInMonth: Int = 30
+    val daysInMonth: Int = 30,
+    val jewishMonth: Int = 0
 )
 
 data class HolidayInfo(
@@ -74,7 +75,8 @@ class HebrewCalendarRepository {
             hebrewYear        = jewishCalendar.jewishYear,
             omerDay           = omerDay,
             omerText          = omerText,
-            daysInMonth       = jewishCalendar.daysInJewishMonth
+            daysInMonth       = jewishCalendar.daysInJewishMonth,
+            jewishMonth       = jewishCalendar.jewishMonth
         )
     }
 

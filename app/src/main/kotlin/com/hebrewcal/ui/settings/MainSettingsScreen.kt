@@ -223,6 +223,13 @@ fun MainSettingsScreen(
                 onCheck  = viewModel::setShowParshaButton
             )
 
+            SwitchSettingRow(
+                label    = "תהילים לאלול · Elul Tehillim",
+                subtitle = "Three additional daily chapters from Rosh Chodesh Elul through Yom Kippur, shown in the daily Tehillim reader",
+                checked  = prefs.showElulTehillim,
+                onCheck  = viewModel::setShowElulTehillim
+            )
+
             Spacer(Modifier.height(8.dp))
 
             // ── Zmanim Section ────────────────────────────────────────────

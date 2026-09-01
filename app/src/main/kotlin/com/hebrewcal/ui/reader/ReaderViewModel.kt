@@ -24,7 +24,8 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         val text: SefariaText? = null,
         val mode: String = "tehillim",
         val bookNameEn: String? = null,
-        val aliyot: List<String> = emptyList()
+        val aliyot: List<String> = emptyList(),
+        val elulText: SefariaText? = null
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -35,8 +36,8 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
 
     private var loadedKey: String? = null
 
-    fun load(mode: String, ref: String, title: String, diaspora: Boolean) {
-        val key = "$mode|$ref|$diaspora"
+    fun load(mode: String, ref: String, title: String, diaspora: Boolean, elulRef: String = "") {
+        val key = "$mode|$ref|$diaspora|$elulRef"
         if (loadedKey == key) return
         loadedKey = key
         _state.value = UiState(loading = true, title = title, mode = mode)
@@ -61,7 +62,11 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
             val res = repo.fetchText(resolvedRef)
             res.fold(
                 onSuccess = { text ->
-                    _state.value = UiState(false, null, resolvedTitle.ifBlank { text.heRef }, text, mode, bookNameEn, aliyot)
+                    // Elul supplement is best-effort: its absence never blocks the main text.
+                    val elulText = if (mode == "tehillim" && elulRef.isNotBlank()) {
+                        repo.fetchText(elulRef).getOrNull()
+                    } else null
+                    _state.value = UiState(false, null, resolvedTitle.ifBlank { text.heRef }, text, mode, bookNameEn, aliyot, elulText)
                 },
                 onFailure = { _state.value = UiState(false, OFFLINE, resolvedTitle, null, mode, bookNameEn, aliyot) }
             )

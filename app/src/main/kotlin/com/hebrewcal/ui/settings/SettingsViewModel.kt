@@ -66,6 +66,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         notifyServiceRefresh()
     }
 
+    fun setShowElulTehillim(show: Boolean) = viewModelScope.launch {
+        prefsRepo.updateShowElulTehillim(show)
+        notifyServiceRefresh()
+    }
+
     fun setShowZmanim(show: Boolean) = viewModelScope.launch {
         prefsRepo.updateShowZmanim(show)
         notifyServiceRefresh()

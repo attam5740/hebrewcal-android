@@ -17,12 +17,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -88,7 +90,8 @@ class TextReaderActivity : ComponentActivity() {
         val textMode0 = if (intent.getStringExtra(EXTRA_LANG) == CalendarLanguage.HEBREW.name) MODE_HE else MODE_EN
         val nikkud0 = intent.getBooleanExtra(EXTRA_NIKKUD, true)
         val teamim0 = intent.getBooleanExtra(EXTRA_TEAMIM, false)
-        vm.load(mode, ref, title, diaspora)
+        val elulRef = intent.getStringExtra(EXTRA_ELUL_REF) ?: ""
+        vm.load(mode, ref, title, diaspora, elulRef)
 
         setContent {
             val state by vm.state.collectAsState()
@@ -153,6 +156,7 @@ class TextReaderActivity : ComponentActivity() {
                             text = state.text!!, textMode = textMode, nikkud = nikkud, teamim = teamim,
                             sizeSp = textSize, mode = state.mode, bookNameEn = state.bookNameEn,
                             aliyot = if (byAliyot) state.aliyot else emptyList(),
+                            elulText = state.elulText,
                             onZoom = { factor -> textSize = (textSize * factor).coerceIn(14f, 40f) }
                         )
                     }
@@ -169,6 +173,7 @@ class TextReaderActivity : ComponentActivity() {
         const val EXTRA_LANG = "lang"
         const val EXTRA_NIKKUD = "nikkud"
         const val EXTRA_TEAMIM = "teamim"
+        const val EXTRA_ELUL_REF = "elul_ref"
     }
 }
 
@@ -252,6 +257,7 @@ private fun ReaderBody(
     mode: String = "tehillim",
     bookNameEn: String? = null,
     aliyot: List<String> = emptyList(),
+    elulText: SefariaText? = null,
     onZoom: (Float) -> Unit = {}
 ) {
     val listState = rememberLazyListState()
@@ -268,8 +274,8 @@ private fun ReaderBody(
     }
 
     // Section list: one per aliyah when partitioning, else one per chapter.
-    val sections = remember(text, mode, bookNameEn, aliyot, hebrew) {
-        if (aliyot.isNotEmpty()) {
+    val sections = remember(text, mode, bookNameEn, aliyot, hebrew, elulText) {
+        val main = if (aliyot.isNotEmpty()) {
             val parts = AliyotPartitioner.partition(text.chapters, aliyot)
             if (parts.isNotEmpty()) {
                 parts.map { sec ->
@@ -277,6 +283,10 @@ private fun ReaderBody(
                 }
             } else chapterSections(text, mode, bookNameEn, hebrew, gematria)
         } else chapterSections(text, mode, bookNameEn, hebrew, gematria)
+        val extra = elulText?.let { et ->
+            chapterSections(et, mode, bookNameEn, hebrew, gematria).map { it.copy(extra = true) }
+        } ?: emptyList()
+        main + extra
     }
 
     val direction = if (hebrew) LayoutDirection.Rtl else LayoutDirection.Ltr
@@ -300,9 +310,23 @@ private fun ReaderBody(
     Box(Modifier.fillMaxSize().then(zoomModifier)) {
         CompositionLocalProvider(LocalLayoutDirection provides direction) {
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-                items(sections) { section ->
+                itemsIndexed(sections) { index, section ->
+                    val mint = Color(0xFF6EE7B7)
+                    if (section.extra && (index == 0 || !sections[index - 1].extra)) {
+                        // Visual separation for the Elul supplement: rule + labeled header.
+                        Box(
+                            Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 2.dp)
+                                .height(1.dp).background(mint.copy(alpha = 0.45f))
+                        ) {}
+                        Text(
+                            if (hebrew) "תהילים לאלול" else "Elul Tehillim",
+                            color = mint, fontSize = (sizeSp * 0.8f).sp,
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            textAlign = TextAlign.Start
+                        )
+                    }
                     Text(
-                        section.title, color = gold, fontSize = (sizeSp + 2).sp,
+                        section.title, color = if (section.extra) mint else gold, fontSize = (sizeSp + 2).sp,
                         modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp),
                         textAlign = TextAlign.Start
                     )
@@ -367,7 +391,8 @@ private fun chapterSections(
 private data class ReaderSection(
     val title: String,
     val verses: List<AliyotPartitioner.TaggedVerse>,
-    val markChapters: Boolean
+    val markChapters: Boolean,
+    val extra: Boolean = false
 )
 
 @Composable

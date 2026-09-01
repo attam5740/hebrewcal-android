@@ -25,7 +25,8 @@ data class UserPreferences(
     val selectedZmanim: Set<String> = DEFAULT_SELECTED_ZMANIM,
     val readerTextSizeSp: Float = 18f,
     val showTehillimButton: Boolean = true,
-    val showParshaButton: Boolean = true
+    val showParshaButton: Boolean = true,
+    val showElulTehillim: Boolean = true
 )
 
 enum class CalendarLanguage { HEBREW, ENGLISH }
@@ -105,6 +106,7 @@ object PreferenceKeys {
     val READER_TEXT_SIZE = floatPreferencesKey("reader_text_size")
     val SHOW_TEHILLIM_BUTTON = booleanPreferencesKey("show_tehillim_button")
     val SHOW_PARSHA_BUTTON = booleanPreferencesKey("show_parsha_button")
+    val SHOW_ELUL_TEHILLIM = booleanPreferencesKey("show_elul_tehillim")
 }
 
 class UserPreferencesRepository(private val context: Context) {
@@ -134,7 +136,8 @@ class UserPreferencesRepository(private val context: Context) {
             selectedZmanim = prefs[PreferenceKeys.SELECTED_ZMANIM] ?: DEFAULT_SELECTED_ZMANIM,
             readerTextSizeSp = prefs[PreferenceKeys.READER_TEXT_SIZE] ?: 18f,
             showTehillimButton = prefs[PreferenceKeys.SHOW_TEHILLIM_BUTTON] ?: true,
-            showParshaButton = prefs[PreferenceKeys.SHOW_PARSHA_BUTTON] ?: true
+            showParshaButton = prefs[PreferenceKeys.SHOW_PARSHA_BUTTON] ?: true,
+            showElulTehillim = prefs[PreferenceKeys.SHOW_ELUL_TEHILLIM] ?: true
         )
     }
 
@@ -196,5 +199,9 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateShowParshaButton(show: Boolean) {
         context.dataStore.edit { it[PreferenceKeys.SHOW_PARSHA_BUTTON] = show }
+    }
+
+    suspend fun updateShowElulTehillim(show: Boolean) {
+        context.dataStore.edit { it[PreferenceKeys.SHOW_ELUL_TEHILLIM] = show }
     }
 }

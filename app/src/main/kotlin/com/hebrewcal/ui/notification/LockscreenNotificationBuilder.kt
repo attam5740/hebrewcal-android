@@ -55,7 +55,8 @@ object LockscreenNotificationBuilder {
         tehillimActionRef: String? = null,
         parshaActionLabel: String? = null,
         diaspora: Boolean = true,
-        languageName: String = "ENGLISH"
+        languageName: String = "ENGLISH",
+        elulRef: String? = null
     ): Notification {
         val settingsIntent = Intent(context, SettingsActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -159,6 +160,7 @@ object LockscreenNotificationBuilder {
                 putExtra(TextReaderActivity.EXTRA_LANG, languageName)
                 putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
                 putExtra(TextReaderActivity.EXTRA_TEAMIM, false)
+                putExtra(TextReaderActivity.EXTRA_ELUL_REF, elulRef ?: "")
                 data = android.net.Uri.parse("hebrewcal://reader/tehillim")
             }
             val pi = PendingIntent.getActivity(

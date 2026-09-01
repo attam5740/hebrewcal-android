@@ -145,6 +145,12 @@ class CalendarNotificationService : Service() {
                     } catch (e: Exception) { null }
                 } else null
 
+                val elulRef = if (prefs.showElulTehillim) {
+                    try {
+                        ElulTehillim.portionFor(dateInfo.jewishMonth, dateInfo.hebrewDayNumber)?.sefariaRef
+                    } catch (e: Exception) { null }
+                } else null
+
                 val notification = LockscreenNotificationBuilder.build(
                     context       = applicationContext,
                     dateInfo      = dateInfo,
@@ -157,7 +163,8 @@ class CalendarNotificationService : Service() {
                     tehillimActionRef   = tehillimPortion.sefariaRef,
                     parshaActionLabel   = parshaActionLabel,
                     diaspora            = prefs.location == CalendarLocation.DIASPORA,
-                    languageName        = prefs.language.name
+                    languageName        = prefs.language.name,
+                    elulRef             = elulRef
                 )
                 NotificationManagerCompat.from(applicationContext)
                     .notify(LockscreenNotificationBuilder.NOTIFICATION_ID, notification)

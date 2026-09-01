@@ -90,6 +90,10 @@ class HebrewDateWidget : GlanceAppWidget() {
             }.onFailure { Log.e(TAG, "parsha label failed", it) }.getOrNull()
         } else null
         val diaspora = prefs.location == CalendarLocation.DIASPORA
+        val elulRef = if (prefs.showElulTehillim) {
+            runCatching { ElulTehillim.portionFor(dateInfo.jewishMonth, dateInfo.hebrewDayNumber)?.sefariaRef }
+                .onFailure { Log.e(TAG, "elul portion failed", it) }.getOrNull()
+        } else null
 
         provideContent {
             HebrewDateWidgetContent(
@@ -100,7 +104,8 @@ class HebrewDateWidget : GlanceAppWidget() {
                 tehillimLabel = tehillimLabel,
                 tehillimRef   = portion?.sefariaRef ?: "",
                 parshaLabel   = parshaLabel,
-                diaspora      = diaspora
+                diaspora      = diaspora,
+                elulRef       = elulRef ?: ""
             )
         }
     }
@@ -115,7 +120,8 @@ fun HebrewDateWidgetContent(
     tehillimLabel: String?,
     tehillimRef: String,
     parshaLabel: String?,
-    diaspora: Boolean
+    diaspora: Boolean,
+    elulRef: String = ""
 ) {
     val bgColor        = ColorProvider(Color(0xFF1A1A2E))
     val goldColor      = ColorProvider(Color(0xFFD4AF37))
@@ -217,7 +223,8 @@ fun HebrewDateWidgetContent(
                             ActionParameters.Key<String>(TextReaderActivity.EXTRA_TITLE) to (tehillimLabel ?: ""),
                             ActionParameters.Key<String>(TextReaderActivity.EXTRA_LANG) to prefs.language.name,
                             ActionParameters.Key<Boolean>(TextReaderActivity.EXTRA_NIKKUD) to true,
-                            ActionParameters.Key<Boolean>(TextReaderActivity.EXTRA_TEAMIM) to false
+                            ActionParameters.Key<Boolean>(TextReaderActivity.EXTRA_TEAMIM) to false,
+                            ActionParameters.Key<String>(TextReaderActivity.EXTRA_ELUL_REF) to elulRef
                         )
                     )
                 )
