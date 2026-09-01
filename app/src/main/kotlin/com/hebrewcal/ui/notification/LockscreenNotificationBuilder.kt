@@ -167,6 +167,9 @@ object LockscreenNotificationBuilder {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
+            // Gold accent: OEM skins (incl. OxygenOS) tint action pills / small icon with
+            // this color, giving the reader buttons real contrast against the shade.
+            .setColor(0xFFD4AF37.toInt())
             .apply {
                 if (tehillimActionLabel != null && tehillimActionRef != null) {
                     val intent = Intent(context, TextReaderActivity::class.java).apply {

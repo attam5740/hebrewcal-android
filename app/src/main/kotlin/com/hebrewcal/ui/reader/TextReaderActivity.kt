@@ -7,12 +7,12 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,31 +22,42 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hebrewcal.data.CalendarLanguage
 import com.hebrewcal.data.HebrewVocalization
 import com.hebrewcal.data.SefariaText
+import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 
 class TextReaderActivity : ComponentActivity() {
@@ -65,15 +76,24 @@ class TextReaderActivity : ComponentActivity() {
 
         setContent {
             val state by vm.state.collectAsState()
-            val sizeSp by vm.textSize.collectAsState()
+            val persistedSize by vm.textSize.collectAsState()
             var langName by rememberSaveable { mutableStateOf(lang0.name) }
             val lang = if (langName == CalendarLanguage.HEBREW.name) CalendarLanguage.HEBREW else CalendarLanguage.ENGLISH
             var nikkud by rememberSaveable { mutableStateOf(nikkud0) }
             var teamim by rememberSaveable { mutableStateOf(teamim0) }
             val contentInteractionSource = remember { MutableInteractionSource() }
-            // Local live slider value for smooth dragging; persisted to DataStore only on release.
-            var sliderValue by remember { mutableStateOf(sizeSp) }
-            LaunchedEffect(sizeSp) { sliderValue = sizeSp }
+
+            // Live text size driven by pinch-to-zoom; persisted (debounced) to DataStore.
+            var textSize by remember { mutableStateOf(persistedSize) }
+            LaunchedEffect(persistedSize) {
+                if (textSize == 18f && persistedSize != 18f) textSize = persistedSize
+            }
+            LaunchedEffect(Unit) {
+                snapshotFlow { textSize }.drop(1).collectLatest {
+                    delay(500)
+                    vm.setTextSize(it)
+                }
+            }
 
             Box(
                 Modifier.fillMaxSize()
@@ -94,12 +114,10 @@ class TextReaderActivity : ComponentActivity() {
                 ) {
                     ReaderBar(
                         title = state.title,
-                        lang = lang, nikkud = nikkud, teamim = teamim, sizeSp = sliderValue,
+                        lang = lang, nikkud = nikkud, teamim = teamim,
                         onLang = { langName = if (lang == CalendarLanguage.HEBREW) CalendarLanguage.ENGLISH.name else CalendarLanguage.HEBREW.name },
-                        onNikkud = { nikkud = it; if (!it) teamim = false },
-                        onTeamim = { teamim = it; if (it) nikkud = true },
-                        onSizeChange = { sliderValue = it },
-                        onSizeChangeFinished = { vm.setTextSize(sliderValue) },
+                        onNikkud = { nikkud = !nikkud; if (!nikkud) teamim = false },
+                        onTeamim = { teamim = !teamim; if (teamim) nikkud = true },
                         onClose = { finish() }
                     )
                     when {
@@ -107,7 +125,11 @@ class TextReaderActivity : ComponentActivity() {
                         state.error != null -> Box(Modifier.fillMaxSize(), Alignment.Center) {
                             Text(if (lang == CalendarLanguage.HEBREW) "אין חיבור לאינטרנט" else "No internet connection", color = Color.White)
                         }
-                        state.text != null -> ReaderBody(state.text!!, lang, nikkud, teamim, sliderValue, state.mode, state.bookNameEn)
+                        state.text != null -> ReaderBody(
+                            text = state.text!!, lang = lang, nikkud = nikkud, teamim = teamim,
+                            sizeSp = textSize, mode = state.mode, bookNameEn = state.bookNameEn,
+                            onZoom = { factor -> textSize = (textSize * factor).coerceIn(14f, 40f) }
+                        )
                     }
                 }
             }
@@ -125,33 +147,38 @@ class TextReaderActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Single slim, translucent control row: close, title, vocalization toggles, language.
+ * Deliberately low-key — the text below is the star.
+ */
 @Composable
 private fun ReaderBar(
-    title: String, lang: CalendarLanguage, nikkud: Boolean, teamim: Boolean, sizeSp: Float,
-    onLang: () -> Unit, onNikkud: (Boolean) -> Unit, onTeamim: (Boolean) -> Unit,
-    onSizeChange: (Float) -> Unit, onSizeChangeFinished: () -> Unit, onClose: () -> Unit
+    title: String, lang: CalendarLanguage, nikkud: Boolean, teamim: Boolean,
+    onLang: () -> Unit, onNikkud: () -> Unit, onTeamim: () -> Unit, onClose: () -> Unit
 ) {
-    Column(Modifier.fillMaxWidth().background(Color(0xFF1A1A2E)).padding(8.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(title, color = Color.White, modifier = Modifier.weight(1f))
-            TextButton(onClick = onLang) { Text(if (lang == CalendarLanguage.HEBREW) "EN" else "עב", color = Color.White) }
-            TextButton(onClick = onClose) { Text("✕", color = Color.White) }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            FilterChip(selected = nikkud, onClick = { onNikkud(!nikkud) }, label = { Text("ניקוד") })
-            Spacer(Modifier.width(6.dp))
-            FilterChip(selected = teamim, onClick = { onTeamim(!teamim) }, enabled = nikkud, label = { Text("טעמים") })
-        }
-        Slider(
-            value = sizeSp,
-            onValueChange = onSizeChange,
-            onValueChangeFinished = onSizeChangeFinished,
-            valueRange = 14f..34f
+    val on  = Color(0xFFD4AF37)          // gold = active
+    val off = Color.White.copy(alpha = 0.35f)
+    Row(
+        Modifier.fillMaxWidth().background(Color(0x59101020)).padding(horizontal = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(onClick = onClose) { Text("✕", color = off, fontSize = 13.sp) }
+        Text(
+            title, color = Color.White.copy(alpha = 0.55f), fontSize = 12.sp,
+            maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
         )
+        TextButton(onClick = onNikkud) { Text("ניקוד", color = if (nikkud) on else off, fontSize = 12.sp) }
+        TextButton(onClick = onTeamim, enabled = nikkud) { Text("טעמים", color = if (teamim && nikkud) on else off, fontSize = 12.sp) }
+        TextButton(onClick = onLang) { Text(if (lang == CalendarLanguage.HEBREW) "EN" else "עב", color = off, fontSize = 12.sp) }
     }
 }
 
+/**
+ * Continuous flowing text per chapter (like a printed Tanach): verses run inline,
+ * separated by small gold verse numerals (gematria in Hebrew). Hebrew renders in a
+ * true RTL layout. Pinch anywhere on the text to zoom.
+ */
 @Composable
 private fun ReaderBody(
     text: SefariaText,
@@ -160,49 +187,60 @@ private fun ReaderBody(
     teamim: Boolean,
     sizeSp: Float,
     mode: String = "tehillim",
-    bookNameEn: String? = null
+    bookNameEn: String? = null,
+    onZoom: (Float) -> Unit = {}
 ) {
     val listState = rememberLazyListState()
     val hebrew = lang == CalendarLanguage.HEBREW
-    // Flatten to display rows for a simple fast-scrollable list.
-    data class Row(val header: String?, val verseNum: Int?, val body: String)
-    val rows = remember(text, lang, nikkud, teamim, mode, bookNameEn) {
-        buildList {
-            text.chapters.forEach { ch ->
-                val header = when {
-                    hebrew -> "פרק ${ch.number}"
-                    mode == "parsha" -> "${bookNameEn ?: "Chapter"} ${ch.number}"
-                    else -> "Psalm ${ch.number}"
+    val gematria = remember { HebrewDateFormatter() }
+    val gold = Color(0xFFD4AF37)
+    val zoomState = rememberTransformableState { zoomChange, _, _ -> onZoom(zoomChange) }
+
+    val direction = if (hebrew) LayoutDirection.Rtl else LayoutDirection.Ltr
+    Box(Modifier.fillMaxSize().transformable(zoomState)) {
+        CompositionLocalProvider(LocalLayoutDirection provides direction) {
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+                items(text.chapters) { ch ->
+                    val header = when {
+                        hebrew -> "פרק ${gematria.formatHebrewNumber(ch.number)}"
+                        mode == "parsha" -> "${bookNameEn ?: "Chapter"} ${ch.number}"
+                        else -> "Psalm ${ch.number}"
+                    }
+                    Text(
+                        header, color = gold, fontSize = (sizeSp + 2).sp,
+                        modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp),
+                        textAlign = TextAlign.Start
+                    )
+                    val paragraph = buildAnnotatedString {
+                        ch.verses.forEach { v ->
+                            val body = if (hebrew) HebrewVocalization.strip(v.he, nikkud, teamim) else v.en
+                            if (body.isBlank()) return@forEach
+                            withStyle(SpanStyle(color = gold, fontSize = (sizeSp * 0.62f).sp)) {
+                                append(if (hebrew) gematria.formatHebrewNumber(v.num) else v.num.toString())
+                            }
+                            append(" ")
+                            append(body)
+                            append("  ")
+                        }
+                    }
+                    Text(
+                        paragraph,
+                        style = TextStyle(
+                            color = Color.White,
+                            fontSize = sizeSp.sp,
+                            lineHeight = (sizeSp * 1.75f).sp,
+                            textAlign = TextAlign.Start,
+                            textDirection = TextDirection.Content
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
-                add(Row(header, null, ""))
-                ch.verses.forEach { v ->
-                    val body = if (hebrew) HebrewVocalization.strip(v.he, nikkud, teamim) else v.en
-                    add(Row(null, v.num, body))
-                }
+                item { Text(if (hebrew) "מקור: ספריא" else "Source: Sefaria", color = Color(0xFFAA9977), fontSize = 11.sp, modifier = Modifier.padding(16.dp)) }
             }
         }
-    }
-    Box(Modifier.fillMaxSize()) {
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-            items(rows) { row ->
-                if (row.header != null) {
-                    Text(
-                        row.header, color = Color(0xFFD4AF37), fontSize = (sizeSp + 4).sp,
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp),
-                        textAlign = if (hebrew) TextAlign.End else TextAlign.Start
-                    )
-                } else {
-                    Text(
-                        "${row.verseNum}. ${row.body}", color = Color.White, fontSize = sizeSp.sp,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        textAlign = if (hebrew) TextAlign.End else TextAlign.Start
-                    )
-                }
-            }
-            item { Text(if (hebrew) "מקור: ספריא" else "Source: Sefaria", color = Color(0xFFAA9977), fontSize = 12.sp, modifier = Modifier.padding(16.dp)) }
-        }
-        // Fast-scroll thumb: drag maps to list index.
-        FastScrollThumb(listState, rows.size, Modifier.align(Alignment.CenterEnd))
+        // Fast-scroll thumb: drag maps to chapter index. (CenterEnd flips to the left
+        // edge in RTL, which is where a Hebrew reader expects the scroller.)
+        FastScrollThumb(listState, text.chapters.size + 1, Modifier.align(Alignment.CenterEnd))
     }
 }
 
