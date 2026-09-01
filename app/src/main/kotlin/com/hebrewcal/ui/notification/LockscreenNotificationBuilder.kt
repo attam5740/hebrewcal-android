@@ -168,13 +168,9 @@ object LockscreenNotificationBuilder {
             expandedViews.setTextViewText(R.id.tv_btn_tehillim, tehillimActionLabel)
             expandedViews.setViewVisibility(R.id.tv_btn_tehillim, android.view.View.VISIBLE)
             expandedViews.setOnClickPendingIntent(R.id.tv_btn_tehillim, pi)
-            remoteViews.setTextViewText(R.id.tv_btn_tehillim_c, tehillimActionLabel)
-            remoteViews.setViewVisibility(R.id.tv_btn_tehillim_c, android.view.View.VISIBLE)
-            remoteViews.setOnClickPendingIntent(R.id.tv_btn_tehillim_c, pi)
             anyReaderButton = true
         } else {
             expandedViews.setViewVisibility(R.id.tv_btn_tehillim, android.view.View.GONE)
-            remoteViews.setViewVisibility(R.id.tv_btn_tehillim_c, android.view.View.GONE)
         }
         if (parshaActionLabel != null) {
             val intent = Intent(context, TextReaderActivity::class.java).apply {
@@ -194,20 +190,12 @@ object LockscreenNotificationBuilder {
             expandedViews.setTextViewText(R.id.tv_btn_parsha, parshaActionLabel)
             expandedViews.setViewVisibility(R.id.tv_btn_parsha, android.view.View.VISIBLE)
             expandedViews.setOnClickPendingIntent(R.id.tv_btn_parsha, pi)
-            remoteViews.setTextViewText(R.id.tv_btn_parsha_c, parshaActionLabel)
-            remoteViews.setViewVisibility(R.id.tv_btn_parsha_c, android.view.View.VISIBLE)
-            remoteViews.setOnClickPendingIntent(R.id.tv_btn_parsha_c, pi)
             anyReaderButton = true
         } else {
             expandedViews.setViewVisibility(R.id.tv_btn_parsha, android.view.View.GONE)
-            remoteViews.setViewVisibility(R.id.tv_btn_parsha_c, android.view.View.GONE)
         }
         expandedViews.setViewVisibility(
             R.id.ll_reader_buttons,
-            if (anyReaderButton) android.view.View.VISIBLE else android.view.View.GONE
-        )
-        remoteViews.setViewVisibility(
-            R.id.ll_reader_buttons_c,
             if (anyReaderButton) android.view.View.VISIBLE else android.view.View.GONE
         )
 

@@ -39,47 +39,6 @@
         android:text=""
         android:layout_marginTop="2dp" />
 
-    <!-- Reader buttons — compact pills, visible without expanding -->
-    <LinearLayout
-        android:id="@+id/ll_reader_buttons_c"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="4dp"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/tv_btn_tehillim_c"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_pill_tehillim"
-            android:paddingLeft="12dp"
-            android:paddingRight="12dp"
-            android:paddingTop="5dp"
-            android:paddingBottom="5dp"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:textColor="#1A1A2E"
-            android:text=""
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/tv_btn_parsha_c"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
-            android:background="@drawable/bg_pill_parsha"
-            android:paddingLeft="12dp"
-            android:paddingRight="12dp"
-            android:paddingTop="5dp"
-            android:paddingBottom="5dp"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:textColor="#1A1A2E"
-            android:text=""
-            android:visibility="gone" />
-    </LinearLayout>
-
     <!-- Next zman (collapsed) -->
     <TextView
         android:id="@+id/tv_next_zman"
