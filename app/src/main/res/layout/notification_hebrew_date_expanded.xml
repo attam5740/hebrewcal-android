@@ -68,6 +68,48 @@
         android:layout_marginTop="8dp"
         android:layout_marginBottom="6dp" />
 
+    <!-- Reader buttons — bright in-layout pills (system action buttons are
+         OEM-styled and ignore accent colors, so we draw our own) -->
+    <LinearLayout
+        android:id="@+id/ll_reader_buttons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="6dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tv_btn_tehillim"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_pill_tehillim"
+            android:paddingLeft="14dp"
+            android:paddingRight="14dp"
+            android:paddingTop="7dp"
+            android:paddingBottom="7dp"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="#1A1A2E"
+            android:text=""
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tv_btn_parsha"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_pill_parsha"
+            android:paddingLeft="14dp"
+            android:paddingRight="14dp"
+            android:paddingTop="7dp"
+            android:paddingBottom="7dp"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="#1A1A2E"
+            android:text=""
+            android:visibility="gone" />
+    </LinearLayout>
+
     <!-- Zmanim container — rows added dynamically -->
     <LinearLayout
         android:id="@+id/ll_zmanim_container"

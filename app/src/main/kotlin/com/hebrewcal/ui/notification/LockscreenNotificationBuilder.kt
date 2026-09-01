@@ -148,6 +148,55 @@ object LockscreenNotificationBuilder {
             expandedViews.setViewVisibility(R.id.ll_zmanim_container, android.view.View.GONE)
         }
 
+        // Reader buttons — drawn inside the custom layout with our own bright pills
+        // (system addAction pills are OEM-recolored and ignore setColor).
+        var anyReaderButton = false
+        if (tehillimActionLabel != null && tehillimActionRef != null) {
+            val intent = Intent(context, TextReaderActivity::class.java).apply {
+                putExtra(TextReaderActivity.EXTRA_MODE, "tehillim")
+                putExtra(TextReaderActivity.EXTRA_REF, tehillimActionRef)
+                putExtra(TextReaderActivity.EXTRA_TITLE, tehillimActionLabel)
+                putExtra(TextReaderActivity.EXTRA_LANG, languageName)
+                putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
+                putExtra(TextReaderActivity.EXTRA_TEAMIM, false)
+                data = android.net.Uri.parse("hebrewcal://reader/tehillim")
+            }
+            expandedViews.setTextViewText(R.id.tv_btn_tehillim, tehillimActionLabel)
+            expandedViews.setViewVisibility(R.id.tv_btn_tehillim, android.view.View.VISIBLE)
+            expandedViews.setOnClickPendingIntent(R.id.tv_btn_tehillim, PendingIntent.getActivity(
+                context, TEHILLIM_ACTION_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            ))
+            anyReaderButton = true
+        } else {
+            expandedViews.setViewVisibility(R.id.tv_btn_tehillim, android.view.View.GONE)
+        }
+        if (parshaActionLabel != null) {
+            val intent = Intent(context, TextReaderActivity::class.java).apply {
+                putExtra(TextReaderActivity.EXTRA_MODE, "parsha")
+                putExtra(TextReaderActivity.EXTRA_REF, "")
+                putExtra(TextReaderActivity.EXTRA_TITLE, parshaActionLabel)
+                putExtra(TextReaderActivity.EXTRA_DIASPORA, diaspora)
+                putExtra(TextReaderActivity.EXTRA_LANG, languageName)
+                putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
+                putExtra(TextReaderActivity.EXTRA_TEAMIM, true)
+                data = android.net.Uri.parse("hebrewcal://reader/parsha")
+            }
+            expandedViews.setTextViewText(R.id.tv_btn_parsha, parshaActionLabel)
+            expandedViews.setViewVisibility(R.id.tv_btn_parsha, android.view.View.VISIBLE)
+            expandedViews.setOnClickPendingIntent(R.id.tv_btn_parsha, PendingIntent.getActivity(
+                context, PARSHA_ACTION_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            ))
+            anyReaderButton = true
+        } else {
+            expandedViews.setViewVisibility(R.id.tv_btn_parsha, android.view.View.GONE)
+        }
+        expandedViews.setViewVisibility(
+            R.id.ll_reader_buttons,
+            if (anyReaderButton) android.view.View.VISIBLE else android.view.View.GONE
+        )
+
         // Build a sub-text for standard lockscreen fallback (shown when custom view isn't rendered)
         val subText = listOfNotNull(
             dateInfo.holidayName,
@@ -170,40 +219,6 @@ object LockscreenNotificationBuilder {
             // Gold accent: OEM skins (incl. OxygenOS) tint action pills / small icon with
             // this color, giving the reader buttons real contrast against the shade.
             .setColor(0xFFD4AF37.toInt())
-            .apply {
-                if (tehillimActionLabel != null && tehillimActionRef != null) {
-                    val intent = Intent(context, TextReaderActivity::class.java).apply {
-                        putExtra(TextReaderActivity.EXTRA_MODE, "tehillim")
-                        putExtra(TextReaderActivity.EXTRA_REF, tehillimActionRef)
-                        putExtra(TextReaderActivity.EXTRA_TITLE, tehillimActionLabel)
-                        putExtra(TextReaderActivity.EXTRA_LANG, languageName)
-                        putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
-                        putExtra(TextReaderActivity.EXTRA_TEAMIM, false)
-                        // Distinct data URI so this PendingIntent never collides with the parsha one.
-                        data = android.net.Uri.parse("hebrewcal://reader/tehillim")
-                    }
-                    addAction(0, tehillimActionLabel, PendingIntent.getActivity(
-                        context, TEHILLIM_ACTION_REQUEST_CODE, intent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    ))
-                }
-                if (parshaActionLabel != null) {
-                    val intent = Intent(context, TextReaderActivity::class.java).apply {
-                        putExtra(TextReaderActivity.EXTRA_MODE, "parsha")
-                        putExtra(TextReaderActivity.EXTRA_REF, "")
-                        putExtra(TextReaderActivity.EXTRA_TITLE, parshaActionLabel)
-                        putExtra(TextReaderActivity.EXTRA_DIASPORA, diaspora)
-                        putExtra(TextReaderActivity.EXTRA_LANG, languageName)
-                        putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
-                        putExtra(TextReaderActivity.EXTRA_TEAMIM, true)
-                        data = android.net.Uri.parse("hebrewcal://reader/parsha")
-                    }
-                    addAction(0, parshaActionLabel, PendingIntent.getActivity(
-                        context, PARSHA_ACTION_REQUEST_CODE, intent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    ))
-                }
-            }
             .build()
     }
 }

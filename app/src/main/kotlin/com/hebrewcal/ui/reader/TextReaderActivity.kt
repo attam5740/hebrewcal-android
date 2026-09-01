@@ -97,6 +97,7 @@ class TextReaderActivity : ComponentActivity() {
             var nikkud by rememberSaveable { mutableStateOf(nikkud0) }
             var teamim by rememberSaveable { mutableStateOf(teamim0) }
             var byAliyot by rememberSaveable { mutableStateOf(false) }
+            var barExpanded by rememberSaveable { mutableStateOf(false) }
             val contentInteractionSource = remember { MutableInteractionSource() }
 
             // Live text size driven by pinch-to-zoom; persisted (debounced) to DataStore.
@@ -129,6 +130,8 @@ class TextReaderActivity : ComponentActivity() {
                 ) {
                     ReaderBar(
                         title = state.title,
+                        expanded = barExpanded,
+                        onToggleExpanded = { barExpanded = !barExpanded },
                         textMode = textMode,
                         nikkud = nikkud, teamim = teamim,
                         showAliyotToggle = state.mode == "parsha" && state.aliyot.isNotEmpty(),
@@ -195,7 +198,8 @@ private fun BarToggle(label: String, active: Boolean, enabled: Boolean = true, o
  */
 @Composable
 private fun ReaderBar(
-    title: String, textMode: String, nikkud: Boolean, teamim: Boolean,
+    title: String, expanded: Boolean, onToggleExpanded: () -> Unit,
+    textMode: String, nikkud: Boolean, teamim: Boolean,
     showAliyotToggle: Boolean, byAliyot: Boolean,
     onTextMode: (String) -> Unit, onNikkud: () -> Unit, onTeamim: () -> Unit,
     onAliyot: () -> Unit, onClose: () -> Unit
@@ -209,8 +213,12 @@ private fun ReaderBar(
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
+            // Collapse/expand the settings row — keeps the text front and center.
+            TextButton(onClick = onToggleExpanded) {
+                Text(if (expanded) "▲" else "⚙", color = if (expanded) ACTIVE_GOLD else INACTIVE, fontSize = 14.sp)
+            }
         }
-        Row(
+        if (expanded) Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 8.dp, end = 8.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
