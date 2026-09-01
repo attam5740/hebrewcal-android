@@ -7,11 +7,24 @@ data class Chapter(val number: Int, val verses: List<Verse>)
 data class SefariaText(val heRef: String, val chapters: List<Chapter>)
 
 object SefariaTextParser {
+    private val BR = Regex("<br ?/?>")
     private val TAGS = Regex("<[^>]*>")
-    private val WS = Regex("\\s+")
+    private val SPACES = Regex("[ \\t\\u00A0\\u2009\\u2005]+")
+    private val NL_TRIM = Regex(" ?\\n ?")
 
-    private fun clean(raw: String): String =
-        WS.replace(TAGS.replace(raw, " "), " ").trim()
+    /**
+     * Strips HTML but preserves the source's layout data: <br> becomes a real
+     * newline and the {פ}/{ס} petucha/setuma markers stay in the text for the
+     * reader's spacing option to interpret.
+     */
+    private fun clean(raw: String): String {
+        var t = raw.replace("&nbsp;", " ").replace("&thinsp;", " ").replace("&amp;", "&")
+        t = BR.replace(t, "\n")
+        t = TAGS.replace(t, " ")
+        t = SPACES.replace(t, " ")
+        t = NL_TRIM.replace(t, "\n")
+        return t.trim()
+    }
 
     private fun asStr(e: JsonElement): String =
         clean((e as? JsonPrimitive)?.contentOrNull ?: "")

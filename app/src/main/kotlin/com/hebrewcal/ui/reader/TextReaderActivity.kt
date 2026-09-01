@@ -100,6 +100,7 @@ class TextReaderActivity : ComponentActivity() {
             var nikkud by rememberSaveable { mutableStateOf(nikkud0) }
             var teamim by rememberSaveable { mutableStateOf(teamim0) }
             var byAliyot by rememberSaveable { mutableStateOf(false) }
+            var spacing by rememberSaveable { mutableStateOf(true) }
             var barExpanded by rememberSaveable { mutableStateOf(false) }
             val contentInteractionSource = remember { MutableInteractionSource() }
 
@@ -139,6 +140,8 @@ class TextReaderActivity : ComponentActivity() {
                         nikkud = nikkud, teamim = teamim,
                         showAliyotToggle = state.mode == "parsha" && state.aliyot.isNotEmpty(),
                         byAliyot = byAliyot,
+                        spacing = spacing,
+                        onSpacing = { spacing = !spacing },
                         onTextMode = { m ->
                             textMode = m
                         },
@@ -157,6 +160,7 @@ class TextReaderActivity : ComponentActivity() {
                             sizeSp = textSize, mode = state.mode, bookNameEn = state.bookNameEn,
                             aliyot = if (byAliyot) state.aliyot else emptyList(),
                             elulText = state.elulText,
+                            spacing = spacing,
                             onZoom = { factor -> textSize = (textSize * factor).coerceIn(14f, 40f) }
                         )
                     }
@@ -206,6 +210,7 @@ private fun ReaderBar(
     title: String, expanded: Boolean, onToggleExpanded: () -> Unit,
     textMode: String, nikkud: Boolean, teamim: Boolean,
     showAliyotToggle: Boolean, byAliyot: Boolean,
+    spacing: Boolean = true, onSpacing: () -> Unit = {},
     onTextMode: (String) -> Unit, onNikkud: () -> Unit, onTeamim: () -> Unit,
     onAliyot: () -> Unit, onClose: () -> Unit
 ) {
@@ -233,6 +238,7 @@ private fun ReaderBar(
             Spacer(Modifier.width(10.dp))
             BarToggle("ניקוד", active = nikkud && !tikkun, enabled = !tikkun, onClick = onNikkud)
             BarToggle("טעמים", active = teamim && nikkud && !tikkun, enabled = nikkud && !tikkun, onClick = onTeamim)
+            BarToggle("רווחים", active = spacing, onClick = onSpacing)
             if (showAliyotToggle) {
                 Spacer(Modifier.width(10.dp))
                 BarToggle("עליות", active = byAliyot, onClick = onAliyot)
@@ -258,6 +264,7 @@ private fun ReaderBody(
     bookNameEn: String? = null,
     aliyot: List<String> = emptyList(),
     elulText: SefariaText? = null,
+    spacing: Boolean = true,
     onZoom: (Float) -> Unit = {}
 ) {
     val listState = rememberLazyListState()
@@ -267,10 +274,16 @@ private fun ReaderBody(
     val stam = remember { FontFamily(Font(R.font.stam_ashkenaz)) }
     val gold = Color(0xFFD4AF37)
 
+    // Layout pass first: the {פ}/{ס} scroll-spacing markers and original line
+    // breaks either render as spacing (on) or vanish into the flow (off).
+    fun layout(t: String): String =
+        if (spacing) t.replace("{פ}", "\n").replace("{ס}", "\u2003\u2003\u2003")
+        else t.replace("{פ}", "").replace("{ס}", "").replace("\n", " ").trim()
+
     fun verseBody(heRaw: String, en: String): String = when {
-        tikkun -> HebrewVocalization.strip(heRaw, showNikkud = false, showTeamim = false)
-        hebrew -> HebrewVocalization.strip(heRaw, nikkud, teamim)
-        else -> en
+        tikkun -> HebrewVocalization.strip(layout(heRaw), showNikkud = false, showTeamim = false)
+        hebrew -> HebrewVocalization.strip(layout(heRaw), nikkud, teamim)
+        else -> layout(en)
     }
 
     // Section list: one per aliyah when partitioning, else one per chapter.

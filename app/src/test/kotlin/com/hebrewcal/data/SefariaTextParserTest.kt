@@ -41,6 +41,17 @@ class SefariaTextParserTest {
         assertEquals(listOf(28, 29, 30), t.chapters[0].verses.map { it.num })
     }
 
+    @Test fun preservesLayoutMarkersAndLineBreaks() {
+        val json = """
+            {"heRef":"דברים ל״א","sections":["31"],"toSections":["31"],
+             "he":["חִזְקוּ&nbsp;וְאִמְצוּ <span class='mam-spi-pe'>{פ}</span>","שירה<br>שנייה {ס}"],
+             "text":["Be strong","Second"]}
+        """.trimIndent()
+        val t = SefariaTextParser.parse(json)
+        assertEquals("חִזְקוּ וְאִמְצוּ {פ}", t.chapters[0].verses[0].he)   // entity decoded, span stripped, marker kept
+        assertEquals("שירה\nשנייה {ס}", t.chapters[0].verses[1].he)        // <br> becomes newline
+    }
+
     @Test fun handlesNullLanguageFieldWithoutCrashing() {
         val json = """
             {"heRef":"תהילים א׳","sections":["1"],"toSections":["1"],

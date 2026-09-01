@@ -13,11 +13,13 @@ class SefariaRepository(context: Context) {
     private val cacheDir = File(context.filesDir, "sefaria").apply { mkdirs() }
 
     // Fully-vocalized Hebrew (nikkud + te'amim) + JPS 1917 English.
-    private val heVersion = "Tanach with Ta'amei Hamikra"
+    // MAM carries nikkud + te'amim AND the original layout data (petucha/setuma
+    // markers, poetic line breaks) that the spacing display option renders.
+    private val heVersion = "Miqra according to the Masorah"
     private val enVersion = "The Holy Scriptures: A New Translation (JPS 1917)"
 
     suspend fun fetchText(ref: String): Result<SefariaText> = withContext(Dispatchers.IO) {
-        val cacheFile = File(cacheDir, ref.replace(Regex("[^A-Za-z0-9._-]"), "_") + ".json")
+        val cacheFile = File(cacheDir, ref.replace(Regex("[^A-Za-z0-9._-]"), "_") + "_v2.json")
         // Try network; on failure fall back to cache.
         val url = "https://www.sefaria.org/api/texts/" +
             URLEncoder.encode(ref, "UTF-8").replace("+", "%20") +
