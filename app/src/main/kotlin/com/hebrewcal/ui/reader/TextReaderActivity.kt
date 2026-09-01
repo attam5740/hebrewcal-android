@@ -7,8 +7,9 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -167,10 +169,10 @@ class TextReaderActivity : ComponentActivity() {
     }
 }
 
-private val ACTIVE_GOLD = Color(0xFFFFC94D)
-private val ACTIVE_BG = Color(0x33FFC94D)
-private val INACTIVE = Color(0xCCFFFFFF)
-private val DISABLED = Color(0x55FFFFFF)
+private val ACTIVE_GOLD = Color(0xFFFFD255)   // vivid warm amber
+private val ACTIVE_BG = Color(0x47FFC94D)     // stronger amber pill behind active toggles
+private val INACTIVE = Color(0xE6FFFFFF)      // near-white, clearly legible
+private val DISABLED = Color(0x66FFFFFF)
 
 @Composable
 private fun BarToggle(label: String, active: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
@@ -199,11 +201,11 @@ private fun ReaderBar(
     onAliyot: () -> Unit, onClose: () -> Unit
 ) {
     val tikkun = textMode == MODE_TIKKUN
-    Column(Modifier.fillMaxWidth().background(Color(0x59101020))) {
+    Column(Modifier.fillMaxWidth().background(Color(0x73181818))) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onClose) { Text("✕", color = INACTIVE, fontSize = 14.sp) }
             Text(
-                title, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp,
+                title, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
@@ -250,7 +252,6 @@ private fun ReaderBody(
     val gematria = remember { HebrewDateFormatter() }
     val stam = remember { FontFamily(Font(R.font.stam_ashkenaz)) }
     val gold = Color(0xFFD4AF37)
-    val zoomState = rememberTransformableState { zoomChange, _, _ -> onZoom(zoomChange) }
 
     fun verseBody(heRaw: String, en: String): String = when {
         tikkun -> HebrewVocalization.strip(heRaw, showNikkud = false, showTeamim = false)
@@ -271,7 +272,24 @@ private fun ReaderBody(
     }
 
     val direction = if (hebrew) LayoutDirection.Rtl else LayoutDirection.Ltr
-    Box(Modifier.fillMaxSize().transformable(zoomState)) {
+    // Pinch-to-zoom that wins over list scrolling: watch the pointer stream in the
+    // Initial pass (before the LazyColumn sees it); with two fingers down, apply the
+    // zoom and consume the events so scroll never claims the gesture. One finger
+    // passes through untouched.
+    val zoomModifier = Modifier.pointerInput(Unit) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            do {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (event.changes.count { it.pressed } >= 2) {
+                    val zoom = event.calculateZoom()
+                    if (zoom != 1f) onZoom(zoom)
+                    event.changes.forEach { it.consume() }
+                }
+            } while (event.changes.any { it.pressed })
+        }
+    }
+    Box(Modifier.fillMaxSize().then(zoomModifier)) {
         CompositionLocalProvider(LocalLayoutDirection provides direction) {
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                 items(sections) { section ->

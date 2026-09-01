@@ -107,6 +107,7 @@ fun HebrewDateWidgetContent(
 ) {
     val bgColor        = ColorProvider(Color(0xFF1A1A2E))
     val goldColor      = ColorProvider(Color(0xFFD4AF37))
+    val pillColor      = ColorProvider(Color(0xFFFFD255))
     val parchmentColor = ColorProvider(Color(0xFFE8D5B7))
     val mutedColor     = ColorProvider(Color(0xFFAA9977))
     val blueColor      = ColorProvider(Color(0xFF7EC8E3))
@@ -195,7 +196,7 @@ fun HebrewDateWidgetContent(
                 Spacer(GlanceModifier.height(8.dp))
                 if (tehillimLabel != null) Text(
                     text = tehillimLabel,
-                    style = TextStyle(color = goldColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Medium),
+                    style = TextStyle(color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
                     modifier = GlanceModifier.clickable(
                         actionStartActivity(
                             Intent(context, TextReaderActivity::class.java).apply {
@@ -213,7 +214,7 @@ fun HebrewDateWidgetContent(
                     Spacer(GlanceModifier.height(4.dp))
                     Text(
                         text = parshaLabel,
-                        style = TextStyle(color = goldColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Medium),
+                        style = TextStyle(color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
                         modifier = GlanceModifier.clickable(
                             actionStartActivity(
                                 Intent(context, TextReaderActivity::class.java).apply {
