@@ -23,7 +23,9 @@ data class UserPreferences(
     val zmanimManualLat: Double = 0.0,
     val zmanimManualLng: Double = 0.0,
     val selectedZmanim: Set<String> = DEFAULT_SELECTED_ZMANIM,
-    val readerTextSizeSp: Float = 18f
+    val readerTextSizeSp: Float = 18f,
+    val showTehillimButton: Boolean = true,
+    val showParshaButton: Boolean = true
 )
 
 enum class CalendarLanguage { HEBREW, ENGLISH }
@@ -101,6 +103,8 @@ object PreferenceKeys {
     val ZMANIM_MANUAL_LNG = doublePreferencesKey("zmanim_manual_lng")
     val SELECTED_ZMANIM = stringSetPreferencesKey("selected_zmanim")
     val READER_TEXT_SIZE = floatPreferencesKey("reader_text_size")
+    val SHOW_TEHILLIM_BUTTON = booleanPreferencesKey("show_tehillim_button")
+    val SHOW_PARSHA_BUTTON = booleanPreferencesKey("show_parsha_button")
 }
 
 class UserPreferencesRepository(private val context: Context) {
@@ -128,7 +132,9 @@ class UserPreferencesRepository(private val context: Context) {
             zmanimManualLat = prefs[PreferenceKeys.ZMANIM_MANUAL_LAT] ?: 0.0,
             zmanimManualLng = prefs[PreferenceKeys.ZMANIM_MANUAL_LNG] ?: 0.0,
             selectedZmanim = prefs[PreferenceKeys.SELECTED_ZMANIM] ?: DEFAULT_SELECTED_ZMANIM,
-            readerTextSizeSp = prefs[PreferenceKeys.READER_TEXT_SIZE] ?: 18f
+            readerTextSizeSp = prefs[PreferenceKeys.READER_TEXT_SIZE] ?: 18f,
+            showTehillimButton = prefs[PreferenceKeys.SHOW_TEHILLIM_BUTTON] ?: true,
+            showParshaButton = prefs[PreferenceKeys.SHOW_PARSHA_BUTTON] ?: true
         )
     }
 
@@ -182,5 +188,13 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateReaderTextSize(sp: Float) {
         context.dataStore.edit { it[PreferenceKeys.READER_TEXT_SIZE] = sp }
+    }
+
+    suspend fun updateShowTehillimButton(show: Boolean) {
+        context.dataStore.edit { it[PreferenceKeys.SHOW_TEHILLIM_BUTTON] = show }
+    }
+
+    suspend fun updateShowParshaButton(show: Boolean) {
+        context.dataStore.edit { it[PreferenceKeys.SHOW_PARSHA_BUTTON] = show }
     }
 }

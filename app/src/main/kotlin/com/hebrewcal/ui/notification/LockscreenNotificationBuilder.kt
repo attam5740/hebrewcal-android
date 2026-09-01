@@ -13,6 +13,7 @@ import com.hebrewcal.data.HebrewDateInfo
 import com.hebrewcal.data.ZmanEntry
 import com.hebrewcal.data.ZmanimData
 import com.hebrewcal.ui.settings.SettingsActivity
+import com.hebrewcal.ui.reader.TextReaderActivity
 
 object LockscreenNotificationBuilder {
 
@@ -22,6 +23,8 @@ object LockscreenNotificationBuilder {
     // at the channel level so HIGH importance is silent-but-visible.
     const val CHANNEL_ID = "hebrew_calendar_lockscreen_v3"
     const val NOTIFICATION_ID = 1001
+    const val TEHILLIM_ACTION_REQUEST_CODE = 3001
+    const val PARSHA_ACTION_REQUEST_CODE = 3002
 
     fun createNotificationChannel(context: Context) {
         val channel = NotificationChannel(
@@ -47,7 +50,12 @@ object LockscreenNotificationBuilder {
         showZmanim: Boolean,
         showGregorian: Boolean,
         showParsha: Boolean,
-        showOmer: Boolean = true
+        showOmer: Boolean = true,
+        tehillimActionLabel: String? = null,
+        tehillimActionRef: String? = null,
+        parshaActionLabel: String? = null,
+        diaspora: Boolean = true,
+        languageName: String = "ENGLISH"
     ): Notification {
         val settingsIntent = Intent(context, SettingsActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -159,6 +167,40 @@ object LockscreenNotificationBuilder {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .apply {
+                if (tehillimActionLabel != null && tehillimActionRef != null) {
+                    val intent = Intent(context, TextReaderActivity::class.java).apply {
+                        putExtra(TextReaderActivity.EXTRA_MODE, "tehillim")
+                        putExtra(TextReaderActivity.EXTRA_REF, tehillimActionRef)
+                        putExtra(TextReaderActivity.EXTRA_TITLE, tehillimActionLabel)
+                        putExtra(TextReaderActivity.EXTRA_LANG, languageName)
+                        putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
+                        putExtra(TextReaderActivity.EXTRA_TEAMIM, false)
+                        // Distinct data URI so this PendingIntent never collides with the parsha one.
+                        data = android.net.Uri.parse("hebrewcal://reader/tehillim")
+                    }
+                    addAction(0, tehillimActionLabel, PendingIntent.getActivity(
+                        context, TEHILLIM_ACTION_REQUEST_CODE, intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    ))
+                }
+                if (parshaActionLabel != null) {
+                    val intent = Intent(context, TextReaderActivity::class.java).apply {
+                        putExtra(TextReaderActivity.EXTRA_MODE, "parsha")
+                        putExtra(TextReaderActivity.EXTRA_REF, "")
+                        putExtra(TextReaderActivity.EXTRA_TITLE, parshaActionLabel)
+                        putExtra(TextReaderActivity.EXTRA_DIASPORA, diaspora)
+                        putExtra(TextReaderActivity.EXTRA_LANG, languageName)
+                        putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
+                        putExtra(TextReaderActivity.EXTRA_TEAMIM, true)
+                        data = android.net.Uri.parse("hebrewcal://reader/parsha")
+                    }
+                    addAction(0, parshaActionLabel, PendingIntent.getActivity(
+                        context, PARSHA_ACTION_REQUEST_CODE, intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    ))
+                }
+            }
             .build()
     }
 }

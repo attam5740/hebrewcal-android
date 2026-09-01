@@ -206,6 +206,25 @@ fun MainSettingsScreen(
 
             Spacer(Modifier.height(8.dp))
 
+            // ── Reader Buttons Section ────────────────────────────────────
+            SettingsSectionHeader(icon = Icons.Default.MenuBook, title = "Reader Buttons")
+
+            SwitchSettingRow(
+                label    = "תהילים יומי · Daily Tehillim",
+                subtitle = "Button on the widget and notification, opens today's chapters",
+                checked  = prefs.showTehillimButton,
+                onCheck  = viewModel::setShowTehillimButton
+            )
+
+            SwitchSettingRow(
+                label    = "פרשת השבוע · Weekly Parsha",
+                subtitle = "Button on the widget and notification, opens the upcoming parsha",
+                checked  = prefs.showParshaButton,
+                onCheck  = viewModel::setShowParshaButton
+            )
+
+            Spacer(Modifier.height(8.dp))
+
             // ── Zmanim Section ────────────────────────────────────────────
             SettingsSectionHeader(icon = Icons.Default.Schedule, title = "Zmanim (Prayer Times)")
 

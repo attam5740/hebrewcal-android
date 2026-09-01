@@ -56,6 +56,16 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         notifyServiceRefresh()
     }
 
+    fun setShowTehillimButton(show: Boolean) = viewModelScope.launch {
+        prefsRepo.updateShowTehillimButton(show)
+        notifyServiceRefresh()
+    }
+
+    fun setShowParshaButton(show: Boolean) = viewModelScope.launch {
+        prefsRepo.updateShowParshaButton(show)
+        notifyServiceRefresh()
+    }
+
     fun setShowZmanim(show: Boolean) = viewModelScope.launch {
         prefsRepo.updateShowZmanim(show)
         notifyServiceRefresh()

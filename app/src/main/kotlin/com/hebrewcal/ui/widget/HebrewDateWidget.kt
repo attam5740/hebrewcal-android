@@ -27,12 +27,6 @@ import com.hebrewcal.ui.settings.SettingsActivity
 import kotlinx.coroutines.flow.first
 import java.util.*
 
-private fun chapterRangeLabel(first: Int, last: Int, hebrew: Boolean): String {
-    val fmt = com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter()
-    fun n(x: Int) = if (hebrew) fmt.formatHebrewNumber(x) else x.toString()
-    return if (first == last) n(first) else "${n(first)}–${n(last)}"
-}
-
 class HebrewDateWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -78,12 +72,11 @@ class HebrewDateWidget : GlanceAppWidget() {
 
         val hebrew = prefs.language == CalendarLanguage.HEBREW
         val portion = TehillimSchedule.portionFor(dateInfo.hebrewDayNumber, dateInfo.daysInMonth)
-        val tehillimLabel = (if (hebrew) "תהילים יומי" else "Daily Tehillim") + " · " +
-            chapterRangeLabel(portion.firstChapter, portion.lastChapter, hebrew)
-        val parshaName = calRepo.upcomingParshaName(now, prefs.location, prefs.language)
-        val parshaLabel = parshaName?.let {
-            (if (hebrew) "פרשת השבוע" else "Weekly Parsha") + " · " + it
-        }
+        val tehillimLabel = if (prefs.showTehillimButton) ReaderButtons.tehillimLabel(portion, hebrew) else null
+        val parshaLabel = if (prefs.showParshaButton) {
+            calRepo.upcomingParshaName(now, prefs.location, prefs.language)
+                ?.let { ReaderButtons.parshaLabel(it, hebrew) }
+        } else null
         val diaspora = prefs.location == CalendarLocation.DIASPORA
 
         provideContent {
@@ -107,7 +100,7 @@ fun HebrewDateWidgetContent(
     dateInfo: HebrewDateInfo,
     zmanimData: ZmanimData?,
     prefs: UserPreferences,
-    tehillimLabel: String,
+    tehillimLabel: String?,
     tehillimRef: String,
     parshaLabel: String?,
     diaspora: Boolean
@@ -198,9 +191,9 @@ fun HebrewDateWidgetContent(
             // Glance/RemoteViews containers allow at most 10 children; with all optional
             // rows enabled the outer Column would exceed that, so the pills live in a
             // nested Column (which gets its own child budget).
-            Column {
+            if (tehillimLabel != null || parshaLabel != null) Column {
                 Spacer(GlanceModifier.height(8.dp))
-                Text(
+                if (tehillimLabel != null) Text(
                     text = tehillimLabel,
                     style = TextStyle(color = goldColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Medium),
                     modifier = GlanceModifier.clickable(
