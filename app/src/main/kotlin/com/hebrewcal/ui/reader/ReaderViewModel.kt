@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hebrewcal.data.SefariaRepository
+import com.hebrewcal.data.TikkunLayout
+import com.hebrewcal.data.TikkunLayoutRepository
 import com.hebrewcal.data.SefariaText
 import com.hebrewcal.data.UserPreferencesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +17,7 @@ import kotlinx.coroutines.launch
 
 class ReaderViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = SefariaRepository(app)
+    private val tikkunRepo = TikkunLayoutRepository(app)
     private val prefsRepo = UserPreferencesRepository(app)
 
     data class UiState(
@@ -25,7 +28,8 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         val mode: String = "tehillim",
         val bookNameEn: String? = null,
         val aliyot: List<String> = emptyList(),
-        val elulText: SefariaText? = null
+        val elulText: SefariaText? = null,
+        val tikkunLines: List<TikkunLayout.Line>? = null
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -66,7 +70,11 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                     val elulText = if (mode == "tehillim" && elulRef.isNotBlank()) {
                         repo.fetchText(elulRef).getOrNull()
                     } else null
-                    _state.value = UiState(false, null, resolvedTitle.ifBlank { text.heRef }, text, mode, bookNameEn, aliyot, elulText)
+                    // Authentic scroll layout (tikkun.io data) for Torah refs, best-effort.
+                    val tikkunLines = if (mode == "parsha") {
+                        TikkunLayout.parseTorahRef(resolvedRef)?.let { tikkunRepo.linesFor(it) }
+                    } else null
+                    _state.value = UiState(false, null, resolvedTitle.ifBlank { text.heRef }, text, mode, bookNameEn, aliyot, elulText, tikkunLines)
                 },
                 onFailure = { _state.value = UiState(false, OFFLINE, resolvedTitle, null, mode, bookNameEn, aliyot) }
             )

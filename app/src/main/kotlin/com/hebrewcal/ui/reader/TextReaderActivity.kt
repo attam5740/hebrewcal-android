@@ -67,6 +67,7 @@ import com.hebrewcal.data.AliyotPartitioner
 import com.hebrewcal.data.CalendarLanguage
 import com.hebrewcal.data.HebrewVocalization
 import com.hebrewcal.data.SefariaText
+import com.hebrewcal.data.TikkunLayout
 import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -161,6 +162,7 @@ class TextReaderActivity : ComponentActivity() {
                             aliyot = if (byAliyot) state.aliyot else emptyList(),
                             elulText = state.elulText,
                             spacing = spacing,
+                            tikkunLines = state.tikkunLines,
                             onZoom = { factor -> textSize = (textSize * factor).coerceIn(14f, 40f) }
                         )
                     }
@@ -265,6 +267,7 @@ private fun ReaderBody(
     aliyot: List<String> = emptyList(),
     elulText: SefariaText? = null,
     spacing: Boolean = true,
+    tikkunLines: List<TikkunLayout.Line>? = null,
     onZoom: (Float) -> Unit = {}
 ) {
     val listState = rememberLazyListState()
@@ -300,6 +303,12 @@ private fun ReaderBody(
             chapterSections(et, mode, bookNameEn, hebrew, gematria).map { it.copy(extra = true) }
         } ?: emptyList()
         main + extra
+    }
+
+    // Authentic scroll layout: tikkun mode on a Torah reading with layout data.
+    if (tikkun && tikkunLines != null) {
+        TikkunScrollBody(tikkunLines, sizeSp, stam, onZoom)
+        return
     }
 
     val direction = if (hebrew) LayoutDirection.Rtl else LayoutDirection.Ltr
@@ -383,6 +392,71 @@ private fun ReaderBody(
         // Fast-scroll thumb: drag maps to section index. (CenterEnd flips to the left
         // edge in RTL, which is where a Hebrew reader expects the scroller.)
         FastScrollThumb(listState, sections.size + 1, Modifier.align(Alignment.CenterEnd))
+    }
+}
+
+/**
+ * Line-for-line Torah scroll rendering (layout data from the MIT-licensed
+ * tikkun.io project): each row is one line of the standard 42-line column, in
+ * unvocalized STaM script. Petucha lines end their paragraph with a gap; new
+ * columns are marked by a thin rule. Verse numbers are absent — as on a scroll.
+ */
+@Composable
+private fun TikkunScrollBody(
+    lines: List<TikkunLayout.Line>,
+    sizeSp: Float,
+    stam: FontFamily,
+    onZoom: (Float) -> Unit
+) {
+    val listState = rememberLazyListState()
+    val gold = Color(0xFFD4AF37)
+    val zoomModifier = Modifier.pointerInput(Unit) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            do {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (event.changes.count { it.pressed } >= 2) {
+                    val zoom = event.calculateZoom()
+                    if (zoom != 1f) onZoom(zoom)
+                    event.changes.forEach { it.consume() }
+                }
+            } while (event.changes.any { it.pressed })
+        }
+    }
+    Box(Modifier.fillMaxSize().then(zoomModifier)) {
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+                itemsIndexed(lines) { i, line ->
+                    if (line.firstLineOfPage && i != 0) {
+                        Box(
+                            Modifier.fillMaxWidth().padding(vertical = 10.dp)
+                                .height(1.dp).background(gold.copy(alpha = 0.35f))
+                        ) {}
+                    }
+                    Text(
+                        HebrewVocalization.strip(line.text, showNikkud = false, showTeamim = false),
+                        style = TextStyle(
+                            color = Color.White,
+                            fontSize = sizeSp.sp,
+                            lineHeight = (sizeSp * 1.45f).sp,
+                            textAlign = TextAlign.Start,
+                            textDirection = TextDirection.Rtl,
+                            fontFamily = stam
+                        ),
+                        maxLines = 1,
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(bottom = if (line.isPetucha) (sizeSp * 0.9f).dp else 0.dp)
+                    )
+                }
+                item {
+                    Text(
+                        "פריסת עמודים: tikkun.io · מקור: ספריא",
+                        color = Color(0xFFAA9977), fontSize = 11.sp, modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
+        }
+        FastScrollThumb(listState, lines.size + 1, Modifier.align(Alignment.CenterEnd))
     }
 }
 
