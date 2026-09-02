@@ -14,6 +14,15 @@ Hebrew Calendar displays the current Hebrew date as a persistent lockscreen noti
 • Next upcoming zman highlighted in the collapsed notification
 • 12-hour or 24-hour time format
 
+<b>Torah &amp; Tehillim Reader</b>
+• Daily Tehillim (day-of-month cycle) and weekly parsha buttons on the widget and notification
+• Translucent reader overlay with right-to-left flowing text and pinch-to-zoom
+• Nikkud and te'amim toggles; Hebrew or English text (Sefaria editions)
+• Tikkun mode: unvocalized STaM sofer script with authentic Torah-scroll line layout (tikkun.io)
+• Parsha shown by chapters or by aliyot, including double portions
+• Original scroll spacing (petucha/setuma) display option
+• Customary Elul Tehillim: three additional daily chapters through Yom Kippur
+
 <b>Display</b>
 • Persistent lockscreen notification — always visible without unlocking
 • Home screen widget
@@ -21,6 +30,6 @@ Hebrew Calendar displays the current Hebrew date as a persistent lockscreen noti
 • Survives Do Not Disturb and Bedtime mode with optional DND bypass permission
 
 <b>Privacy</b>
-• No internet connection required
 • No analytics or tracking
 • Location used only once to match the nearest city; stored locally and never transmitted
+• Calendar and zmanim work fully offline; the text reader fetches from the Sefaria API and caches locally for offline rereading

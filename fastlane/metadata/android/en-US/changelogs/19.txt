@@ -1,0 +1,8 @@
+New: built-in Sefaria text reader.
+
+• Daily Tehillim and weekly parsha buttons on the widget and notification
+• Reader overlay: RTL flowing text, pinch zoom, nikkud/te'amim toggles, Hebrew numerals
+• Tikkun mode: STaM script with authentic scroll line layout (tikkun.io data)
+• Parsha view by chapters or aliyot; scroll spacing (petucha/setuma) option
+• Customary Elul Tehillim (3 daily chapters through Yom Kippur)
+• Requires internet for first fetch; texts cached for offline rereading

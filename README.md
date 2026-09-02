@@ -15,6 +15,12 @@ persistent lockscreen notification on Android 8+.
 - **Lockscreen notification** — persistent, always visible on lockscreen (Android 8+)
 - **Home screen Glance widget** — also available as a resizable home screen widget
 - **Auto-updating** — refreshes at midnight, on each zman transition, and on date/timezone change
+- **Torah & Tehillim reader** — daily Tehillim (day-of-month cycle) and weekly parsha buttons on
+  the widget and notification open a translucent Sefaria-backed reader: RTL flowing text,
+  pinch-to-zoom, nikkud/te'amim toggles, Hebrew/English, aliyah partitioning, original
+  petucha/setuma spacing, and the customary Elul Tehillim supplement
+- **Tikkun mode** — unvocalized STaM sofer script rendered in the authentic 42-line
+  Torah-scroll column layout (line-break data from the tikkun.io project)
 
 ---
 
@@ -193,3 +199,18 @@ and its Hebrew translation in `translateHolidayToHebrew()`.
 
 This project is released under the MIT License.
 KosherJava is licensed under the LGPL v2.1 — see [KosherJava GitHub](https://github.com/KosherJava/zmanim).
+
+---
+
+## Data sources & credits
+
+- **Text**: fetched from the [Sefaria API](https://developers.sefaria.org/) —
+  Hebrew from *Miqra according to the Masorah* (CC-BY-SA), English from the JPS 1917
+  translation (public domain). Texts are cached on-device for offline rereading.
+- **Scroll line layout**: [tikkun.io](https://github.com/akivajgordon/tikkun.io) (MIT License).
+- **STaM font**: *Stam Ashkenaz CLM* from the [Culmus project](https://culmus.sourceforge.io/)
+  (GPL with font-embedding exception).
+- **Calendar & zmanim**: [KosherJava zmanim](https://github.com/KosherJava/zmanim) (LGPL 2.1).
+
+The `INTERNET` permission is used solely for fetching these texts; the calendar,
+zmanim, notification, and widget work fully offline.
