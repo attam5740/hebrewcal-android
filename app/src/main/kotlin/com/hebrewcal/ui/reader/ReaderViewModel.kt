@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.hebrewcal.data.SefariaRepository
 import com.hebrewcal.data.TikkunLayout
 import com.hebrewcal.data.TikkunLayoutRepository
+import com.hebrewcal.data.TorahNavigation
+import com.hebrewcal.data.TorahNavigationRepository
 import com.hebrewcal.data.SefariaText
 import com.hebrewcal.data.UserPreferencesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +20,21 @@ import kotlinx.coroutines.launch
 class ReaderViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = SefariaRepository(app)
     private val tikkunRepo = TikkunLayoutRepository(app)
+    private val navRepo = TorahNavigationRepository(app)
+
+    /** Parsha lists per Torah book for the navigation dial (loaded on demand). */
+    val parshiyot = MutableStateFlow<Map<String, List<TorahNavigation.Parsha>>>(emptyMap())
+    fun ensureParshiyot(bookEn: String) {
+        if (parshiyot.value.containsKey(bookEn)) return
+        viewModelScope.launch {
+            val list = navRepo.parshiyot(bookEn)
+            parshiyot.value = parshiyot.value + (bookEn to list)
+        }
+    }
+
+    /** Jump to any Tehillim chapter or Torah chapter/parsha from the navigation dial. */
+    fun navigateTo(mode: String, ref: String, title: String, aliyot: List<String> = emptyList()) =
+        load(mode, ref, title, diaspora = true, elulRef = "", presetAliyot = aliyot)
     private val prefsRepo = UserPreferencesRepository(app)
 
     data class UiState(
@@ -40,7 +57,8 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
 
     private var loadedKey: String? = null
 
-    fun load(mode: String, ref: String, title: String, diaspora: Boolean, elulRef: String = "") {
+    fun load(mode: String, ref: String, title: String, diaspora: Boolean, elulRef: String = "",
+             presetAliyot: List<String> = emptyList()) {
         val key = "$mode|$ref|$diaspora|$elulRef"
         if (loadedKey == key) return
         loadedKey = key
@@ -48,7 +66,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val resolvedRef: String
             var resolvedTitle = title
-            var aliyot: List<String> = emptyList()
+            var aliyot: List<String> = presetAliyot
             if (mode == "parsha" && ref.isBlank()) {
                 val pr = repo.currentParsha(diaspora)
                 val p = pr.getOrNull()

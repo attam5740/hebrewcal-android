@@ -205,8 +205,8 @@ KosherJava is licensed under the LGPL v2.1 — see [KosherJava GitHub](https://g
 ## Data sources & credits
 
 - **Text**: fetched from the [Sefaria API](https://developers.sefaria.org/) —
-  Hebrew from *Miqra according to the Masorah* (CC-BY-SA), English from the JPS 1917
-  translation (public domain). Texts are cached on-device for offline rereading.
+  Hebrew from *Miqra according to the Masorah* (CC-BY-SA), English from *THE JPS TANAKH:
+  Gender-Sensitive Edition* (2023, CC-BY-NC). Texts are cached on-device for offline rereading.
 - **Scroll line layout**: [tikkun.io](https://github.com/akivajgordon/tikkun.io) (MIT License).
 - **STaM font**: *Stam Ashkenaz CLM* from the [Culmus project](https://culmus.sourceforge.io/)
   (GPL with font-embedding exception).

@@ -52,6 +52,14 @@ class SefariaTextParserTest {
         assertEquals("שירה\nשנייה {ס}", t.chapters[0].verses[1].he)        // <br> becomes newline
     }
 
+    @Test fun dropsFootnotesFromTranslation() {
+        val json = """
+            {"heRef":"x","sections":["1"],"toSections":["1"],"he":["א"],
+             "text":["God<sup class='footnote-marker'>*</sup><i class=\"footnote\">note text</i> said"]}
+        """.trimIndent()
+        assertEquals("God said", SefariaTextParser.parse(json).chapters[0].verses[0].en)
+    }
+
     @Test fun handlesNullLanguageFieldWithoutCrashing() {
         val json = """
             {"heRef":"תהילים א׳","sections":["1"],"toSections":["1"],

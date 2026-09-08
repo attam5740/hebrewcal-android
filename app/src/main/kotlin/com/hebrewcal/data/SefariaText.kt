@@ -17,8 +17,13 @@ object SefariaTextParser {
      * newline and the {פ}/{ס} petucha/setuma markers stay in the text for the
      * reader's spacing option to interpret.
      */
+    private val FOOTNOTE_MARK = Regex("<sup[^>]*footnote-marker[^>]*>.*?</sup>", RegexOption.DOT_MATCHES_ALL)
+    private val FOOTNOTE_BODY = Regex("<i[^>]*class=\"footnote\"[^>]*>.*?</i>", RegexOption.DOT_MATCHES_ALL)
+
     private fun clean(raw: String): String {
         var t = raw.replace("&nbsp;", " ").replace("&thinsp;", " ").replace("&amp;", "&")
+        t = FOOTNOTE_MARK.replace(t, "")
+        t = FOOTNOTE_BODY.replace(t, "")
         t = BR.replace(t, "\n")
         t = TAGS.replace(t, " ")
         t = SPACES.replace(t, " ")

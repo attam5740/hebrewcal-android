@@ -16,16 +16,18 @@ class SefariaRepository(context: Context) {
     // MAM carries nikkud + te'amim AND the original layout data (petucha/setuma
     // markers, poetic line breaks) that the spacing display option renders.
     private val heVersion = "Miqra according to the Masorah"
-    private val enVersion = "The Holy Scriptures: A New Translation (JPS 1917)"
+    // English: Sefaria's default edition — currently the contemporary JPS
+    // Gender-Sensitive Tanakh (2023), modern "you" English rather than 1917 "thou".
+    private val enVersion: String? = null
 
     suspend fun fetchText(ref: String): Result<SefariaText> = withContext(Dispatchers.IO) {
-        val cacheFile = File(cacheDir, ref.replace(Regex("[^A-Za-z0-9._-]"), "_") + "_v2.json")
+        val cacheFile = File(cacheDir, ref.replace(Regex("[^A-Za-z0-9._-]"), "_") + "_v3.json")
         // Try network; on failure fall back to cache.
         val url = "https://www.sefaria.org/api/texts/" +
             URLEncoder.encode(ref, "UTF-8").replace("+", "%20") +
             "?context=0&commentary=0" +
             "&vhe=" + URLEncoder.encode(heVersion, "UTF-8") +
-            "&ven=" + URLEncoder.encode(enVersion, "UTF-8")
+            (enVersion?.let { "&ven=" + URLEncoder.encode(it, "UTF-8") } ?: "")
         runCatching {
             val body = httpGet(url)
             val parsed = SefariaTextParser.parse(body)

@@ -9,7 +9,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import com.hebrewcal.data.TorahNavigation
+import kotlin.math.PI
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -101,7 +112,7 @@ class TextReaderActivity : ComponentActivity() {
             var nikkud by rememberSaveable { mutableStateOf(nikkud0) }
             var teamim by rememberSaveable { mutableStateOf(teamim0) }
             var byAliyot by rememberSaveable { mutableStateOf(false) }
-            var spacing by rememberSaveable { mutableStateOf(true) }
+            var showNav by rememberSaveable { mutableStateOf(false) }
             var barExpanded by rememberSaveable { mutableStateOf(false) }
             val contentInteractionSource = remember { MutableInteractionSource() }
 
@@ -141,8 +152,7 @@ class TextReaderActivity : ComponentActivity() {
                         nikkud = nikkud, teamim = teamim,
                         showAliyotToggle = state.mode == "parsha" && state.aliyot.isNotEmpty(),
                         byAliyot = byAliyot,
-                        spacing = spacing,
-                        onSpacing = { spacing = !spacing },
+                        onNav = { showNav = true },
                         onTextMode = { m ->
                             textMode = m
                         },
@@ -161,11 +171,21 @@ class TextReaderActivity : ComponentActivity() {
                             sizeSp = textSize, mode = state.mode, bookNameEn = state.bookNameEn,
                             aliyot = if (byAliyot) state.aliyot else emptyList(),
                             elulText = state.elulText,
-                            spacing = spacing,
                             tikkunLines = state.tikkunLines,
                             onZoom = { factor -> textSize = (textSize * factor).coerceIn(14f, 40f) }
                         )
                     }
+                }
+                if (showNav) {
+                    val parshiyotMap by vm.parshiyot.collectAsState()
+                    NavDialOverlay(
+                        mode = state.mode,
+                        hebrew = textMode != MODE_EN,
+                        parshiyot = parshiyotMap,
+                        ensureParshiyot = { vm.ensureParshiyot(it) },
+                        onPick = { m, ref, title, aliyot -> showNav = false; vm.navigateTo(m, ref, title, aliyot) },
+                        onDismiss = { showNav = false }
+                    )
                 }
             }
         }
@@ -212,7 +232,7 @@ private fun ReaderBar(
     title: String, expanded: Boolean, onToggleExpanded: () -> Unit,
     textMode: String, nikkud: Boolean, teamim: Boolean,
     showAliyotToggle: Boolean, byAliyot: Boolean,
-    spacing: Boolean = true, onSpacing: () -> Unit = {},
+    onNav: () -> Unit = {},
     onTextMode: (String) -> Unit, onNikkud: () -> Unit, onTeamim: () -> Unit,
     onAliyot: () -> Unit, onClose: () -> Unit
 ) {
@@ -225,6 +245,8 @@ private fun ReaderBar(
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
+            // Navigation dial (jump to any chapter / parsha).
+            TextButton(onClick = onNav) { Text("◎", color = INACTIVE, fontSize = 15.sp) }
             // Collapse/expand the settings row — keeps the text front and center.
             TextButton(onClick = onToggleExpanded) {
                 Text(if (expanded) "▲" else "⚙", color = if (expanded) ACTIVE_GOLD else INACTIVE, fontSize = 14.sp)
@@ -240,7 +262,6 @@ private fun ReaderBar(
             Spacer(Modifier.width(10.dp))
             BarToggle("ניקוד", active = nikkud && !tikkun, enabled = !tikkun, onClick = onNikkud)
             BarToggle("טעמים", active = teamim && nikkud && !tikkun, enabled = nikkud && !tikkun, onClick = onTeamim)
-            BarToggle("רווחים", active = spacing, onClick = onSpacing)
             if (showAliyotToggle) {
                 Spacer(Modifier.width(10.dp))
                 BarToggle("עליות", active = byAliyot, onClick = onAliyot)
@@ -266,7 +287,6 @@ private fun ReaderBody(
     bookNameEn: String? = null,
     aliyot: List<String> = emptyList(),
     elulText: SefariaText? = null,
-    spacing: Boolean = true,
     tikkunLines: List<TikkunLayout.Line>? = null,
     onZoom: (Float) -> Unit = {}
 ) {
@@ -277,11 +297,9 @@ private fun ReaderBody(
     val stam = remember { FontFamily(Font(R.font.stam_ashkenaz)) }
     val gold = Color(0xFFD4AF37)
 
-    // Layout pass first: the {פ}/{ס} scroll-spacing markers and original line
-    // breaks either render as spacing (on) or vanish into the flow (off).
+    // Scroll-spacing markers and source line breaks fold into the flowing text.
     fun layout(t: String): String =
-        if (spacing) t.replace("{פ}", "\n").replace("{ס}", "\u2003\u2003\u2003")
-        else t.replace("{פ}", "").replace("{ס}", "").replace("\n", " ").trim()
+        t.replace("{פ}", "").replace("{ס}", "").replace("\n", " ").trim()
 
     fun verseBody(heRaw: String, en: String): String = when {
         tikkun -> HebrewVocalization.strip(layout(heRaw), showNikkud = false, showTeamim = false)
@@ -457,6 +475,156 @@ private fun TikkunScrollBody(
             }
         }
         FastScrollThumb(listState, lines.size + 1, Modifier.align(Alignment.CenterEnd))
+    }
+}
+
+/**
+ * Semi-transparent navigation overlay. Tehillim: a rotary dial over chapters
+ * 1-150. Torah: pick a book, then dial a chapter or choose a parsha.
+ */
+@Composable
+private fun NavDialOverlay(
+    mode: String,
+    hebrew: Boolean,
+    parshiyot: Map<String, List<TorahNavigation.Parsha>>,
+    ensureParshiyot: (String) -> Unit,
+    onPick: (mode: String, ref: String, title: String, aliyot: List<String>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val gematria = remember { HebrewDateFormatter() }
+    fun num(n: Int) = if (hebrew) gematria.formatHebrewNumber(n) else n.toString()
+    val torah = mode == "parsha"
+    var bookIdx by rememberSaveable { mutableStateOf(4) }
+    var byParsha by rememberSaveable { mutableStateOf(true) }
+    val book = TorahNavigation.BOOKS[bookIdx]
+    if (torah && byParsha) LaunchedEffect(book.en) { ensureParshiyot(book.en) }
+
+    Box(
+        Modifier.fillMaxSize().background(Color(0xB3000000))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onDismiss() },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            Modifier.fillMaxWidth(0.9f)
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (torah) {
+                Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+                    TorahNavigation.BOOKS.forEachIndexed { i, b ->
+                        BarToggle(if (hebrew) b.he else b.en, active = i == bookIdx) { bookIdx = i }
+                    }
+                }
+                Row(Modifier.padding(top = 6.dp)) {
+                    BarToggle(if (hebrew) "פרשה" else "Parsha", active = byParsha) { byParsha = true }
+                    BarToggle(if (hebrew) "פרק" else "Chapter", active = !byParsha) { byParsha = false }
+                }
+                Spacer(Modifier.height(10.dp))
+                if (byParsha) {
+                    val list = parshiyot[book.en]
+                    if (list == null) {
+                        CircularProgressIndicator(color = ACTIVE_GOLD, modifier = Modifier.padding(24.dp))
+                    } else {
+                        LazyColumn(Modifier.fillMaxHeight(0.55f).fillMaxWidth()) {
+                            items(list) { pr ->
+                                Text(
+                                    if (hebrew) pr.he else pr.en,
+                                    color = INACTIVE, fontSize = 17.sp,
+                                    textAlign = if (hebrew) TextAlign.End else TextAlign.Start,
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clickable { onPick("parsha", pr.dottedRef, if (hebrew) "פרשת ${pr.he}" else "Parashat ${pr.en}", pr.aliyot) }
+                                        .padding(vertical = 9.dp, horizontal = 12.dp)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    RotaryDial(min = 1, max = book.chapters, label = { num(it) }) { ch ->
+                        onPick("parsha", "${book.en}.$ch", if (hebrew) "${book.he} פרק ${num(ch)}" else "${book.en} $ch", emptyList())
+                    }
+                }
+            } else {
+                Text(if (hebrew) "תהילים" else "Tehillim", color = ACTIVE_GOLD, fontSize = 14.sp, modifier = Modifier.padding(bottom = 6.dp))
+                RotaryDial(min = 1, max = TorahNavigation.TEHILLIM_CHAPTERS, label = { num(it) }) { ch ->
+                    onPick("tehillim", "Psalms.$ch", if (hebrew) "תהילים פרק ${num(ch)}" else "Psalm $ch", emptyList())
+                }
+            }
+        }
+    }
+}
+
+/**
+ * A rotary dial: drag around the ring to turn (40 steps per full turn), tap
+ * the center to jump. Tiny ± nudges for precision.
+ */
+@Composable
+private fun RotaryDial(min: Int, max: Int, label: (Int) -> String, onGo: (Int) -> Unit) {
+    var value by rememberSaveable { mutableStateOf(min) }
+    var acc by remember { mutableStateOf(0f) }
+    var lastAngle by remember { mutableStateOf<Float?>(null) }
+    val stepsPerTurn = 40f
+    val ringColor = Color.White.copy(alpha = 0.35f)
+
+    Box(Modifier.size(230.dp), contentAlignment = Alignment.Center) {
+        Canvas(
+            Modifier.fillMaxSize().pointerInput(min, max) {
+                detectDragGestures(
+                    onDragStart = { lastAngle = null },
+                    onDragEnd = { lastAngle = null }
+                ) { change, _ ->
+                    val cx = size.width / 2f; val cy = size.height / 2f
+                    val a = atan2(change.position.y - cy, change.position.x - cx)
+                    lastAngle?.let { prev ->
+                        var d = a - prev
+                        if (d > PI) d -= (2 * PI).toFloat()
+                        if (d < -PI) d += (2 * PI).toFloat()
+                        acc += d
+                        val steps = (acc / (2 * PI).toFloat() * stepsPerTurn).toInt()
+                        if (steps != 0) {
+                            value = (value + steps).coerceIn(min, max)
+                            acc -= steps / stepsPerTurn * (2 * PI).toFloat()
+                        }
+                    }
+                    lastAngle = a
+                    change.consume()
+                }
+            }
+        ) {
+            val r = size.minDimension / 2f - 14.dp.toPx()
+            val c = Offset(size.width / 2f, size.height / 2f)
+            drawCircle(ringColor, radius = r, center = c, style = Stroke(width = 10.dp.toPx()))
+            // progress arc through the range
+            val sweep = 360f * (value - min).toFloat() / (max - min).coerceAtLeast(1)
+            drawArc(
+                ACTIVE_GOLD, startAngle = -90f, sweepAngle = sweep, useCenter = false,
+                topLeft = Offset(c.x - r, c.y - r), size = Size(r * 2, r * 2),
+                style = Stroke(width = 10.dp.toPx())
+            )
+            // ticks
+            for (i in 0 until 24) {
+                val ang = (i / 24f) * 2f * PI.toFloat()
+                val inner = r - 16.dp.toPx(); val outer = r - 9.dp.toPx()
+                drawLine(
+                    Color.White.copy(alpha = 0.25f),
+                    Offset(c.x + inner * cos(ang), c.y + inner * sin(ang)),
+                    Offset(c.x + outer * cos(ang), c.y + outer * sin(ang)),
+                    strokeWidth = 2.dp.toPx()
+                )
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                label(value), color = Color.White, fontSize = 40.sp,
+                modifier = Modifier.clickable(
+                    interactionSource = remember { MutableInteractionSource() }, indication = null
+                ) { onGo(value) }
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("−", color = INACTIVE, fontSize = 22.sp, modifier = Modifier.clickable { value = (value - 1).coerceIn(min, max) }.padding(horizontal = 14.dp))
+                Text("↵", color = ACTIVE_GOLD, fontSize = 20.sp, modifier = Modifier.clickable { onGo(value) }.padding(horizontal = 10.dp))
+                Text("+", color = INACTIVE, fontSize = 22.sp, modifier = Modifier.clickable { value = (value + 1).coerceIn(min, max) }.padding(horizontal = 14.dp))
+            }
+        }
     }
 }
 
