@@ -26,7 +26,14 @@ object ReaderWindows {
         val startSpec = if (dashIdx >= 0) spec.substring(0, dashIdx) else spec
         val endSpec = if (dashIdx >= 0) spec.substring(dashIdx + 1) else startSpec
         val startVerse = startSpec.substringAfter(".", "").ifBlank { null }?.toIntOrNull()
-        val endVerse = endSpec.substringAfter(".", "").ifBlank { null }?.toIntOrNull()
+        // Sefaria omits the chapter in the end spec when start and end share a chapter
+        // (e.g. "Psalms.119.1-96"), so a dot-less end spec after a verse-bearing start
+        // is itself the end verse number, not a bare chapter.
+        val endVerse = if (endSpec.contains(".")) {
+            endSpec.substringAfter(".", "").ifBlank { null }?.toIntOrNull()
+        } else if (startSpec.contains(".")) {
+            endSpec.toIntOrNull()
+        } else null
         val chapters = text.chapters
         val first = chapters.firstOrNull()?.number ?: startSpec.substringBefore(".").toIntOrNull() ?: 1
         val last = chapters.lastOrNull()?.number ?: first
@@ -70,6 +77,7 @@ object ReaderWindows {
     fun torahRange(w: ReaderWindow): String? {
         if (w.bookEn !in torah || w.firstBookEn != w.bookEn || w.chapters.isEmpty()) return null
         val f = w.chapters.first(); val l = w.chapters.last()
+        if (f.verses.isEmpty() || l.verses.isEmpty()) return null
         return "${w.bookEn}.${f.number}.${f.verses.first().num}-${l.number}.${l.verses.last().num}"
     }
 }

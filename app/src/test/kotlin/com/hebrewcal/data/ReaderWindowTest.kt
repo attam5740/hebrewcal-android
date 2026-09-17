@@ -55,4 +55,19 @@ class ReaderWindowTest {
         assertEquals("Genesis.5.1-6.8", ReaderWindows.torahRange(w))
         assertNull(ReaderWindows.torahRange(ReaderWindows.fromRef("Psalms.3", SefariaText("x", listOf(ch(3, 9))))))
     }
+
+    @Test fun singleChapterVerseRangeMarksPartialEdges() {
+        val w = ReaderWindows.fromRef("Psalms.119.1-96", SefariaText("x", listOf(ch(119, 96))))
+        assertEquals(119, w.firstChapter); assertEquals(119, w.lastChapter)
+        assertEquals(false, w.firstPartial); assertEquals(true, w.lastPartial)
+        assertEquals("Psalms" to 119, ReaderWindows.nextFetch(w))
+        val w2 = ReaderWindows.fromRef("Psalms.119.97-176", SefariaText("x", listOf(ch(119, 80, from = 97))))
+        assertEquals(true, w2.firstPartial); assertEquals(true, w2.lastPartial)
+        assertEquals("Psalms" to 119, ReaderWindows.prevFetch(w2))
+    }
+
+    @Test fun torahRangeIsNullForEmptyEdgeChapter() {
+        val w = ReaderWindows.fromRef("Genesis.1", SefariaText("x", listOf(Chapter(1, emptyList()))))
+        assertNull(ReaderWindows.torahRange(w))
+    }
 }
