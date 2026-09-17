@@ -66,6 +66,32 @@ class ReaderWindowTest {
         assertEquals("Psalms" to 119, ReaderWindows.prevFetch(w2))
     }
 
+    /**
+     * `fromRef` marks any verse-bounded end partial, because a chapter's true length is
+     * unknown offline — so a ref that happens to stop on the chapter's last verse
+     * (Genesis.6.9-11.32; chapter 11 really does end at 32) refetches that chapter to
+     * identical content. The window does not grow, but the partial flag clears, which is
+     * what lets ReaderViewModel.extend detect "no growth" and continue to chapter 12 in
+     * the same gesture instead of leaving a spinner and no new text.
+     */
+    @Test fun partialTailThatWasAlreadyCompleteDoesNotGrow() {
+        val w = ReaderWindows.fromRef("Genesis.6.9-11.32", SefariaText("x", listOf(ch(11, 32))))
+        assertEquals(true, w.lastPartial)
+        assertEquals("Genesis" to 11, ReaderWindows.nextFetch(w))
+        val w2 = ReaderWindows.appended(w, "Genesis", ch(11, 32))
+        assertEquals(false, w2.lastPartial)                        // partial flag cleared
+        assertEquals(w.chapters.size, w2.chapters.size)            // no chapter added
+        assertEquals(32, w2.chapters.last().verses.size)           // and no verse added
+        assertEquals("Genesis" to 12, ReaderWindows.nextFetch(w2)) // the retry reaches real new text
+    }
+
+    /** Same at the head: a start verse of 1 is not partial, so no wasted refetch. */
+    @Test fun partialHeadThatWasAlreadyCompleteDoesNotGrow() {
+        val w = ReaderWindows.fromRef("Genesis.6.1-11.32", SefariaText("x", listOf(ch(6, 22))))
+        assertEquals(false, w.firstPartial)
+        assertEquals("Genesis" to 5, ReaderWindows.prevFetch(w))
+    }
+
     @Test fun torahRangeIsNullForEmptyEdgeChapter() {
         val w = ReaderWindows.fromRef("Genesis.1", SefariaText("x", listOf(Chapter(1, emptyList()))))
         assertNull(ReaderWindows.torahRange(w))

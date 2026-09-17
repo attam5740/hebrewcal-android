@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shown by Glance when composing the widget (or translating it to RemoteViews) throws,
+  in place of the system's "Can't load widget" placeholder. provideGlance's runCatching
+  only covers data prep, so this is the last line of defence.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#FF1A1A2E"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Hebrew Calendar"
+        android:textColor="#FFE8D5B7"
+        android:textSize="20sp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tap to open"
+        android:textColor="#FFAA9977"
+        android:textSize="12sp" />
+
+</LinearLayout>

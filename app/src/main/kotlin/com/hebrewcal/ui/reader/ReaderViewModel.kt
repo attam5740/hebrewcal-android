@@ -149,26 +149,52 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun extend(down: Boolean) {
         val s = _state.value
-        val w = window ?: return
+        val start = window ?: return
         if (s.loading || s.error != null || extendJob?.isActive == true) return
-        val target = (if (down) ReaderWindows.nextFetch(w) else ReaderWindows.prevFetch(w)) ?: return
+        if ((if (down) ReaderWindows.nextFetch(start) else ReaderWindows.prevFetch(start)) == null) return
         val gen = generation
         _state.value = s.copy(extendingDown = down, extendingUp = !down, prependedSections = 0)
         extendJob = viewModelScope.launch {
-            val (book, chNum) = target
-            val fetched = repo.fetchText("$book.$chNum").getOrNull()?.chapters?.firstOrNull()
+            var w = start
+            var fetchFailed = false
+            // ReaderWindows marks any verse-bounded edge partial, because a chapter's true
+            // length is unknown offline. When the ref happened to stop on the chapter's last
+            // verse (Genesis.6.9-11.32 — chapter 11 really does end at 32), the refetch
+            // replaces that chapter with identical content: nothing grows and the gesture
+            // would leave a spinner and no new text. The replace still clears the partial
+            // flag, so we immediately continue to the genuinely next chapter in the same
+            // job — at most one extra round, so one gesture always yields new text.
+            var rounds = 0
+            while (rounds < 2) {
+                rounds++
+                val (book, chNum) = (if (down) ReaderWindows.nextFetch(w) else ReaderWindows.prevFetch(w)) ?: break
+                val fetched = repo.fetchText("$book.$chNum").getOrNull()?.chapters?.firstOrNull()
+                if (gen != generation) return@launch
+                if (fetched == null || fetched.verses.isEmpty()) { fetchFailed = true; break }
+                val prevChapters = w.chapters.size
+                val prevEdgeVerses = (if (down) w.chapters.lastOrNull() else w.chapters.firstOrNull())?.verses?.size ?: 0
+                val grown = if (down) ReaderWindows.appended(w, book, fetched) else ReaderWindows.prepended(w, book, fetched)
+                if (gen != generation) return@launch
+                window = grown
+                val newEdgeVerses = (if (down) grown.chapters.lastOrNull() else grown.chapters.firstOrNull())?.verses?.size ?: 0
+                val grewNothing = grown.chapters.size == prevChapters && newEdgeVerses <= prevEdgeVerses
+                w = grown
+                if (grewNothing) continue
+                // The window really changed; let an explicit reload of the same key (e.g. the
+                // banner's "this week's parsha" tap) rebuild it instead of short-circuiting.
+                loadedKey = null
+                break
+            }
             if (gen != generation) return@launch
             val cur = _state.value
-            if (fetched == null || fetched.verses.isEmpty()) {
+            if (fetchFailed && w === start) {
                 _state.value = cur.copy(extendingDown = false, extendingUp = false); return@launch
             }
-            val grown = if (down) ReaderWindows.appended(w, book, fetched) else ReaderWindows.prepended(w, book, fetched)
-            window = grown
-            val text = SefariaText(cur.text?.heRef ?: "", grown.chapters)
-            val tikkun = if (cur.mode == "parsha") ReaderWindows.torahRange(grown)?.let { TikkunLayout.parseTorahRef(it) }?.let { tikkunRepo.linesFor(it) } else cur.tikkunLines
-            val added = grown.chapters.size - w.chapters.size
+            val text = SefariaText(cur.text?.heRef ?: "", w.chapters)
+            val tikkun = if (cur.mode == "parsha") ReaderWindows.torahRange(w)?.let { TikkunLayout.parseTorahRef(it) }?.let { tikkunRepo.linesFor(it) } else cur.tikkunLines
+            val added = w.chapters.size - start.chapters.size
             _state.value = cur.copy(
-                text = text, tikkunLines = tikkun, bookNameEn = if (down) grown.bookEn else cur.bookNameEn,
+                text = text, tikkunLines = tikkun, bookNameEn = if (down) w.bookEn else cur.bookNameEn,
                 extendingDown = false, extendingUp = false, prependedSections = if (down) 0 else added
             )
         }

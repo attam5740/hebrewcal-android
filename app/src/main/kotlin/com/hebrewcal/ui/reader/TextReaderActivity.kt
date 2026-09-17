@@ -107,6 +107,7 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import com.hebrewcal.R
 import com.hebrewcal.data.AliyotPartitioner
 import com.hebrewcal.data.CalendarLanguage
+import com.hebrewcal.data.Chapter
 import com.hebrewcal.data.HebrewVocalization
 import com.hebrewcal.data.ParshaRef
 import com.hebrewcal.data.Reading
@@ -650,25 +651,96 @@ private fun ReaderBody(
 
     // Section list: one per aliyah when partitioning, else one per chapter.
     val sections = remember(text, mode, bookNameEn, aliyot, hebrew, elulText) {
-        val main = if (aliyot.isNotEmpty()) {
-            val parts = AliyotPartitioner.partition(text.chapters, aliyot)
-            if (parts.isNotEmpty()) {
-                // Chapters pulled in by scroll extension fall outside every aliyah; keep
-                // them as plain chapter sections on the side of the window they came from.
-                val covered = parts.flatMap { p -> p.verses.map { it.chapter to it.verse.num } }.toHashSet()
-                val touched = text.chapters.indices.filter { i ->
-                    val ch = text.chapters[i]
-                    ch.verses.any { (ch.number to it.num) in covered }
+        // `chapterSections` for the whole window: the shape used whenever the reading is
+        // not partitioned by aliyah, and the fallback when partitioning cannot be mapped
+        // onto the window. Kept as a function so the aliyot path does not build it.
+        fun plainSections(): List<ReaderSection> =
+            chapterSections(text, mode, bookNameEn, hebrew, gematria)
+
+        val parts = if (aliyot.isEmpty()) emptyList()
+            else AliyotPartitioner.partition(text.chapters, aliyot)
+
+        val main: List<ReaderSection> = if (parts.isEmpty()) plainSections() else {
+            // Verses pulled in by scroll extension fall outside every aliyah; keep them
+            // as plain chapter sections on the side of the window they came from. The
+            // split is on the *verse* boundary, not the chapter boundary: refetching a
+            // partial edge chapter whole (Bereishit's Genesis.1.1-6.8 -> all 22 verses of
+            // chapter 6) leaves that chapter partly covered, and a chapter-granular split
+            // would drop its uncovered remainder (6:9-22) from every bucket.
+            //
+            // Coverage is keyed by the chapter's index in the window, not its number, so
+            // a cross-book window with repeated chapter numbers cannot collide
+            // (ReaderSection carries no book identity). The aliyah verses are an ordered
+            // subsequence of the window's flattened verses, so one merge walk assigns
+            // each covered verse to the window slot it actually came from.
+            val flatCovered = parts.flatMap { it.verses }.distinctBy { it.chapter to it.verse.num }
+            val coveredByIndex = HashMap<Int, MutableSet<Int>>()
+            var cursor = 0
+            var done = false
+            for ((i, ch) in text.chapters.withIndex()) {
+                if (done) break
+                for (v in ch.verses) {
+                    if (cursor >= flatCovered.size) {
+                        done = true
+                        break
+                    }
+                    val want = flatCovered[cursor]
+                    if (want.chapter == ch.number && want.verse.num == v.num) {
+                        val slot = coveredByIndex.getOrPut(i) { HashSet<Int>() }
+                        slot.add(v.num)
+                        cursor++
+                    }
                 }
-                val firstTouched = touched.firstOrNull() ?: 0
-                val lastTouched = touched.lastOrNull() ?: text.chapters.lastIndex
-                val before = text.chapters.subList(0, firstTouched)
-                val after = text.chapters.subList((lastTouched + 1).coerceAtMost(text.chapters.size), text.chapters.size)
-                chapterSections(SefariaText(text.heRef, before), mode, bookNameEn, hebrew, gematria) +
-                parts.map { sec -> ReaderSection(AliyotPartitioner.aliyahName(sec.index, aliyot.size, hebrew), sec.verses, markChapters = true) } +
-                chapterSections(SefariaText(text.heRef, after), mode, bookNameEn, hebrew, gematria)
-            } else chapterSections(text, mode, bookNameEn, hebrew, gematria)
-        } else chapterSections(text, mode, bookNameEn, hebrew, gematria)
+            }
+
+            val touched = text.chapters.indices.filter { coveredByIndex[it]?.isNotEmpty() == true }
+            val firstTouched = touched.firstOrNull()
+            val lastTouched = touched.lastOrNull()
+            // Real aliyot cover one contiguous run of chapters. If they somehow do not,
+            // the before/aliyot/after shape cannot represent the gap, so fall back to a
+            // plain chapter view rather than dropping the chapters in between.
+            val contiguous = firstTouched != null && lastTouched != null &&
+                lastTouched - firstTouched == touched.size - 1
+
+            if (firstTouched == null || lastTouched == null || !contiguous) plainSections()
+            else {
+                // Wholly uncovered chapters outside the aliyah span.
+                val before: List<Chapter> = text.chapters.subList(0, firstTouched).toList()
+                val after: List<Chapter> = text.chapters.subList(lastTouched + 1, text.chapters.size).toList()
+
+                // Uncovered verse prefix of the first touched chapter (e.g. Noach's
+                // Genesis.6.9-11.32 refetching chapter 6 whole -> 6:1-8 shown above).
+                val head = text.chapters[firstTouched]
+                val headCovered = coveredByIndex.getValue(firstTouched)
+                val headCut = head.verses.indexOfFirst { it.num in headCovered }
+                val headPrefix: Chapter? = if (headCut > 0) {
+                    Chapter(head.number, head.verses.subList(0, headCut).toList())
+                } else null
+
+                // Uncovered verse suffix of the last touched chapter (Bereishit: 6:9-22).
+                val tail = text.chapters[lastTouched]
+                val tailCovered = coveredByIndex.getValue(lastTouched)
+                val tailCut = tail.verses.indexOfLast { it.num in tailCovered }
+                val tailSuffix: Chapter? = if (tailCut >= 0 && tailCut < tail.verses.lastIndex) {
+                    Chapter(tail.number, tail.verses.subList(tailCut + 1, tail.verses.size).toList())
+                } else null
+
+                val leading: List<Chapter> = before + listOfNotNull(headPrefix)
+                val trailing: List<Chapter> = listOfNotNull(tailSuffix) + after
+                val leadingSections: List<ReaderSection> =
+                    chapterSections(SefariaText(text.heRef, leading), mode, bookNameEn, hebrew, gematria)
+                val aliyahSections: List<ReaderSection> = parts.map { sec ->
+                    ReaderSection(
+                        AliyotPartitioner.aliyahName(sec.index, aliyot.size, hebrew),
+                        sec.verses,
+                        markChapters = true
+                    )
+                }
+                val trailingSections: List<ReaderSection> =
+                    chapterSections(SefariaText(text.heRef, trailing), mode, bookNameEn, hebrew, gematria)
+                leadingSections + aliyahSections + trailingSections
+            }
+        }
         val extra = elulText?.let { et ->
             chapterSections(et, mode, bookNameEn, hebrew, gematria).map { it.copy(extra = true) }
         } ?: emptyList()

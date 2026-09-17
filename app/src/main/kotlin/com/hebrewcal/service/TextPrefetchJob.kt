@@ -19,6 +19,7 @@ import com.kosherjava.zmanim.hebrewcalendar.JewishDate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -64,7 +65,7 @@ object TextPrefetch {
         return failures == 0
     }
 
-    private const val JOB_PERIODIC = 7101
+    internal const val JOB_PERIODIC = 7101
     private const val JOB_NOW = 7102
 
     private fun builder(context: Context, id: Int, network: PrefetchNetwork) =
@@ -131,5 +132,10 @@ class TextPrefetchJobService : JobService() {
         return true
     }
 
-    private fun JobParameters.isPeriodic() = jobId == 7101
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
+    }
+
+    private fun JobParameters.isPeriodic() = jobId == TextPrefetch.JOB_PERIODIC
 }

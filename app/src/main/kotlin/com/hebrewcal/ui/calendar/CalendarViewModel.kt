@@ -5,12 +5,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hebrewcal.data.*
 import com.kosherjava.zmanim.hebrewcalendar.JewishDate
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneId
@@ -108,6 +110,21 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         val p = prefs.value
+        detailJob = viewModelScope.launch {
+            // The date/zmanim/fast bundle is synchronous KosherJava work; computing it on
+            // Dispatchers.Default keeps the tap off the main thread. It lands well inside a
+            // frame budget, so the sheet simply opens once it is ready rather than flashing
+            // a skeleton. The parsha (network/cache) follows as a second emission.
+            val base = withContext(Dispatchers.Default) { dayDetail(date, p) }
+            _detail.value = base
+            val shabbat = date.with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY))
+            val pr = sefaria.parshaFor(shabbat, p.location == CalendarLocation.DIASPORA).getOrNull()
+            _detail.value = _detail.value?.copy(parsha = pr, parshaLoading = false)
+        }
+    }
+
+    /** Pure (but blocking) build of everything in the day sheet except the parsha. */
+    private fun dayDetail(date: LocalDate, p: UserPreferences): DayDetail {
         val d = Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant())
         val lat = p.zmanimManualLat
         val lng = p.zmanimManualLng
@@ -140,11 +157,6 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
         val elul = if (!p.showElulTehillim) null
         else ElulTehillim.portionFor(jd.jewishMonth, jd.jewishDayOfMonth)?.sefariaRef
 
-        _detail.value = DayDetail(info, weekday, zm, hasLoc, tehillim, elul, null, parshaLoading = true)
-        detailJob = viewModelScope.launch {
-            val shabbat = date.with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY))
-            val pr = sefaria.parshaFor(shabbat, p.location == CalendarLocation.DIASPORA).getOrNull()
-            _detail.value = _detail.value?.copy(parsha = pr, parshaLoading = false)
-        }
+        return DayDetail(info, weekday, zm, hasLoc, tehillim, elul, null, parshaLoading = true)
     }
 }

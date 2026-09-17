@@ -21,6 +21,7 @@ import androidx.glance.unit.ColorProvider
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
+import com.hebrewcal.R
 import com.hebrewcal.data.*
 import com.hebrewcal.data.TehillimSchedule
 import com.hebrewcal.data.CalendarLocation
@@ -32,7 +33,11 @@ import java.util.*
 
 private const val TAG = "HebrewCalWidget"
 
-class HebrewDateWidget : GlanceAppWidget() {
+// provideGlance's runCatching only guards data prep; a throw during composition or
+// RemoteViews translation would otherwise surface as the system "Can't load widget"
+// placeholder. Glance 1.0.0 exposes errorUiLayout as a (final, internal) constructor
+// parameter rather than an overridable property, so the fallback layout is passed up.
+class HebrewDateWidget : GlanceAppWidget(errorUiLayout = R.layout.widget_error) {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val prefsRepo  = UserPreferencesRepository(context)

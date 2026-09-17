@@ -63,9 +63,13 @@ class SefariaRepository(context: Context) {
         val url = "https://www.sefaria.org/api/calendars?diaspora=${if (diaspora) 1 else 0}" +
             "&year=${date.year}&month=${date.monthValue}&day=${date.dayOfMonth}"
         runCatching {
-            if (cacheFile.exists()) {
-                ParshaCalendarsParser.parse(cacheFile.readText()) ?: error("Unreadable cached calendars")
-            } else {
+            // A corrupt/truncated cache file must not make this day permanently "offline":
+            // drop it and fall through to the network path.
+            val cached = if (cacheFile.exists()) {
+                runCatching { ParshaCalendarsParser.parse(cacheFile.readText()) }.getOrNull()
+                    ?: run { cacheFile.delete(); null }
+            } else null
+            cached ?: run {
                 val body = httpGet(url)
                 val parsed = ParshaCalendarsParser.parse(body) ?: error("No parsha in calendars response")
                 cacheFile.writeText(body)
