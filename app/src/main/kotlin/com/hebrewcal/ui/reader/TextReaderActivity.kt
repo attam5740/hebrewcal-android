@@ -91,6 +91,10 @@ import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.State
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.TileMode
@@ -158,10 +162,23 @@ class TextReaderActivity : ComponentActivity() {
             }
 
             // A haftarah is chanted, so it wants te'amim; the scroll layout has no haftarot.
+            // Force only on the false→true transition (never on activity recreation, where
+            // state.mode is already "haftarah" and inHaftarah is already true), and restore
+            // the reader's own settings when leaving haftarah mode.
+            var inHaftarah by rememberSaveable { mutableStateOf(false) }
+            var savedNikkud by rememberSaveable { mutableStateOf(nikkud0) }
+            var savedTeamim by rememberSaveable { mutableStateOf(teamim0) }
+            var savedTextMode by rememberSaveable { mutableStateOf(textMode0) }
             LaunchedEffect(state.mode) {
-                if (state.mode == "haftarah") {
+                val enteringHaftarah = state.mode == "haftarah"
+                if (enteringHaftarah && !inHaftarah) {
+                    savedNikkud = nikkud; savedTeamim = teamim; savedTextMode = textMode
                     nikkud = true; teamim = true
                     if (textMode == MODE_TIKKUN) textMode = MODE_HE
+                    inHaftarah = true
+                } else if (!enteringHaftarah && inHaftarah) {
+                    nikkud = savedNikkud; teamim = savedTeamim; textMode = savedTextMode
+                    inHaftarah = false
                 }
             }
 
@@ -385,34 +402,45 @@ private fun FlameGoButton(onGo: () -> Unit) {
     }
 }
 
-/** 44×22dp Tehillim ⇄ Torah switch: glass track, harp glyph (Tehillim) and scroll glyph (Torah), flame knob. */
+/**
+ * 56×22dp Tehillim ⇄ Torah switch: glass track, harp glyph (Tehillim) and scroll glyph
+ * (Torah), flame knob. The knob's rest positions (x = 22dp / width−22dp) sit beside the
+ * glyph on that side rather than on top of it, so the active glyph (bright) and the
+ * inactive one (faint) both stay visible in either state.
+ */
 @Composable
 private fun ModeToggle(torah: Boolean, onToggle: () -> Unit) {
     val knobX by animateFloatAsState(if (torah) 1f else 0f, spring(dampingRatio = 0.6f, stiffness = 500f), label = "knob")
-    val (phase, breath) = rememberFlame()
+    val (phase, _) = rememberFlame()
     Canvas(
-        Modifier.padding(horizontal = 4.dp).size(44.dp, 22.dp)
+        Modifier.padding(horizontal = 4.dp).size(56.dp, 22.dp)
             .clip(RoundedCornerShape(11.dp))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onToggle() }
+            .semantics {
+                contentDescription = if (torah) "Switch to Tehillim" else "Switch to Torah"
+                role = Role.Switch
+            }
     ) {
         val h = size.height; val r = h / 2f
         drawRoundRect(Color.White.copy(alpha = 0.16f), cornerRadius = CornerRadius(r))
         drawRoundRect(Color.White.copy(alpha = 0.35f), cornerRadius = CornerRadius(r), style = Stroke(1.dp.toPx()))
-        val faint = Color.White.copy(alpha = 0.55f)
-        // Harp (left): a curved frame with three strings.
-        val hx = r; val hy = r
-        drawArc(faint, 200f, 200f, false, Offset(hx - 5.dp.toPx(), hy - 5.dp.toPx()), Size(10.dp.toPx(), 10.dp.toPx()), style = Stroke(1.2.dp.toPx()))
-        for (i in -1..1) drawLine(faint, Offset(hx + i * 2.5f.dp.toPx(), hy - 3.dp.toPx()), Offset(hx + i * 2.5f.dp.toPx(), hy + 4.dp.toPx()), 1.dp.toPx())
-        // Scroll (right): two rollers with a sheet between.
-        val sx = size.width - r; val sy = r
-        drawRoundRect(faint, Offset(sx - 6.dp.toPx(), sy - 3.dp.toPx()), Size(12.dp.toPx(), 6.dp.toPx()), CornerRadius(1.dp.toPx()), style = Stroke(1.dp.toPx()))
-        drawLine(faint, Offset(sx - 6.dp.toPx(), sy - 5.dp.toPx()), Offset(sx - 6.dp.toPx(), sy + 5.dp.toPx()), 1.6f.dp.toPx())
-        drawLine(faint, Offset(sx + 6.dp.toPx(), sy - 5.dp.toPx()), Offset(sx + 6.dp.toPx(), sy + 5.dp.toPx()), 1.6f.dp.toPx())
-        // Flame knob.
-        val kx = r + (size.width - h) * knobX
-        drawCircle(Color(0xFFFF6A00).copy(alpha = 0.25f * breath.value), radius = r + 3.dp.toPx(), center = Offset(kx, r))
-        rotate(phase.value * 360f, pivot = Offset(kx, r)) { drawCircle(Brush.sweepGradient(FLAME, center = Offset(kx, r)), radius = r - 2.dp.toPx(), center = Offset(kx, r)) }
-        drawCircle(Color(0xFFFFB300), radius = r - 5.dp.toPx(), center = Offset(kx, r))
+        val bright = Color.White.copy(alpha = 0.95f)
+        val faint = Color.White.copy(alpha = 0.35f)
+        // Harp (left): a curved frame with three strings. Bright while Tehillim is active.
+        val harpColor = if (torah) faint else bright
+        val hx = 9.dp.toPx(); val hy = r
+        drawArc(harpColor, 200f, 200f, false, Offset(hx - 5.dp.toPx(), hy - 5.dp.toPx()), Size(10.dp.toPx(), 10.dp.toPx()), style = Stroke(1.2.dp.toPx()))
+        for (i in -1..1) drawLine(harpColor, Offset(hx + i * 2.5f.dp.toPx(), hy - 3.dp.toPx()), Offset(hx + i * 2.5f.dp.toPx(), hy + 4.dp.toPx()), 1.dp.toPx())
+        // Scroll (right): two rollers with a sheet between. Bright while Torah is active.
+        val scrollColor = if (torah) bright else faint
+        val sx = size.width - 9.dp.toPx(); val sy = r
+        drawRoundRect(scrollColor, Offset(sx - 6.dp.toPx(), sy - 3.dp.toPx()), Size(12.dp.toPx(), 6.dp.toPx()), CornerRadius(1.dp.toPx()), style = Stroke(1.dp.toPx()))
+        drawLine(scrollColor, Offset(sx - 6.dp.toPx(), sy - 5.dp.toPx()), Offset(sx - 6.dp.toPx(), sy + 5.dp.toPx()), 1.6f.dp.toPx())
+        drawLine(scrollColor, Offset(sx + 6.dp.toPx(), sy - 5.dp.toPx()), Offset(sx + 6.dp.toPx(), sy + 5.dp.toPx()), 1.6f.dp.toPx())
+        // Flame knob: no halo, rests beside the active glyph rather than over it.
+        val kx = 22.dp.toPx() + (size.width - 44.dp.toPx()) * knobX
+        rotate(phase.value * 360f, pivot = Offset(kx, r)) { drawCircle(Brush.sweepGradient(FLAME, center = Offset(kx, r)), radius = 8.dp.toPx(), center = Offset(kx, r)) }
+        drawCircle(Color(0xFFFFB300), radius = 5.dp.toPx(), center = Offset(kx, r))
     }
 }
 
@@ -485,7 +513,7 @@ private fun rememberEdgeExtension(
     onExtendDown: () -> Unit,
     onPrependConsumed: () -> Unit
 ): NestedScrollConnection {
-    val connection = remember(contentCount) {
+    val connection = remember {
         object : NestedScrollConnection {
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                 if (available.y < -2f && consumed.y == 0f) {
@@ -685,22 +713,21 @@ private fun ReaderBody(
             ) {
                 if (extendingUp) item { EdgeLoading() }
                 itemsIndexed(sections) { index, section ->
-                    val mint = MINT
                     if (section.extra && (index == 0 || !sections[index - 1].extra)) {
                         // Visual separation for the Elul supplement: rule + labeled header.
                         Box(
                             Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 2.dp)
-                                .height(1.dp).background(mint.copy(alpha = 0.45f))
+                                .height(1.dp).background(MINT.copy(alpha = 0.45f))
                         ) {}
                         Text(
                             if (hebrew) "תהילים לאלול" else "Elul Tehillim",
-                            color = mint, fontSize = (sizeSp * 0.8f).sp,
+                            color = MINT, fontSize = (sizeSp * 0.8f).sp,
                             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                             textAlign = TextAlign.Start
                         )
                     }
                     Text(
-                        section.title, color = if (section.extra) mint else gold, fontSize = (sizeSp + 2).sp,
+                        section.title, color = if (section.extra) MINT else gold, fontSize = (sizeSp + 2).sp,
                         modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp),
                         textAlign = TextAlign.Start
                     )
