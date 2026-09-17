@@ -11,10 +11,10 @@ import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
-import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.action.clickable
 import androidx.glance.background
+import androidx.glance.ImageProvider
 import androidx.glance.layout.*
 import androidx.glance.text.*
 import androidx.glance.unit.ColorProvider
@@ -165,18 +165,19 @@ fun HebrewDateWidgetContent(
     diaspora: Boolean,
     elulRef: String = ""
 ) {
-    val bgColor        = ColorProvider(Color(0xFF1A1A2E))
     val goldColor      = ColorProvider(Color(0xFFD4AF37))
     val pillColor      = ColorProvider(Color(0xFFFFD255))
     val parchmentColor = ColorProvider(Color(0xFFE8D5B7))
     val mutedColor     = ColorProvider(Color(0xFFAA9977))
     val blueColor      = ColorProvider(Color(0xFF7EC8E3))
 
+    // Glance's own cornerRadius() modifier fails to render on the OnePlus/OxygenOS
+    // launcher (widget silently falls to "Can't load widget"); a shape drawable with
+    // baked-in corners gives the same look without going through that code path.
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(bgColor)
-            .cornerRadius(16)
+            .background(ImageProvider(R.drawable.widget_bg))
             .clickable(actionStartActivity<CalendarActivity>()),
         contentAlignment = Alignment.TopStart
     ) {
