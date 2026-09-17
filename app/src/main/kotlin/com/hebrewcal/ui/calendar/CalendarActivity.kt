@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import com.hebrewcal.data.CalendarLanguage
 import com.hebrewcal.ui.settings.SettingsActivity
 import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter
+import com.kosherjava.zmanim.hebrewcalendar.JewishCalendar
 
 /** Translucent month grid: both dates per cell, tap a day for the detail sheet. */
 class CalendarActivity : ComponentActivity() {
@@ -135,7 +136,7 @@ class CalendarActivity : ComponentActivity() {
                                     color = INACTIVE.copy(alpha = alpha * 0.8f), fontSize = 10.sp
                                 )
                                 Row {
-                                    if (c.holidayIndex != -1 && !c.isRoshChodesh) {
+                                    if (c.holidayIndex != -1 && c.holidayIndex != JewishCalendar.ROSH_CHODESH) {
                                         Box(Modifier.size(5.dp).background(ACTIVE_GOLD, CircleShape))
                                     }
                                     if (c.isRoshChodesh) {

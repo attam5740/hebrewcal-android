@@ -136,7 +136,8 @@ class TextReaderActivity : ComponentActivity() {
         val nikkud0 = intent.getBooleanExtra(EXTRA_NIKKUD, true)
         val teamim0 = intent.getBooleanExtra(EXTRA_TEAMIM, false)
         val elulRef = intent.getStringExtra(EXTRA_ELUL_REF) ?: ""
-        vm.load(mode, ref, title, diaspora, elulRef)
+        val aliyot = intent.getStringArrayListExtra(EXTRA_ALIYOT)?.toList() ?: emptyList()
+        vm.load(mode, ref, title, diaspora, elulRef, presetAliyot = aliyot)
 
         setContent {
             val state by vm.state.collectAsState()
@@ -290,6 +291,7 @@ class TextReaderActivity : ComponentActivity() {
         const val EXTRA_NIKKUD = "nikkud"
         const val EXTRA_TEAMIM = "teamim"
         const val EXTRA_ELUL_REF = "elul_ref"
+        const val EXTRA_ALIYOT = "aliyot"
     }
 }
 

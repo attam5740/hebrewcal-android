@@ -46,7 +46,10 @@ fun DaySheet(
     onOpen: (Intent) -> Unit
 ) {
     val ctx = LocalContext.current
-    fun reader(mode: String, ref: String, title: String, teamim: Boolean, elul: String = "") =
+    fun reader(
+        mode: String, ref: String, title: String, teamim: Boolean, elul: String = "",
+        aliyot: List<String> = emptyList()
+    ) =
         Intent(ctx, TextReaderActivity::class.java).apply {
             putExtra(TextReaderActivity.EXTRA_MODE, mode)
             putExtra(TextReaderActivity.EXTRA_REF, ref)
@@ -56,6 +59,7 @@ fun DaySheet(
             putExtra(TextReaderActivity.EXTRA_TEAMIM, teamim)
             putExtra(TextReaderActivity.EXTRA_DIASPORA, prefs.location == CalendarLocation.DIASPORA)
             putExtra(TextReaderActivity.EXTRA_ELUL_REF, elul)
+            putStringArrayListExtra(TextReaderActivity.EXTRA_ALIYOT, ArrayList(aliyot))
         }
 
     CompositionLocalProvider(
@@ -79,7 +83,11 @@ fun DaySheet(
             ) {
                 Text(d.info.hebrewDateString, color = Color.White, fontSize = 22.sp)
                 Text("${d.weekday} · ${d.info.gregorianDateString}", color = INACTIVE, fontSize = 13.sp)
-                val labels = listOfNotNull(d.info.holidayName, d.info.parshaName, d.info.omerText)
+                val labels = listOfNotNull(
+                    d.info.holidayName,
+                    d.info.parshaName?.let { if (hebrew) "פרשת $it" else it },
+                    d.info.omerText
+                )
                 if (labels.isNotEmpty()) {
                     Text(
                         labels.joinToString(" · "), color = ACTIVE_GOLD, fontSize = 14.sp,
@@ -105,7 +113,8 @@ fun DaySheet(
                             onOpen(
                                 reader(
                                     "parsha", p.sefariaRef,
-                                    if (hebrew) "פרשת ${p.nameHe}" else "Parashat ${p.nameEn}", true
+                                    if (hebrew) "פרשת ${p.nameHe}" else "Parashat ${p.nameEn}", true,
+                                    aliyot = p.aliyot
                                 )
                             )
                         }

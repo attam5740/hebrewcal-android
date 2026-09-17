@@ -58,9 +58,9 @@ object LockscreenNotificationBuilder {
         languageName: String = "ENGLISH",
         elulRef: String? = null
     ): Notification {
-        val settingsIntent = Intent(context, CalendarActivity::class.java)
+        val contentIntent = Intent(context, CalendarActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
-            context, 0, settingsIntent,
+            context, 0, contentIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
