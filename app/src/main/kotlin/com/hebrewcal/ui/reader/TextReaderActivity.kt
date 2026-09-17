@@ -434,13 +434,13 @@ private fun ModeToggle(torah: Boolean, onToggle: () -> Unit) {
         // Scroll (right): two rollers with a sheet between. Bright while Torah is active.
         val scrollColor = if (torah) bright else faint
         val sx = size.width - 9.dp.toPx(); val sy = r
-        drawRoundRect(scrollColor, Offset(sx - 6.dp.toPx(), sy - 3.dp.toPx()), Size(12.dp.toPx(), 6.dp.toPx()), CornerRadius(1.dp.toPx()), style = Stroke(1.dp.toPx()))
-        drawLine(scrollColor, Offset(sx - 6.dp.toPx(), sy - 5.dp.toPx()), Offset(sx - 6.dp.toPx(), sy + 5.dp.toPx()), 1.6f.dp.toPx())
-        drawLine(scrollColor, Offset(sx + 6.dp.toPx(), sy - 5.dp.toPx()), Offset(sx + 6.dp.toPx(), sy + 5.dp.toPx()), 1.6f.dp.toPx())
+        drawRoundRect(scrollColor, Offset(sx - 5.dp.toPx(), sy - 3.dp.toPx()), Size(10.dp.toPx(), 6.dp.toPx()), CornerRadius(1.dp.toPx()), style = Stroke(1.dp.toPx()))
+        drawLine(scrollColor, Offset(sx - 5.dp.toPx(), sy - 4.dp.toPx()), Offset(sx - 5.dp.toPx(), sy + 4.dp.toPx()), 1.6f.dp.toPx())
+        drawLine(scrollColor, Offset(sx + 5.dp.toPx(), sy - 4.dp.toPx()), Offset(sx + 5.dp.toPx(), sy + 4.dp.toPx()), 1.6f.dp.toPx())
         // Flame knob: no halo, rests beside the active glyph rather than over it.
-        val kx = 22.dp.toPx() + (size.width - 44.dp.toPx()) * knobX
-        rotate(phase.value * 360f, pivot = Offset(kx, r)) { drawCircle(Brush.sweepGradient(FLAME, center = Offset(kx, r)), radius = 8.dp.toPx(), center = Offset(kx, r)) }
-        drawCircle(Color(0xFFFFB300), radius = 5.dp.toPx(), center = Offset(kx, r))
+        val kx = 23.dp.toPx() + (size.width - 46.dp.toPx()) * knobX
+        rotate(phase.value * 360f, pivot = Offset(kx, r)) { drawCircle(Brush.sweepGradient(FLAME, center = Offset(kx, r)), radius = 7.dp.toPx(), center = Offset(kx, r)) }
+        drawCircle(Color(0xFFFFB300), radius = 4.5f.dp.toPx(), center = Offset(kx, r))
     }
 }
 
