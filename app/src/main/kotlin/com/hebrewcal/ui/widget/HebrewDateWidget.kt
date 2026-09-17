@@ -27,6 +27,7 @@ import com.hebrewcal.data.CalendarLocation
 import com.hebrewcal.ui.reader.TextReaderActivity
 import com.hebrewcal.ui.settings.SettingsActivity
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.CancellationException
 import java.util.*
 
 private const val TAG = "HebrewCalWidget"
@@ -39,6 +40,7 @@ class HebrewDateWidget : GlanceAppWidget() {
         val zmanimRepo = ZmanimRepository()
 
         val prefs = runCatching { prefsRepo.preferences.first() }
+            .onFailure { if (it is CancellationException) throw it }
             .onFailure { Log.e(TAG, "widget prefs read failed; using defaults", it) }
             .getOrDefault(UserPreferences())
 
