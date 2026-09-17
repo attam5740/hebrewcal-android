@@ -33,7 +33,8 @@ class HebrewCalendarRepository {
         language: CalendarLanguage,
         location: CalendarLocation,
         showParshaOnWeekdays: Boolean = false,
-        advanceAfter: Date? = null
+        advanceAfter: Date? = null,
+        fastTimes: ((FastKind, Date) -> String?)? = null
     ): HebrewDateInfo {
         // KosherJava's JewishCalendar rolls at civil midnight, but the halachic day
         // changes at tzet hakochavim. When [advanceAfter] is non-null (typically today's
@@ -59,7 +60,11 @@ class HebrewCalendarRepository {
         }
 
         val gregorianStr = formatGregorianDate(date)
-        val holidayInfo = getHolidayInfo(jewishCalendar, language)
+        val holidayInfo = getHolidayInfo(jewishCalendar, language)?.let { h ->
+            val kind = FastSchedule.kindFor(jewishCalendar.yomTovIndex)
+            val suffix = if (kind != null) fastTimes?.invoke(kind, jewishCalendar.gregorianCalendar.time) else null
+            if (suffix != null) h.copy(name = "${h.name} $suffix") else h
+        }
         val parsha = getParshaName(jewishCalendar, formatter, language, showParshaOnWeekdays)
         val omerDay = jewishCalendar.dayOfOmer.coerceAtLeast(0)
         val omerText = if (omerDay > 0) formatOmer(omerDay, language) else null

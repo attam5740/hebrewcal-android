@@ -111,6 +111,29 @@ class ZmanimRepository {
         return cal.tzais
     }
 
+    data class FastTimes(val begin: Date, val end: Date)
+
+    /** Begin/end of a fast on [date]; null without a location or when the sun times are undefined. */
+    fun getFastTimes(
+        kind: FastKind, latitude: Double, longitude: Double,
+        timeZone: TimeZone = TimeZone.getDefault(), date: Date = Date()
+    ): FastTimes? {
+        if (latitude == 0.0 && longitude == 0.0) return null
+        val geo = GeoLocation("User Location", latitude, longitude, 0.0, timeZone)
+        val today = ComplexZmanimCalendar(geo).apply { calendar.time = date }
+        val end = today.tzais ?: return null
+        val begin = when (kind) {
+            FastKind.MINOR -> today.alosHashachar
+            FastKind.MAJOR -> ComplexZmanimCalendar(geo).apply {
+                calendar.time = date; calendar.add(Calendar.DATE, -1)
+            }.sunset
+        } ?: return null
+        return FastTimes(begin, end)
+    }
+
+    fun formatTime(d: Date, format: ZmanimTimeFormat): String =
+        SimpleDateFormat(if (format == ZmanimTimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm", Locale.getDefault()).format(d)
+
     /**
      * Returns list of (key, time) for all selected zmanim in the future,
      * used for scheduling AlarmManager transitions.

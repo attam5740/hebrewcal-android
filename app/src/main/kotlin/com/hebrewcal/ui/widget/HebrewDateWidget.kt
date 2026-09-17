@@ -57,7 +57,13 @@ class HebrewDateWidget : GlanceAppWidget() {
             language             = prefs.language,
             location             = prefs.location,
             showParshaOnWeekdays = prefs.showParshaOnWeekdays,
-            advanceAfter         = tzetToday
+            advanceAfter         = tzetToday,
+            fastTimes            = { kind, date ->
+                zmanimRepo.getFastTimes(kind, prefs.zmanimManualLat, prefs.zmanimManualLng, timeZone, date)?.let {
+                    FastSchedule.label(zmanimRepo.formatTime(it.begin, prefs.zmanimTimeFormat),
+                                       zmanimRepo.formatTime(it.end, prefs.zmanimTimeFormat))
+                }
+            }
         )
 
         val zmanimData = if (prefs.showZmanim &&

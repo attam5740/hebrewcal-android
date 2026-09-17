@@ -112,7 +112,13 @@ class CalendarNotificationService : Service() {
                         language             = prefs.language,
                         location             = prefs.location,
                         showParshaOnWeekdays = prefs.showParshaOnWeekdays,
-                        advanceAfter         = tzetToday
+                        advanceAfter         = tzetToday,
+                        fastTimes            = { kind, date ->
+                            zmanimRepo.getFastTimes(kind, lat, lng, timeZone, date)?.let {
+                                FastSchedule.label(zmanimRepo.formatTime(it.begin, prefs.zmanimTimeFormat),
+                                                   zmanimRepo.formatTime(it.end, prefs.zmanimTimeFormat))
+                            }
+                        }
                     )
                 } catch (e: Exception) {
                     HebrewDateInfo("", "", null, null, false, 0, "", 0)
