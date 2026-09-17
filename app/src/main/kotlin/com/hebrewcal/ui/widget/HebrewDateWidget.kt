@@ -38,82 +38,111 @@ class HebrewDateWidget : GlanceAppWidget() {
         val calRepo    = HebrewCalendarRepository()
         val zmanimRepo = ZmanimRepository()
 
-        val prefs    = prefsRepo.preferences.first()
-        val now      = Date()
-        val timeZone = TimeZone.getDefault()
+        val prefs = runCatching { prefsRepo.preferences.first() }
+            .onFailure { Log.e(TAG, "widget prefs read failed; using defaults", it) }
+            .getOrDefault(UserPreferences())
 
-        // Today's tzet hakochavim so the Hebrew date rolls at nightfall, matching the
-        // halachic day. Returns null when no location is configured, in which case
-        // getDateInfo falls back to civil-midnight rollover.
-        val tzetToday = zmanimRepo.getTzetHakochavim(
-            latitude  = prefs.zmanimManualLat,
-            longitude = prefs.zmanimManualLng,
-            timeZone  = timeZone,
-            date      = now
-        )
+        val content: (@Composable () -> Unit) = runCatching {
+            val now      = Date()
+            val timeZone = TimeZone.getDefault()
 
-        val dateInfo = calRepo.getDateInfo(
-            date                 = now,
-            language             = prefs.language,
-            location             = prefs.location,
-            showParshaOnWeekdays = prefs.showParshaOnWeekdays,
-            advanceAfter         = tzetToday,
-            fastTimes            = { kind, date ->
-                zmanimRepo.getFastTimes(kind, prefs.zmanimManualLat, prefs.zmanimManualLng, timeZone, date)?.let {
-                    FastSchedule.label(zmanimRepo.formatTime(it.begin, prefs.zmanimTimeFormat),
-                                       zmanimRepo.formatTime(it.end, prefs.zmanimTimeFormat))
+            // Today's tzet hakochavim so the Hebrew date rolls at nightfall, matching the
+            // halachic day. Returns null when no location is configured, in which case
+            // getDateInfo falls back to civil-midnight rollover.
+            val tzetToday = zmanimRepo.getTzetHakochavim(
+                latitude  = prefs.zmanimManualLat,
+                longitude = prefs.zmanimManualLng,
+                timeZone  = timeZone,
+                date      = now
+            )
+
+            val dateInfo = calRepo.getDateInfo(
+                date                 = now,
+                language             = prefs.language,
+                location             = prefs.location,
+                showParshaOnWeekdays = prefs.showParshaOnWeekdays,
+                advanceAfter         = tzetToday,
+                fastTimes            = { kind, date ->
+                    zmanimRepo.getFastTimes(kind, prefs.zmanimManualLat, prefs.zmanimManualLng, timeZone, date)?.let {
+                        FastSchedule.label(zmanimRepo.formatTime(it.begin, prefs.zmanimTimeFormat),
+                                           zmanimRepo.formatTime(it.end, prefs.zmanimTimeFormat))
+                    }
                 }
+            )
+
+            val zmanimData = if (prefs.showZmanim &&
+                prefs.zmanimLocationSource == ZmanimLocationSource.MANUAL &&
+                prefs.zmanimManualLat != 0.0 && prefs.zmanimManualLng != 0.0
+            ) {
+                zmanimRepo.getZmanim(
+                    latitude       = prefs.zmanimManualLat,
+                    longitude      = prefs.zmanimManualLng,
+                    timeZone       = timeZone,
+                    date           = now,
+                    selectedZmanim = prefs.selectedZmanim,
+                    timeFormat     = prefs.zmanimTimeFormat
+                )
+            } else null
+
+            val hebrew = prefs.language == CalendarLanguage.HEBREW
+            // Pill data is best-effort: a failure here must never take the widget down.
+            val portion = runCatching {
+                TehillimSchedule.portionFor(dateInfo.hebrewDayNumber, dateInfo.daysInMonth)
+            }.onFailure { Log.e(TAG, "tehillim portion failed", it) }.getOrNull()
+            val tehillimLabel = if (prefs.showTehillimButton && portion != null) {
+                runCatching { ReaderButtons.tehillimLabel(portion, hebrew) }
+                    .onFailure { Log.e(TAG, "tehillim label failed", it) }.getOrNull()
+            } else null
+            val parshaLabel = if (prefs.showParshaButton) {
+                runCatching {
+                    calRepo.upcomingParshaName(now, prefs.location, prefs.language)
+                        ?.let { ReaderButtons.parshaLabel(it, hebrew) }
+                }.onFailure { Log.e(TAG, "parsha label failed", it) }.getOrNull()
+            } else null
+            val diaspora = prefs.location == CalendarLocation.DIASPORA
+            val elulRef = if (prefs.showElulTehillim) {
+                runCatching { ElulTehillim.portionFor(dateInfo.jewishMonth, dateInfo.hebrewDayNumber)?.sefariaRef }
+                    .onFailure { Log.e(TAG, "elul portion failed", it) }.getOrNull()
+            } else null
+
+            val block: @Composable () -> Unit = {
+                HebrewDateWidgetContent(
+                    context       = context,
+                    dateInfo      = dateInfo,
+                    zmanimData    = zmanimData,
+                    prefs         = prefs,
+                    tehillimLabel = tehillimLabel,
+                    tehillimRef   = portion?.sefariaRef ?: "",
+                    parshaLabel   = parshaLabel,
+                    diaspora      = diaspora,
+                    elulRef       = elulRef ?: ""
+                )
             }
-        )
-
-        val zmanimData = if (prefs.showZmanim &&
-            prefs.zmanimLocationSource == ZmanimLocationSource.MANUAL &&
-            prefs.zmanimManualLat != 0.0 && prefs.zmanimManualLng != 0.0
-        ) {
-            zmanimRepo.getZmanim(
-                latitude       = prefs.zmanimManualLat,
-                longitude      = prefs.zmanimManualLng,
-                timeZone       = timeZone,
-                date           = now,
-                selectedZmanim = prefs.selectedZmanim,
-                timeFormat     = prefs.zmanimTimeFormat
-            )
-        } else null
-
-        val hebrew = prefs.language == CalendarLanguage.HEBREW
-        // Pill data is best-effort: a failure here must never take the widget down.
-        val portion = runCatching {
-            TehillimSchedule.portionFor(dateInfo.hebrewDayNumber, dateInfo.daysInMonth)
-        }.onFailure { Log.e(TAG, "tehillim portion failed", it) }.getOrNull()
-        val tehillimLabel = if (prefs.showTehillimButton && portion != null) {
-            runCatching { ReaderButtons.tehillimLabel(portion, hebrew) }
-                .onFailure { Log.e(TAG, "tehillim label failed", it) }.getOrNull()
-        } else null
-        val parshaLabel = if (prefs.showParshaButton) {
-            runCatching {
-                calRepo.upcomingParshaName(now, prefs.location, prefs.language)
-                    ?.let { ReaderButtons.parshaLabel(it, hebrew) }
-            }.onFailure { Log.e(TAG, "parsha label failed", it) }.getOrNull()
-        } else null
-        val diaspora = prefs.location == CalendarLocation.DIASPORA
-        val elulRef = if (prefs.showElulTehillim) {
-            runCatching { ElulTehillim.portionFor(dateInfo.jewishMonth, dateInfo.hebrewDayNumber)?.sefariaRef }
-                .onFailure { Log.e(TAG, "elul portion failed", it) }.getOrNull()
-        } else null
-
-        provideContent {
-            HebrewDateWidgetContent(
-                context       = context,
-                dateInfo      = dateInfo,
-                zmanimData    = zmanimData,
-                prefs         = prefs,
-                tehillimLabel = tehillimLabel,
-                tehillimRef   = portion?.sefariaRef ?: "",
-                parshaLabel   = parshaLabel,
-                diaspora      = diaspora,
-                elulRef       = elulRef ?: ""
-            )
+            block
+        }.getOrElse { t ->
+            Log.e(TAG, "widget content failed; showing fallback", t)
+            val fallback = runCatching {
+                calRepo.getDateInfo(Date(), prefs.language, prefs.location).hebrewDateString
+            }.getOrDefault("Hebrew Calendar")
+            ({
+                Box(
+                    modifier = GlanceModifier
+                        .fillMaxSize()
+                        .background(ColorProvider(Color(0xFF1A1A2E)))
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        fallback,
+                        style = TextStyle(
+                            color    = ColorProvider(Color(0xFFE8D5B7)),
+                            fontSize = TextUnit(20f, TextUnitType.Sp)
+                        )
+                    )
+                }
+            })
         }
+
+        provideContent { content() }
     }
 }
 
