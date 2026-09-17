@@ -57,6 +57,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -77,8 +80,10 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -99,6 +104,8 @@ import com.hebrewcal.R
 import com.hebrewcal.data.AliyotPartitioner
 import com.hebrewcal.data.CalendarLanguage
 import com.hebrewcal.data.HebrewVocalization
+import com.hebrewcal.data.ParshaRef
+import com.hebrewcal.data.Reading
 import com.hebrewcal.data.SefariaText
 import com.hebrewcal.data.TikkunLayout
 import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter
@@ -137,6 +144,26 @@ class TextReaderActivity : ComponentActivity() {
             var showNav by rememberSaveable { mutableStateOf(false) }
             var barExpanded by rememberSaveable { mutableStateOf(false) }
             val contentInteractionSource = remember { MutableInteractionSource() }
+            val week by vm.week.collectAsState()
+            var showHaftarahChooser by rememberSaveable { mutableStateOf(false) }
+            val hebrewUi = textMode != MODE_EN
+            // One haftarah opens straight away; a festival week with several asks first.
+            fun haftarah() {
+                val list = week.parsha?.haftarot ?: return
+                when (list.size) {
+                    0 -> {}
+                    1 -> vm.openHaftarah(list[0], hebrewUi)
+                    else -> showHaftarahChooser = true
+                }
+            }
+
+            // A haftarah is chanted, so it wants te'amim; the scroll layout has no haftarot.
+            LaunchedEffect(state.mode) {
+                if (state.mode == "haftarah") {
+                    nikkud = true; teamim = true
+                    if (textMode == MODE_TIKKUN) textMode = MODE_HE
+                }
+            }
 
             // Live text size driven by pinch-to-zoom; persisted (debounced) to DataStore.
             var textSize by remember { mutableStateOf(persistedSize) }
@@ -174,6 +201,11 @@ class TextReaderActivity : ComponentActivity() {
                         nikkud = nikkud, teamim = teamim,
                         showAliyotToggle = state.mode == "parsha" && state.aliyot.isNotEmpty(),
                         byAliyot = byAliyot,
+                        mode = state.mode,
+                        torahSide = state.mode != "tehillim",
+                        onToggleMode = { vm.toggleMode(hebrewUi) },
+                        showHaftarah = state.mode == "parsha" && !week.parsha?.haftarot.isNullOrEmpty(),
+                        onHaftarah = { haftarah() },
                         onNav = { showNav = true },
                         onTextMode = { m ->
                             textMode = m
@@ -182,6 +214,11 @@ class TextReaderActivity : ComponentActivity() {
                         onTeamim = { teamim = !teamim; if (teamim) nikkud = true },
                         onAliyot = { byAliyot = !byAliyot },
                         onClose = { finish() }
+                    )
+                    WeekBanner(
+                        week.parsha, hebrewUi,
+                        onParsha = { vm.load("parsha", "", if (hebrewUi) "פרשת השבוע" else "Weekly Parsha", diaspora) },
+                        onHaftarah = { haftarah() }
                     )
                     when {
                         state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = Color.White) }
@@ -194,6 +231,12 @@ class TextReaderActivity : ComponentActivity() {
                             aliyot = if (byAliyot) state.aliyot else emptyList(),
                             elulText = state.elulText,
                             tikkunLines = state.tikkunLines,
+                            extendingUp = state.extendingUp,
+                            extendingDown = state.extendingDown,
+                            prependedSections = state.prependedSections,
+                            onExtendUp = { vm.extendUp() },
+                            onExtendDown = { vm.extendDown() },
+                            onPrependConsumed = { vm.consumedPrepend() },
                             onZoom = { factor -> textSize = (textSize * factor).coerceIn(14f, 40f) }
                         )
                     }
@@ -207,6 +250,14 @@ class TextReaderActivity : ComponentActivity() {
                         ensureParshiyot = { vm.ensureParshiyot(it) },
                         onPick = { m, ref, title, aliyot -> showNav = false; vm.navigateTo(m, ref, title, aliyot) },
                         onDismiss = { showNav = false }
+                    )
+                }
+                // Guarded rather than !!-ed: the flag is saved, the week is refetched.
+                week.parsha?.let { p ->
+                    if (showHaftarahChooser) HaftarahChooser(
+                        p.haftarot, hebrewUi,
+                        onPick = { showHaftarahChooser = false; vm.openHaftarah(it, hebrewUi) },
+                        onDismiss = { showHaftarahChooser = false }
                     )
                 }
             }
@@ -229,6 +280,7 @@ private val ACTIVE_GOLD = Color(0xFFFFD255)   // vivid warm amber
 private val ACTIVE_BG = Color(0x47FFC94D)     // stronger amber pill behind active toggles
 private val INACTIVE = Color(0xE6FFFFFF)      // near-white, clearly legible
 private val DISABLED = Color(0x66FFFFFF)
+private val MINT = Color(0xFF6EE7B7)         // haftarah / supplement accent
 
 @Composable
 private fun BarToggle(label: String, active: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
@@ -333,20 +385,156 @@ private fun FlameGoButton(onGo: () -> Unit) {
     }
 }
 
+/** 44×22dp Tehillim ⇄ Torah switch: glass track, harp glyph (Tehillim) and scroll glyph (Torah), flame knob. */
+@Composable
+private fun ModeToggle(torah: Boolean, onToggle: () -> Unit) {
+    val knobX by animateFloatAsState(if (torah) 1f else 0f, spring(dampingRatio = 0.6f, stiffness = 500f), label = "knob")
+    val (phase, breath) = rememberFlame()
+    Canvas(
+        Modifier.padding(horizontal = 4.dp).size(44.dp, 22.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onToggle() }
+    ) {
+        val h = size.height; val r = h / 2f
+        drawRoundRect(Color.White.copy(alpha = 0.16f), cornerRadius = CornerRadius(r))
+        drawRoundRect(Color.White.copy(alpha = 0.35f), cornerRadius = CornerRadius(r), style = Stroke(1.dp.toPx()))
+        val faint = Color.White.copy(alpha = 0.55f)
+        // Harp (left): a curved frame with three strings.
+        val hx = r; val hy = r
+        drawArc(faint, 200f, 200f, false, Offset(hx - 5.dp.toPx(), hy - 5.dp.toPx()), Size(10.dp.toPx(), 10.dp.toPx()), style = Stroke(1.2.dp.toPx()))
+        for (i in -1..1) drawLine(faint, Offset(hx + i * 2.5f.dp.toPx(), hy - 3.dp.toPx()), Offset(hx + i * 2.5f.dp.toPx(), hy + 4.dp.toPx()), 1.dp.toPx())
+        // Scroll (right): two rollers with a sheet between.
+        val sx = size.width - r; val sy = r
+        drawRoundRect(faint, Offset(sx - 6.dp.toPx(), sy - 3.dp.toPx()), Size(12.dp.toPx(), 6.dp.toPx()), CornerRadius(1.dp.toPx()), style = Stroke(1.dp.toPx()))
+        drawLine(faint, Offset(sx - 6.dp.toPx(), sy - 5.dp.toPx()), Offset(sx - 6.dp.toPx(), sy + 5.dp.toPx()), 1.6f.dp.toPx())
+        drawLine(faint, Offset(sx + 6.dp.toPx(), sy - 5.dp.toPx()), Offset(sx + 6.dp.toPx(), sy + 5.dp.toPx()), 1.6f.dp.toPx())
+        // Flame knob.
+        val kx = r + (size.width - h) * knobX
+        drawCircle(Color(0xFFFF6A00).copy(alpha = 0.25f * breath.value), radius = r + 3.dp.toPx(), center = Offset(kx, r))
+        rotate(phase.value * 360f, pivot = Offset(kx, r)) { drawCircle(Brush.sweepGradient(FLAME, center = Offset(kx, r)), radius = r - 2.dp.toPx(), center = Offset(kx, r)) }
+        drawCircle(Color(0xFFFFB300), radius = r - 5.dp.toPx(), center = Offset(kx, r))
+    }
+}
+
+/** Thin strip under the bar: this week's parsha and haftarah refs; tap a part to open it. */
+@Composable
+private fun WeekBanner(parsha: ParshaRef?, hebrew: Boolean, onParsha: () -> Unit, onHaftarah: () -> Unit) {
+    if (parsha == null) return
+    val sep = " · "
+    // Sefaria's dotted ref reads as a citation: Deuteronomy.32.1-52 → Deuteronomy 32:1-52.
+    val parshaText = if (hebrew) "פרשת ${parsha.nameHe}$sep${parsha.heRef}"
+        else "Parashat ${parsha.nameEn}$sep${parsha.sefariaRef.replaceFirst('.', ' ').replace('.', ':')}"
+    val haft = parsha.haftarot.joinToString(", ") { if (hebrew) it.nameHe else it.nameEn }
+    Row(
+        Modifier.fillMaxWidth().height(18.dp).background(Color(0x59181818)).padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(parshaText, color = ACTIVE_GOLD, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onParsha() })
+        if (haft.isNotBlank()) {
+            Text(sep, color = INACTIVE, fontSize = 11.sp)
+            Text((if (hebrew) "הפטרה: " else "Haftarah: ") + haft, color = MINT, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onHaftarah() })
+        }
+    }
+}
+
+/** Small popup listing the week's haftarot when there is more than one. */
+@Composable
+private fun HaftarahChooser(readings: List<Reading>, hebrew: Boolean, onPick: (Reading) -> Unit, onDismiss: () -> Unit) {
+    Box(Modifier.fillMaxSize().background(Color(0x99000000))
+        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onDismiss() }, Alignment.Center) {
+        Column(Modifier.fillMaxWidth(0.8f).clip(RoundedCornerShape(14.dp)).background(Color(0xE6202020)).padding(8.dp)) {
+            Text(if (hebrew) "הפטרה" else "Haftarah", color = ACTIVE_GOLD, fontSize = 13.sp, modifier = Modifier.padding(8.dp))
+            readings.forEach { r ->
+                Text(if (hebrew) r.nameHe else r.nameEn, color = INACTIVE, fontSize = 16.sp,
+                    modifier = Modifier.fillMaxWidth().clickable { onPick(r) }.padding(horizontal = 12.dp, vertical = 10.dp))
+            }
+        }
+    }
+}
+
+/** The spinner shown at whichever edge is fetching the next/previous chapter. */
+@Composable
+private fun EdgeLoading() {
+    Box(Modifier.fillMaxWidth().padding(10.dp), Alignment.Center) {
+        CircularProgressIndicator(color = ACTIVE_GOLD, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+    }
+}
+
 /**
- * Two slim translucent rows: [✕  title] then the toggles — language (EN/עב/תיקון),
- * vocalization (ניקוד/טעמים), and, for a parsha, partitioning (עליות).
+ * Fires [onExtendUp] / [onExtendDown] when a scroll or fling reaches an edge with travel
+ * left over, and keeps the viewport still when new items land on top.
+ *
+ * [contentCount] counts only the real rows (sections or scroll lines), so the number of
+ * rows prepended is its growth since the previous pass — the correction runs in the same
+ * pass that brings the rows in, which is what keeps the jump invisible.
+ *
+ * The top [EdgeLoading] row occupies index 0 while a prepend is in flight and disappears
+ * in the very same state update that adds the rows, so an old row moves by `added - 1`.
+ * Sitting at index 0 is the only way to ask for a prepend, and there index 0 *was* the
+ * spinner, so the row to restore is at `0 + added`; the `else` branch covers the rarer
+ * case of the reader scrolling away while the fetch is in flight.
+ */
+@Composable
+private fun rememberEdgeExtension(
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    contentCount: Int,
+    prependSignal: Int,
+    onExtendUp: () -> Unit,
+    onExtendDown: () -> Unit,
+    onPrependConsumed: () -> Unit
+): NestedScrollConnection {
+    val connection = remember(contentCount) {
+        object : NestedScrollConnection {
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (available.y < -2f && consumed.y == 0f) {
+                    val info = listState.layoutInfo
+                    if (info.visibleItemsInfo.lastOrNull()?.index == info.totalItemsCount - 1) onExtendDown()
+                } else if (available.y > 2f && consumed.y == 0f &&
+                    listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
+                    onExtendUp()
+                }
+                return Offset.Zero
+            }
+        }
+    }
+    val previousCount = remember { mutableStateOf(contentCount) }
+    LaunchedEffect(prependSignal, contentCount) {
+        val added = contentCount - previousCount.value
+        previousCount.value = contentCount
+        if (prependSignal > 0) {
+            if (added > 0) {
+                val first = listState.firstVisibleItemIndex
+                listState.scrollToItem(first + if (first == 0) added else added - 1, listState.firstVisibleItemScrollOffset)
+            }
+            onPrependConsumed()
+        }
+    }
+    return connection
+}
+
+/**
+ * Two slim translucent rows: [✕  title  Tehillim⇄Torah  ה  📖  ⚙] then the toggles —
+ * language (EN/עב/תיקון), vocalization (ניקוד/טעמים), and, for a parsha, partitioning
+ * (עליות). A haftarah has no aliyot and no scroll layout, so those toggles drop out.
  */
 @Composable
 private fun ReaderBar(
     title: String, expanded: Boolean, onToggleExpanded: () -> Unit,
     textMode: String, nikkud: Boolean, teamim: Boolean,
     showAliyotToggle: Boolean, byAliyot: Boolean,
+    mode: String = "tehillim",
+    torahSide: Boolean = false,
+    onToggleMode: () -> Unit = {},
+    showHaftarah: Boolean = false,
+    onHaftarah: () -> Unit = {},
     onNav: () -> Unit = {},
     onTextMode: (String) -> Unit, onNikkud: () -> Unit, onTeamim: () -> Unit,
     onAliyot: () -> Unit, onClose: () -> Unit
 ) {
     val tikkun = textMode == MODE_TIKKUN
+    val haftarahMode = mode == "haftarah"
     Column(Modifier.fillMaxWidth().background(Color(0x73181818))) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onClose) { Text("✕", color = INACTIVE, fontSize = 14.sp) }
@@ -355,6 +543,11 @@ private fun ReaderBar(
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
+            // Tehillim ⇄ Torah, then the week's haftarah when there is one.
+            ModeToggle(torah = torahSide, onToggle = onToggleMode)
+            if (showHaftarah) TextButton(onClick = onHaftarah) {
+                Text("ה", color = MINT, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            }
             // Navigation dial (jump to any chapter / parsha).
             TextButton(onClick = onNav) {
                 Icon(Icons.Default.MenuBook, contentDescription = "Jump to chapter or parsha", tint = ACTIVE_GOLD, modifier = Modifier.size(24.dp))
@@ -370,11 +563,11 @@ private fun ReaderBar(
         ) {
             BarToggle("EN", active = textMode == MODE_EN) { onTextMode(MODE_EN) }
             BarToggle("עב", active = textMode == MODE_HE) { onTextMode(MODE_HE) }
-            BarToggle("תיקון", active = tikkun) { onTextMode(MODE_TIKKUN) }
+            if (!haftarahMode) BarToggle("תיקון", active = tikkun) { onTextMode(MODE_TIKKUN) }
             Spacer(Modifier.width(10.dp))
             BarToggle("ניקוד", active = nikkud && !tikkun, enabled = !tikkun, onClick = onNikkud)
             BarToggle("טעמים", active = teamim && nikkud && !tikkun, enabled = nikkud && !tikkun, onClick = onTeamim)
-            if (showAliyotToggle) {
+            if (showAliyotToggle && !haftarahMode) {
                 Spacer(Modifier.width(10.dp))
                 BarToggle("עליות", active = byAliyot, onClick = onAliyot)
             }
@@ -400,6 +593,12 @@ private fun ReaderBody(
     aliyot: List<String> = emptyList(),
     elulText: SefariaText? = null,
     tikkunLines: List<TikkunLayout.Line>? = null,
+    extendingUp: Boolean = false,
+    extendingDown: Boolean = false,
+    prependedSections: Int = 0,
+    onExtendUp: () -> Unit = {},
+    onExtendDown: () -> Unit = {},
+    onPrependConsumed: () -> Unit = {},
     onZoom: (Float) -> Unit = {}
 ) {
     val listState = rememberLazyListState()
@@ -424,9 +623,20 @@ private fun ReaderBody(
         val main = if (aliyot.isNotEmpty()) {
             val parts = AliyotPartitioner.partition(text.chapters, aliyot)
             if (parts.isNotEmpty()) {
-                parts.map { sec ->
-                    ReaderSection(AliyotPartitioner.aliyahName(sec.index, aliyot.size, hebrew), sec.verses, markChapters = true)
+                // Chapters pulled in by scroll extension fall outside every aliyah; keep
+                // them as plain chapter sections on the side of the window they came from.
+                val covered = parts.flatMap { p -> p.verses.map { it.chapter to it.verse.num } }.toHashSet()
+                val touched = text.chapters.indices.filter { i ->
+                    val ch = text.chapters[i]
+                    ch.verses.any { (ch.number to it.num) in covered }
                 }
+                val firstTouched = touched.firstOrNull() ?: 0
+                val lastTouched = touched.lastOrNull() ?: text.chapters.lastIndex
+                val before = text.chapters.subList(0, firstTouched)
+                val after = text.chapters.subList((lastTouched + 1).coerceAtMost(text.chapters.size), text.chapters.size)
+                chapterSections(SefariaText(text.heRef, before), mode, bookNameEn, hebrew, gematria) +
+                parts.map { sec -> ReaderSection(AliyotPartitioner.aliyahName(sec.index, aliyot.size, hebrew), sec.verses, markChapters = true) } +
+                chapterSections(SefariaText(text.heRef, after), mode, bookNameEn, hebrew, gematria)
             } else chapterSections(text, mode, bookNameEn, hebrew, gematria)
         } else chapterSections(text, mode, bookNameEn, hebrew, gematria)
         val extra = elulText?.let { et ->
@@ -437,10 +647,18 @@ private fun ReaderBody(
 
     // Authentic scroll layout: tikkun mode on a Torah reading with layout data.
     if (tikkun && tikkunLines != null) {
-        TikkunScrollBody(tikkunLines, sizeSp, stam, onZoom)
+        TikkunScrollBody(
+            tikkunLines, sizeSp, stam,
+            extendingUp = extendingUp, extendingDown = extendingDown, prependedSections = prependedSections,
+            onExtendUp = onExtendUp, onExtendDown = onExtendDown, onPrependConsumed = onPrependConsumed,
+            onZoom = onZoom
+        )
         return
     }
 
+    val edgeScroll = rememberEdgeExtension(
+        listState, sections.size, prependedSections, onExtendUp, onExtendDown, onPrependConsumed
+    )
     val direction = if (hebrew) LayoutDirection.Rtl else LayoutDirection.Ltr
     // Pinch-to-zoom that wins over list scrolling: watch the pointer stream in the
     // Initial pass (before the LazyColumn sees it); with two fingers down, apply the
@@ -461,9 +679,13 @@ private fun ReaderBody(
     }
     Box(Modifier.fillMaxSize().then(zoomModifier)) {
         CompositionLocalProvider(LocalLayoutDirection provides direction) {
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).nestedScroll(edgeScroll)
+            ) {
+                if (extendingUp) item { EdgeLoading() }
                 itemsIndexed(sections) { index, section ->
-                    val mint = Color(0xFF6EE7B7)
+                    val mint = MINT
                     if (section.extra && (index == 0 || !sections[index - 1].extra)) {
                         // Visual separation for the Elul supplement: rule + labeled header.
                         Box(
@@ -517,6 +739,7 @@ private fun ReaderBody(
                     )
                 }
                 item { Text(if (hebrew) "מקור: ספריא" else "Source: Sefaria", color = Color(0xFFAA9977), fontSize = 11.sp, modifier = Modifier.padding(16.dp)) }
+                if (extendingDown) item { EdgeLoading() }
             }
         }
         // Fast-scroll thumb: drag maps to section index. (CenterEnd flips to the left
@@ -536,10 +759,20 @@ private fun TikkunScrollBody(
     lines: List<TikkunLayout.Line>,
     sizeSp: Float,
     stam: FontFamily,
+    extendingUp: Boolean = false,
+    extendingDown: Boolean = false,
+    prependedSections: Int = 0,
+    onExtendUp: () -> Unit = {},
+    onExtendDown: () -> Unit = {},
+    onPrependConsumed: () -> Unit = {},
     onZoom: (Float) -> Unit
 ) {
     val listState = rememberLazyListState()
     val gold = Color(0xFFD4AF37)
+    // A prepend re-lays the whole range, so the rows gained at the top are the list's growth.
+    val edgeScroll = rememberEdgeExtension(
+        listState, lines.size, prependedSections, onExtendUp, onExtendDown, onPrependConsumed
+    )
     val zoomModifier = Modifier.pointerInput(Unit) {
         awaitEachGesture {
             awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
@@ -555,7 +788,11 @@ private fun TikkunScrollBody(
     }
     Box(Modifier.fillMaxSize().then(zoomModifier)) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).nestedScroll(edgeScroll)
+            ) {
+                if (extendingUp) item { EdgeLoading() }
                 itemsIndexed(lines) { i, line ->
                     if (line.firstLineOfPage && i != 0) {
                         Box(
@@ -584,6 +821,7 @@ private fun TikkunScrollBody(
                         color = Color(0xFFAA9977), fontSize = 11.sp, modifier = Modifier.padding(16.dp)
                     )
                 }
+                if (extendingDown) item { EdgeLoading() }
             }
         }
         FastScrollThumb(listState, lines.size + 1, Modifier.align(Alignment.CenterEnd))
