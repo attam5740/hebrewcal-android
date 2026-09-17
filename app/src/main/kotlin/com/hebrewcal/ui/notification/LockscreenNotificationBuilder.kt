@@ -124,8 +124,9 @@ object LockscreenNotificationBuilder {
         // Zmanim list in expanded view
         if (showZmanim && zmanimData != null && zmanimData.entries.isNotEmpty()) {
             expandedViews.setViewVisibility(R.id.ll_zmanim_container, android.view.View.VISIBLE)
-            expandedViews.removeAllViews(R.id.ll_zmanim_container)
-            zmanimData.entries.forEach { entry ->
+            expandedViews.removeAllViews(R.id.ll_zmanim_col0)
+            expandedViews.removeAllViews(R.id.ll_zmanim_col1)
+            zmanimData.entries.forEachIndexed { index, entry ->
                 val rowView = RemoteViews(context.packageName, R.layout.item_zman_row)
                 rowView.setTextViewText(R.id.tv_zman_name, entry.displayName)
                 rowView.setTextViewText(R.id.tv_zman_time, entry.timeString)
@@ -143,7 +144,7 @@ object LockscreenNotificationBuilder {
                 if (entry.isNext) {
                     rowView.setTextViewText(R.id.tv_zman_name, "▶ ${entry.displayName}")
                 }
-                expandedViews.addView(R.id.ll_zmanim_container, rowView)
+                expandedViews.addView(if (index % 2 == 0) R.id.ll_zmanim_col0 else R.id.ll_zmanim_col1, rowView)
             }
         } else {
             expandedViews.setViewVisibility(R.id.ll_zmanim_container, android.view.View.GONE)
