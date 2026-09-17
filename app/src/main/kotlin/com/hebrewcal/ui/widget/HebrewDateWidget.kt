@@ -25,7 +25,7 @@ import com.hebrewcal.data.*
 import com.hebrewcal.data.TehillimSchedule
 import com.hebrewcal.data.CalendarLocation
 import com.hebrewcal.ui.reader.TextReaderActivity
-import com.hebrewcal.ui.settings.SettingsActivity
+import com.hebrewcal.ui.calendar.CalendarActivity
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.CancellationException
 import java.util.*
@@ -172,7 +172,7 @@ fun HebrewDateWidgetContent(
             .fillMaxSize()
             .background(bgColor)
             .cornerRadius(16)
-            .clickable(actionStartActivity<SettingsActivity>()),
+            .clickable(actionStartActivity<CalendarActivity>()),
         contentAlignment = Alignment.TopStart
     ) {
         Column(

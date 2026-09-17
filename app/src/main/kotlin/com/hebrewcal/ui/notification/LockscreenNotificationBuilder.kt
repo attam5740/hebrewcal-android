@@ -12,7 +12,7 @@ import com.hebrewcal.R
 import com.hebrewcal.data.HebrewDateInfo
 import com.hebrewcal.data.ZmanEntry
 import com.hebrewcal.data.ZmanimData
-import com.hebrewcal.ui.settings.SettingsActivity
+import com.hebrewcal.ui.calendar.CalendarActivity
 import com.hebrewcal.ui.reader.TextReaderActivity
 
 object LockscreenNotificationBuilder {
@@ -58,7 +58,7 @@ object LockscreenNotificationBuilder {
         languageName: String = "ENGLISH",
         elulRef: String? = null
     ): Notification {
-        val settingsIntent = Intent(context, SettingsActivity::class.java)
+        val settingsIntent = Intent(context, CalendarActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             context, 0, settingsIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
