@@ -13,6 +13,12 @@ import java.net.URLEncoder
 object TorahNavigation {
     const val TEHILLIM_CHAPTERS = 150
 
+    /**
+     * Dial steps per full turn, scaled to the range so long books (Tehillim)
+     * take ~1.5 turns end to end instead of crawling at a fixed 40/turn.
+     */
+    fun dialStepsPerTurn(range: Int): Int = range.coerceIn(40, 100)
+
     data class Book(val en: String, val he: String, val chapters: Int)
 
     /** A parsha as listed by Sefaria's index (alts.Parasha), with its aliyah refs. */

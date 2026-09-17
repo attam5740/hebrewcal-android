@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import com.hebrewcal.service.CalendarNotificationService
 import com.hebrewcal.service.MidnightUpdateWorker
+import com.hebrewcal.service.TextPrefetch
 
 class HebrewCalendarApp : Application() {
     override fun onCreate() {
@@ -14,6 +15,7 @@ class HebrewCalendarApp : Application() {
         // Defer WorkManager scheduling off the main-thread critical path.
         Handler(Looper.getMainLooper()).post {
             try { MidnightUpdateWorker.schedule(this) } catch (e: Exception) { /* non-fatal */ }
+            try { TextPrefetch.scheduleFromPrefs(this) } catch (e: Exception) { /* non-fatal */ }
         }
     }
 }

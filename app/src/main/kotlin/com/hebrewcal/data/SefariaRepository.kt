@@ -7,6 +7,9 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 
 class SefariaRepository(context: Context) {
 
@@ -21,7 +24,7 @@ class SefariaRepository(context: Context) {
     private val enVersion: String? = null
 
     suspend fun fetchText(ref: String): Result<SefariaText> = withContext(Dispatchers.IO) {
-        val cacheFile = File(cacheDir, ref.replace(Regex("[^A-Za-z0-9._-]"), "_") + "_v3.json")
+        val cacheFile = textCacheFile(ref)
         // Try network; on failure fall back to cache.
         val url = "https://www.sefaria.org/api/texts/" +
             URLEncoder.encode(ref, "UTF-8").replace("+", "%20") +
@@ -38,6 +41,39 @@ class SefariaRepository(context: Context) {
         }
     }
 
+    private fun textCacheFile(ref: String) =
+        File(cacheDir, ref.replace(Regex("[^A-Za-z0-9._-]"), "_") + "_v3.json")
+
+    /** True when [ref]'s text is already on disk under the same key [fetchText] reads. */
+    fun isCached(ref: String): Boolean = textCacheFile(ref).exists()
+
+    /** Downloads [ref] into the cache unless it is already there. */
+    suspend fun prefetchText(ref: String): Boolean = isCached(ref) || fetchText(ref).isSuccess
+
+    private fun datedCalendarsFile(date: LocalDate, diaspora: Boolean) =
+        File(cacheDir, "calendars_${if (diaspora) 1 else 0}_$date.json")
+
+    /**
+     * Parasha for the week containing [date] via the calendars API, cached per date
+     * so the download job can fill in future Shabbatot and the reader can fall
+     * back to them offline.
+     */
+    suspend fun parshaFor(date: LocalDate, diaspora: Boolean): Result<ParshaRef> = withContext(Dispatchers.IO) {
+        val cacheFile = datedCalendarsFile(date, diaspora)
+        val url = "https://www.sefaria.org/api/calendars?diaspora=${if (diaspora) 1 else 0}" +
+            "&year=${date.year}&month=${date.monthValue}&day=${date.dayOfMonth}"
+        runCatching {
+            if (cacheFile.exists()) {
+                ParshaCalendarsParser.parse(cacheFile.readText()) ?: error("Unreadable cached calendars")
+            } else {
+                val body = httpGet(url)
+                val parsed = ParshaCalendarsParser.parse(body) ?: error("No parsha in calendars response")
+                cacheFile.writeText(body)
+                parsed
+            }
+        }
+    }
+
     suspend fun currentParsha(diaspora: Boolean): Result<ParshaRef> = withContext(Dispatchers.IO) {
         val cacheFile = File(cacheDir, "calendars_${if (diaspora) 1 else 0}.json")
         val url = "https://www.sefaria.org/api/calendars?diaspora=${if (diaspora) 1 else 0}"
@@ -47,7 +83,15 @@ class SefariaRepository(context: Context) {
             cacheFile.writeText(body)
             parsed
         }.recoverCatching {
-            val cached = if (cacheFile.exists()) ParshaCalendarsParser.parse(cacheFile.readText()) else null
+            // Offline: prefer the download job's entry for the coming Shabbat (always
+            // this week's parsha), then whatever the last live lookup left behind.
+            val shabbat = LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY))
+            val dated = datedCalendarsFile(shabbat, diaspora)
+            val cached = when {
+                dated.exists() -> ParshaCalendarsParser.parse(dated.readText())
+                cacheFile.exists() -> ParshaCalendarsParser.parse(cacheFile.readText())
+                else -> null
+            }
             cached ?: throw it
         }
     }

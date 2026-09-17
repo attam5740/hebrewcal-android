@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hebrewcal.data.*
 import com.hebrewcal.service.CalendarNotificationService
+import com.hebrewcal.service.TextPrefetch
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -69,6 +70,26 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setShowElulTehillim(show: Boolean) = viewModelScope.launch {
         prefsRepo.updateShowElulTehillim(show)
         notifyServiceRefresh()
+    }
+
+    fun setPrefetchNetwork(network: PrefetchNetwork) = viewModelScope.launch {
+        prefsRepo.updatePrefetchNetwork(network)
+        TextPrefetch.schedule(getApplication(), network, runNow = true)
+    }
+
+    fun setPrefetchTehillimDays(days: Int) = viewModelScope.launch {
+        prefsRepo.updatePrefetchTehillimDays(days)
+        reschedulePrefetch()
+    }
+
+    fun setPrefetchParshaWeeks(weeks: Int) = viewModelScope.launch {
+        prefsRepo.updatePrefetchParshaWeeks(weeks)
+        reschedulePrefetch()
+    }
+
+    private suspend fun reschedulePrefetch() {
+        val network = prefsRepo.preferences.first().prefetchNetwork
+        TextPrefetch.schedule(getApplication(), network, runNow = true)
     }
 
     fun setShowZmanim(show: Boolean) = viewModelScope.launch {

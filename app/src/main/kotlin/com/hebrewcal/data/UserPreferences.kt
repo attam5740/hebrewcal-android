@@ -26,13 +26,19 @@ data class UserPreferences(
     val readerTextSizeSp: Float = 18f,
     val showTehillimButton: Boolean = true,
     val showParshaButton: Boolean = true,
-    val showElulTehillim: Boolean = true
+    val showElulTehillim: Boolean = true,
+    val prefetchNetwork: PrefetchNetwork = PrefetchNetwork.WIFI,
+    val prefetchTehillimDays: Int = 7,
+    val prefetchParshaWeeks: Int = 3
 )
 
 enum class CalendarLanguage { HEBREW, ENGLISH }
 enum class CalendarLocation { ISRAEL, DIASPORA }
 enum class ZmanimTimeFormat { TWELVE_HOUR, TWENTY_FOUR_HOUR }
 enum class ZmanimLocationSource { GPS, MANUAL }
+
+/** Background download policy for upcoming reader texts. */
+enum class PrefetchNetwork { OFF, WIFI, ANY }
 
 // All supported zmanim keys
 object ZmanimKeys {
@@ -107,6 +113,9 @@ object PreferenceKeys {
     val SHOW_TEHILLIM_BUTTON = booleanPreferencesKey("show_tehillim_button")
     val SHOW_PARSHA_BUTTON = booleanPreferencesKey("show_parsha_button")
     val SHOW_ELUL_TEHILLIM = booleanPreferencesKey("show_elul_tehillim")
+    val PREFETCH_NETWORK = stringPreferencesKey("prefetch_network")
+    val PREFETCH_TEHILLIM_DAYS = intPreferencesKey("prefetch_tehillim_days")
+    val PREFETCH_PARSHA_WEEKS = intPreferencesKey("prefetch_parsha_weeks")
 }
 
 class UserPreferencesRepository(private val context: Context) {
@@ -137,7 +146,12 @@ class UserPreferencesRepository(private val context: Context) {
             readerTextSizeSp = prefs[PreferenceKeys.READER_TEXT_SIZE] ?: 18f,
             showTehillimButton = prefs[PreferenceKeys.SHOW_TEHILLIM_BUTTON] ?: true,
             showParshaButton = prefs[PreferenceKeys.SHOW_PARSHA_BUTTON] ?: true,
-            showElulTehillim = prefs[PreferenceKeys.SHOW_ELUL_TEHILLIM] ?: true
+            showElulTehillim = prefs[PreferenceKeys.SHOW_ELUL_TEHILLIM] ?: true,
+            prefetchNetwork = PrefetchNetwork.valueOf(
+                prefs[PreferenceKeys.PREFETCH_NETWORK] ?: PrefetchNetwork.WIFI.name
+            ),
+            prefetchTehillimDays = prefs[PreferenceKeys.PREFETCH_TEHILLIM_DAYS] ?: 7,
+            prefetchParshaWeeks = prefs[PreferenceKeys.PREFETCH_PARSHA_WEEKS] ?: 3
         )
     }
 
@@ -203,5 +217,17 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateShowElulTehillim(show: Boolean) {
         context.dataStore.edit { it[PreferenceKeys.SHOW_ELUL_TEHILLIM] = show }
+    }
+
+    suspend fun updatePrefetchNetwork(network: PrefetchNetwork) {
+        context.dataStore.edit { it[PreferenceKeys.PREFETCH_NETWORK] = network.name }
+    }
+
+    suspend fun updatePrefetchTehillimDays(days: Int) {
+        context.dataStore.edit { it[PreferenceKeys.PREFETCH_TEHILLIM_DAYS] = days }
+    }
+
+    suspend fun updatePrefetchParshaWeeks(weeks: Int) {
+        context.dataStore.edit { it[PreferenceKeys.PREFETCH_PARSHA_WEEKS] = weeks }
     }
 }

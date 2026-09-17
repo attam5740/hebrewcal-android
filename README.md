@@ -17,8 +17,9 @@ persistent lockscreen notification on Android 8+.
 - **Auto-updating** — refreshes at midnight, on each zman transition, and on date/timezone change
 - **Torah & Tehillim reader** — daily Tehillim (day-of-month cycle) and weekly parsha buttons on
   the widget and notification open a translucent Sefaria-backed reader: RTL flowing text,
-  pinch-to-zoom, nikkud/te'amim toggles, Hebrew/English, aliyah partitioning, original
-  petucha/setuma spacing, and the customary Elul Tehillim supplement
+  pinch-to-zoom, nikkud/te'amim toggles, Hebrew/English, aliyah partitioning, a navigation
+  dial to jump to any chapter or parsha, original petucha/setuma spacing, and the customary
+  Elul Tehillim supplement
 - **Tikkun mode** — unvocalized STaM sofer script rendered in the authentic 42-line
   Torah-scroll column layout (line-break data from the tikkun.io project)
 

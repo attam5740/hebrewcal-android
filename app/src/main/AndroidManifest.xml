@@ -102,5 +102,10 @@
                 android:resource="@xml/hebrew_date_widget_info" />
         </receiver>
 
+        <!-- Offline text downloads; network policy enforced by the system JobScheduler. -->
+        <service
+            android:name=".service.TextPrefetchJobService"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
     </application>
 </manifest>

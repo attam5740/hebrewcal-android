@@ -207,7 +207,7 @@ fun MainSettingsScreen(
             Spacer(Modifier.height(8.dp))
 
             // ── Reader Buttons Section ────────────────────────────────────
-            SettingsSectionHeader(icon = Icons.Default.MenuBook, title = "Reader Buttons")
+            SettingsSectionHeader(icon = Icons.Default.MenuBook, title = "Torah & Tehillim Reader")
 
             SwitchSettingRow(
                 label    = "תהילים יומי · Daily Tehillim",
@@ -229,6 +229,34 @@ fun MainSettingsScreen(
                 checked  = prefs.showElulTehillim,
                 onCheck  = viewModel::setShowElulTehillim
             )
+
+            // Offline downloads — one row decides on/off and network; horizons only
+            // appear once downloads are enabled, keeping the section compact.
+            val networks = listOf(PrefetchNetwork.OFF, PrefetchNetwork.WIFI, PrefetchNetwork.ANY)
+            SegmentedSettingRow(
+                label    = "Download texts ahead",
+                subtitle = "Fetch upcoming Tehillim and parsha in the background so they open offline",
+                options  = listOf("Off", "Wi-Fi only", "Any network"),
+                selected = networks.indexOf(prefs.prefetchNetwork).coerceAtLeast(0),
+                onSelect = { viewModel.setPrefetchNetwork(networks[it]) }
+            )
+
+            if (prefs.prefetchNetwork != PrefetchNetwork.OFF) {
+                val tehillimDays = listOf(3, 7, 14)
+                SegmentedSettingRow(
+                    label    = "Tehillim ahead",
+                    options  = listOf("3 days", "1 week", "2 weeks"),
+                    selected = tehillimDays.indexOf(prefs.prefetchTehillimDays).coerceAtLeast(0),
+                    onSelect = { viewModel.setPrefetchTehillimDays(tehillimDays[it]) }
+                )
+                val parshaWeeks = listOf(1, 3, 6)
+                SegmentedSettingRow(
+                    label    = "Parsha ahead",
+                    options  = listOf("1 week", "3 weeks", "6 weeks"),
+                    selected = parshaWeeks.indexOf(prefs.prefetchParshaWeeks).coerceAtLeast(0),
+                    onSelect = { viewModel.setPrefetchParshaWeeks(parshaWeeks[it]) }
+                )
+            }
 
             Spacer(Modifier.height(8.dp))
 

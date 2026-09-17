@@ -73,6 +73,28 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.State
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import com.hebrewcal.R
 import com.hebrewcal.data.AliyotPartitioner
 import com.hebrewcal.data.CalendarLanguage
@@ -223,6 +245,94 @@ private fun BarToggle(label: String, active: Boolean, enabled: Boolean = true, o
     )
 }
 
+/** Ember palette for the animated flame chips: deep red → orange → gold and back. */
+private val FLAME = listOf(
+    Color(0xFFB3160B), Color(0xFFFF4D00), Color(0xFFFFA000), Color(0xFFFFE066),
+    Color(0xFFFFA000), Color(0xFFFF4D00), Color(0xFFB3160B)
+)
+private val FLAME_INK = Color(0xFF1A0A00)
+
+/** Shared flame animation: a linear sweep phase (0→1) and a breathing glow (0.5↔1). */
+@Composable
+private fun rememberFlame(): Pair<State<Float>, State<Float>> {
+    val transition = rememberInfiniteTransition(label = "flame")
+    val phase = transition.animateFloat(
+        0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing)), label = "flamePhase"
+    )
+    val breath = transition.animateFloat(
+        0.5f, 1f, infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "flameBreath"
+    )
+    return phase to breath
+}
+
+/** Soft ember halo drawn in expanding translucent layers around the whole bounds. */
+private fun DrawScope.emberGlow(breath: Float, cornerPx: Float) {
+    for (i in 1..5) {
+        val grow = i * 4.dp.toPx()
+        drawRoundRect(
+            color = Color(0xFFFF6A00).copy(alpha = 0.14f * breath * (6 - i) / 5f),
+            topLeft = Offset(-grow, -grow),
+            size = Size(size.width + 2 * grow, size.height + 2 * grow),
+            cornerRadius = CornerRadius(cornerPx + grow)
+        )
+    }
+}
+
+/** Navigation chip: quiet when inactive; the active one burns with a sweeping gradient and breathing glow. */
+@Composable
+private fun FlameToggle(label: String, active: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    if (!active) {
+        Text(
+            label, color = INACTIVE, fontSize = 15.sp,
+            modifier = modifier.padding(horizontal = 3.dp).clip(shape).clickable { onClick() }
+                .padding(horizontal = 12.dp, vertical = 7.dp)
+        )
+        return
+    }
+    val (phase, breath) = rememberFlame()
+    Text(
+        label, color = FLAME_INK, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+        modifier = modifier.padding(horizontal = 3.dp)
+            .drawBehind { emberGlow(breath.value, 14.dp.toPx()) }
+            .clip(shape)
+            .drawBehind {
+                val w = size.width
+                val shift = 2 * w * phase.value   // mirror tiling makes a 2w shift loop seamlessly
+                drawRect(
+                    Brush.linearGradient(
+                        FLAME, start = Offset(-w + shift, 0f), end = Offset(shift, size.height), tileMode = TileMode.Mirror
+                    )
+                )
+            }
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 7.dp)
+    )
+}
+
+/** The dial's "go" control: a 46dp ring of spinning fire with a bold ↵ so it reads as a button. */
+@Composable
+private fun FlameGoButton(onGo: () -> Unit) {
+    val (phase, breath) = rememberFlame()
+    Box(
+        Modifier.padding(horizontal = 12.dp).size(46.dp)
+            .drawBehind {
+                val r = size.minDimension / 2f
+                for (i in 1..5) drawCircle(
+                    Color(0xFFFF6A00).copy(alpha = 0.14f * breath.value * (6 - i) / 5f),
+                    radius = r + i * 4.dp.toPx()
+                )
+                rotate(phase.value * 360f) { drawCircle(Brush.sweepGradient(FLAME), radius = r) }
+                drawCircle(Color(0xFFFFB300), radius = r - 5.dp.toPx())
+            }
+            .clip(CircleShape)
+            .clickable { onGo() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text("↵", color = FLAME_INK, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
 /**
  * Two slim translucent rows: [✕  title] then the toggles — language (EN/עב/תיקון),
  * vocalization (ניקוד/טעמים), and, for a parsha, partitioning (עליות).
@@ -246,7 +356,9 @@ private fun ReaderBar(
                 modifier = Modifier.weight(1f)
             )
             // Navigation dial (jump to any chapter / parsha).
-            TextButton(onClick = onNav) { Text("◎", color = INACTIVE, fontSize = 15.sp) }
+            TextButton(onClick = onNav) {
+                Icon(Icons.Default.MenuBook, contentDescription = "Jump to chapter or parsha", tint = ACTIVE_GOLD, modifier = Modifier.size(24.dp))
+            }
             // Collapse/expand the settings row — keeps the text front and center.
             TextButton(onClick = onToggleExpanded) {
                 Text(if (expanded) "▲" else "⚙", color = if (expanded) ACTIVE_GOLD else INACTIVE, fontSize = 14.sp)
@@ -483,6 +595,7 @@ private fun TikkunScrollBody(
  * 1-150. Torah: pick a book, then dial a chapter or choose a parsha.
  */
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun NavDialOverlay(
     mode: String,
     hebrew: Boolean,
@@ -504,20 +617,26 @@ private fun NavDialOverlay(
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onDismiss() },
         contentAlignment = Alignment.Center
     ) {
-        Column(
+        CompositionLocalProvider(LocalLayoutDirection provides if (hebrew) LayoutDirection.Rtl else LayoutDirection.Ltr) { Column(
             Modifier.fillMaxWidth(0.9f)
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (torah) {
+                // The five books overflow narrow screens; keep the active one in view.
+                val activeBook = remember { BringIntoViewRequester() }
+                LaunchedEffect(bookIdx) { activeBook.bringIntoView() }
                 Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
                     TorahNavigation.BOOKS.forEachIndexed { i, b ->
-                        BarToggle(if (hebrew) b.he else b.en, active = i == bookIdx) { bookIdx = i }
+                        FlameToggle(
+                            if (hebrew) b.he else b.en, active = i == bookIdx,
+                            modifier = if (i == bookIdx) Modifier.bringIntoViewRequester(activeBook) else Modifier
+                        ) { bookIdx = i }
                     }
                 }
                 Row(Modifier.padding(top = 6.dp)) {
-                    BarToggle(if (hebrew) "פרשה" else "Parsha", active = byParsha) { byParsha = true }
-                    BarToggle(if (hebrew) "פרק" else "Chapter", active = !byParsha) { byParsha = false }
+                    FlameToggle(if (hebrew) "פרשה" else "Parsha", active = byParsha) { byParsha = true }
+                    FlameToggle(if (hebrew) "פרק" else "Chapter", active = !byParsha) { byParsha = false }
                 }
                 Spacer(Modifier.height(10.dp))
                 if (byParsha) {
@@ -530,7 +649,7 @@ private fun NavDialOverlay(
                                 Text(
                                     if (hebrew) pr.he else pr.en,
                                     color = INACTIVE, fontSize = 17.sp,
-                                    textAlign = if (hebrew) TextAlign.End else TextAlign.Start,
+                                    textAlign = TextAlign.Start, // layout direction already follows the language
                                     modifier = Modifier.fillMaxWidth()
                                         .clickable { onPick("parsha", pr.dottedRef, if (hebrew) "פרשת ${pr.he}" else "Parashat ${pr.en}", pr.aliyot) }
                                         .padding(vertical = 9.dp, horizontal = 12.dp)
@@ -549,12 +668,12 @@ private fun NavDialOverlay(
                     onPick("tehillim", "Psalms.$ch", if (hebrew) "תהילים פרק ${num(ch)}" else "Psalm $ch", emptyList())
                 }
             }
-        }
+        } }
     }
 }
 
 /**
- * A rotary dial: drag around the ring to turn (40 steps per full turn), tap
+ * A rotary dial: drag around the ring to turn (steps per turn scale with the range), tap
  * the center to jump. Tiny ± nudges for precision.
  */
 @Composable
@@ -562,7 +681,7 @@ private fun RotaryDial(min: Int, max: Int, label: (Int) -> String, onGo: (Int) -
     var value by rememberSaveable { mutableStateOf(min) }
     var acc by remember { mutableStateOf(0f) }
     var lastAngle by remember { mutableStateOf<Float?>(null) }
-    val stepsPerTurn = 40f
+    val stepsPerTurn = TorahNavigation.dialStepsPerTurn(max - min + 1).toFloat()
     val ringColor = Color.White.copy(alpha = 0.35f)
 
     Box(Modifier.size(230.dp), contentAlignment = Alignment.Center) {
@@ -619,10 +738,12 @@ private fun RotaryDial(min: Int, max: Int, label: (Int) -> String, onGo: (Int) -
                     interactionSource = remember { MutableInteractionSource() }, indication = null
                 ) { onGo(value) }
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("−", color = INACTIVE, fontSize = 22.sp, modifier = Modifier.clickable { value = (value - 1).coerceIn(min, max) }.padding(horizontal = 14.dp))
-                Text("↵", color = ACTIVE_GOLD, fontSize = 20.sp, modifier = Modifier.clickable { onGo(value) }.padding(horizontal = 10.dp))
-                Text("+", color = INACTIVE, fontSize = 22.sp, modifier = Modifier.clickable { value = (value + 1).coerceIn(min, max) }.padding(horizontal = 14.dp))
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                    Text("−", color = INACTIVE, fontSize = 26.sp, modifier = Modifier.clickable { value = (value - 1).coerceIn(min, max) }.padding(horizontal = 14.dp))
+                    FlameGoButton { onGo(value) }
+                    Text("+", color = INACTIVE, fontSize = 26.sp, modifier = Modifier.clickable { value = (value + 1).coerceIn(min, max) }.padding(horizontal = 14.dp))
+                }
             }
         }
     }
