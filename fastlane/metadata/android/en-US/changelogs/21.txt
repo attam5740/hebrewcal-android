@@ -1,0 +1,8 @@
+New: Hebrew calendar screen and offline downloads.
+
+• Calendar: month grid (Hebrew/Gregorian), day details, zmanim, links to parsha, haftarah, Tehillim
+• Reader: Tehillim/Torah switch, scroll to next chapter, haftarah of the week
+• Fast days show start and end times
+• Downloads upcoming Tehillim (1 week) and parsha (3 weeks) on Wi‑Fi for offline use
+• Navigation dial polish, faster Tehillim dial
+• Fix: expanded notification no longer cuts off zmanim; widget renders again

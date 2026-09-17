@@ -10,18 +10,27 @@ persistent lockscreen notification on Android 8+.
 
 - **Hebrew date** in Hebrew (`כ״ב ניסן תשפ״ו`) or English (`22 Nisan 5786`)
 - **Jewish holidays** with Israel / Diaspora rules (affects Yom Tov length, Chol HaMoed, etc.)
+- **Fast days** show start and end times
 - **Weekly Parsha** displayed on Shabbat
 - **Zmanim (prayer times)** — user selects exactly which times to show
 - **Lockscreen notification** — persistent, always visible on lockscreen (Android 8+)
 - **Home screen Glance widget** — also available as a resizable home screen widget
+- **Calendar screen** — the app now launches into a full month grid (Hebrew or Gregorian),
+  with both the Hebrew and Gregorian date shown in every cell; tap a day to see its holidays,
+  fast start/end times, and zmanim, with links straight into the reader for that day's parsha,
+  haftarah, and daily Tehillim; Settings is reached from its gear (⚙) icon
 - **Auto-updating** — refreshes at midnight, on each zman transition, and on date/timezone change
 - **Torah & Tehillim reader** — daily Tehillim (day-of-month cycle) and weekly parsha buttons on
-  the widget and notification open a translucent Sefaria-backed reader: RTL flowing text,
-  pinch-to-zoom, nikkud/te'amim toggles, Hebrew/English, aliyah partitioning, a navigation
-  dial to jump to any chapter or parsha, original petucha/setuma spacing, and the customary
-  Elul Tehillim supplement
+  the widget, notification, and calendar screen open a translucent Sefaria-backed reader: RTL
+  flowing text, pinch-to-zoom, nikkud/te'amim toggles, Hebrew/English, aliyah partitioning, a
+  navigation dial to jump to any chapter or parsha, original petucha/setuma spacing, and the
+  customary Elul Tehillim supplement. A Tehillim/Torah switch flips between them without leaving
+  the reader, continuous scrolling loads the next (or previous) chapter automatically, and the
+  haftarah of the week is available alongside the parsha
 - **Tikkun mode** — unvocalized STaM sofer script rendered in the authentic 42-line
   Torah-scroll column layout (line-break data from the tikkun.io project)
+- **Offline downloads** — upcoming Tehillim and parsha readings are fetched ahead of time on
+  Wi-Fi (mobile data optional) so the reader works without a connection
 
 ---
 
@@ -88,6 +97,13 @@ Jewish calendar library for the JVM.
 | Time Format | 12-hour / 24-hour | 12-hour |
 | Location Source | GPS / Manual City | GPS |
 | Selected Zmanim | Per-zman checklist | 8 defaults |
+
+### Reader & Downloads
+| Setting | Options | Default |
+|---|---|---|
+| Download texts ahead | Off / Wi-Fi only / Any network | Wi-Fi only |
+| Tehillim ahead | 3 days / 1 week / 2 weeks | 1 week |
+| Parsha ahead | 1 week / 3 weeks / 6 weeks | 3 weeks |
 
 ### Default selected zmanim
 - Alot HaShachar, HaNetz, Sof Zman Shema (GRA), Sof Zman Tefilla (GRA),

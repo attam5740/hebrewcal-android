@@ -3,10 +3,17 @@ Hebrew Calendar displays the current Hebrew date as a persistent lockscreen noti
 <b>Calendar</b>
 • Hebrew date in Hebrew script (כ״ב ניסן תשפ״ו) or English transliteration
 • Jewish holidays — Yom Tov, Chol HaMoed, Rosh Chodesh, fast days, and minor holidays
+• Fast days show start and end times
 • Shabbat label with weekly Torah portion (parsha)
 • Upcoming parsha displayed throughout the week, not only on Shabbat
 • Omer count during the 49 days between Pesach and Shavuot
 • Diaspora and Israel holiday modes
+
+<b>Calendar screen</b>
+• Full month grid — browse by Hebrew or Gregorian month
+• Both the Hebrew and Gregorian date shown in every day cell
+• Tap a day for its details: holidays, fast start/end times, and zmanim for that date
+• Links from the day sheet open the parsha, haftarah, and daily Tehillim directly in the reader
 
 <b>Zmanim (Prayer Times)</b>
 • Halachic times calculated by KosherJava — Alot HaShachar, HaNetz, Sof Zman Shema (GRA &amp; MGA), Chatzot, Mincha, Shkiah, Tzet HaKochavim, and more
@@ -22,6 +29,10 @@ Hebrew Calendar displays the current Hebrew date as a persistent lockscreen noti
 • Parsha shown by chapters or by aliyot, including double portions
 • Original scroll spacing (petucha/setuma) display option
 • Customary Elul Tehillim: three additional daily chapters through Yom Kippur
+• Switch between Tehillim and Torah without leaving the reader
+• Continuous scrolling — reach the end of a chapter and the next (or previous) loads automatically
+• Haftarah of the week alongside the parsha
+• Offline downloads of upcoming readings on Wi‑Fi (mobile data optional)
 
 <b>Display</b>
 • Persistent lockscreen notification — always visible without unlocking
