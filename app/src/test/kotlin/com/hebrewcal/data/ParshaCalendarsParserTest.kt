@@ -33,4 +33,21 @@ class ParshaCalendarsParserTest {
     @Test fun returnsNullWhenNoParsha() {
         assertNull(ParshaCalendarsParser.parse("""{"calendar_items":[]}"""))
     }
+
+    @Test fun parsesEveryHaftarahItem() {
+        val json = """{"calendar_items":[
+          {"title":{"en":"Parashat Hashavua"},"displayValue":{"en":"Ha'Azinu","he":"האזינו"},
+           "ref":"Deuteronomy 32:1-52","url":"Deuteronomy.32.1-52","heRef":"דברים ל״ב"},
+          {"title":{"en":"Haftarah"},"displayValue":{"en":"Hosea 14:2-10","he":"הושע י״ד:ב׳-י׳"},
+           "ref":"Hosea 14:2-10","url":"Hosea.14.2-10"},
+          {"title":{"en":"Haftarah (S)"},"displayValue":{"en":"Micah 7:18-20","he":"מיכה ז׳"},
+           "ref":"Micah 7:18-20"},
+          {"title":{"en":"Daf Yomi"},"displayValue":{"en":"x"},"ref":"Berakhot 2"}
+        ]}"""
+        val p = ParshaCalendarsParser.parse(json)!!
+        assertEquals(2, p.haftarot.size)
+        assertEquals("Hosea.14.2-10", p.haftarot[0].dottedRef)
+        assertEquals("Micah.7.18-20", p.haftarot[1].dottedRef)   // dotted form derived when url is absent
+        assertEquals("הושע י״ד:ב׳-י׳", p.haftarot[0].nameHe)
+    }
 }

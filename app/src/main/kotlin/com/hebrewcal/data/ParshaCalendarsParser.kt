@@ -25,12 +25,27 @@ object ParshaCalendarsParser {
             ?.mapNotNull { (it as? JsonPrimitive)?.content }
             ?: emptyList()
 
+        fun str(o: JsonObject?, k: String) = (o?.get(k) as? JsonPrimitive)?.contentOrNull
+        val haftarot = items.mapNotNull { it as? JsonObject }
+            .filter { str(it["title"] as? JsonObject, "en")?.startsWith("Haftarah") == true }
+            .mapNotNull { h ->
+                val r = str(h, "ref") ?: return@mapNotNull null
+                val dv = h["displayValue"] as? JsonObject
+                Reading(
+                    ref = r,
+                    dottedRef = str(h, "url") ?: r.replace(" ", ".").replace(":", "."),
+                    nameEn = str(dv, "en") ?: r,
+                    nameHe = str(dv, "he") ?: r
+                )
+            }
+
         return ParshaRef(
             sefariaRef = dotted,
             heRef = (item["heRef"] as? JsonPrimitive)?.content ?: "",
             nameEn = display?.get("en")?.let { (it as? JsonPrimitive)?.content } ?: "",
             nameHe = display?.get("he")?.let { (it as? JsonPrimitive)?.content } ?: "",
-            aliyot = aliyot
+            aliyot = aliyot,
+            haftarot = haftarot
         )
     }
 }
