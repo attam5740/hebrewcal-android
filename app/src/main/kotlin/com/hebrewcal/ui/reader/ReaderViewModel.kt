@@ -74,6 +74,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
     private var lastTehillim: Position? = null
     private var lastTorah: Position? = null
     private var extendJob: Job? = null
+    private var generation = 0
 
     fun load(mode: String, ref: String, title: String, diaspora: Boolean, elulRef: String = "",
              presetAliyot: List<String> = emptyList()) {
@@ -83,6 +84,8 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         diasporaPref = diaspora
         if (mode == "tehillim") elulRefPref = elulRef
         extendJob?.cancel()
+        generation++
+        window = null
         _state.value = UiState(loading = true, title = title, mode = mode)
         ensureWeek()
         viewModelScope.launch {
@@ -103,7 +106,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                     val tikkunLines = if (mode == "parsha") TikkunLayout.parseTorahRef(resolvedRef)?.let { tikkunRepo.linesFor(it) } else null
                     val finalTitle = resolvedTitle.ifBlank { text.heRef }
                     val pos = Position(resolvedRef, finalTitle, aliyot)
-                    if (mode == "tehillim") lastTehillim = pos else lastTorah = pos
+                    if (mode == "tehillim") lastTehillim = pos else if (mode == "parsha") lastTorah = pos
                     _state.value = UiState(false, null, finalTitle, text, mode, bookNameEn, aliyot, elulText, tikkunLines)
                 },
                 onFailure = { _state.value = UiState(false, OFFLINE, resolvedTitle, null, mode, bookNameEn, aliyot) }
@@ -149,10 +152,12 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         val w = window ?: return
         if (s.loading || s.error != null || extendJob?.isActive == true) return
         val target = (if (down) ReaderWindows.nextFetch(w) else ReaderWindows.prevFetch(w)) ?: return
+        val gen = generation
         _state.value = s.copy(extendingDown = down, extendingUp = !down, prependedSections = 0)
         extendJob = viewModelScope.launch {
             val (book, chNum) = target
             val fetched = repo.fetchText("$book.$chNum").getOrNull()?.chapters?.firstOrNull()
+            if (gen != generation) return@launch
             val cur = _state.value
             if (fetched == null || fetched.verses.isEmpty()) {
                 _state.value = cur.copy(extendingDown = false, extendingUp = false); return@launch
