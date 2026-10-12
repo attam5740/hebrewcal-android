@@ -23,8 +23,8 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # The Android SDK is preinstalled on GitHub's ubuntu runners (ANDROID_HOME is set), and
+      # Gradle fetches any missing platform or build-tools itself, so no SDK setup action is needed.
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
