@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:scaleX="0.82" android:scaleY="0.82" android:pivotX="54" android:pivotY="54">
+        <path android:fillColor="#FFFFFF" android:pathData="M60,24.61 A30,30 0 1 0 60,83.39 A30,30 0 0 1 60,24.61 Z"/>
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="2.4" android:pathData="M24,54 A30,30 0 1 0 84,54 A30,30 0 1 0 24,54 Z"/>
+        <path android:fillColor="#FFFFFF" android:pathData=" M52,15 a2,2 0 1 0 4,0 a2,2 0 1 0 -4,0 Z M71.5,20.2 a2,2 0 1 0 4,0 a2,2 0 1 0 -4,0 Z M85.8,34.5 a2,2 0 1 0 4,0 a2,2 0 1 0 -4,0 Z M91,54 a2,2 0 1 0 4,0 a2,2 0 1 0 -4,0 Z M85.8,73.5 a2,2 0 1 0 4,0 a2,2 0 1 0 -4,0 Z M71.5,87.8 a2,2 0 1 0 4,0 a2,2 0 1 0 -4,0 Z M52,93 a2,2 0 1 0 4,0 a2,2 0 1 0 -4,0 Z M32.5,87.8 a2,2 0 1 0 4,0 a2,2 0 1 0 -4,0 Z M18.2,73.5 a2,2 0 1 0 4,0 a2,2 0 1 0 -4,0 Z M13,54 a2,2 0 1 0 4,0 a2,2 0 1 0 -4,0 Z M18.2,34.5 a2,2 0 1 0 4,0 a2,2 0 1 0 -4,0 Z M32.5,20.2 a2,2 0 1 0 4,0 a2,2 0 1 0 -4,0 Z"/>
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="2.6" android:strokeLineJoin="round" android:pathData="M54,38 L67.9,62 L40.1,62 Z M54,70 L40.1,46 L67.9,46 Z"/>
+    </group>
+</vector>
