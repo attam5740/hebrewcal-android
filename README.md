@@ -1,8 +1,14 @@
-# Hebrew Calendar Lockscreen Widget
+# Hebrew Calendar
 ### Android App — Kotlin + Jetpack Compose
 
-Displays the Hebrew (Jewish) calendar date, holidays, Parsha, and Zmanim (prayer times) as a
-persistent lockscreen notification on Android 8+.
+A Hebrew (Jewish) calendar for Android 8+: the date, holidays, parsha, and zmanim (halachic
+times) on the lockscreen and home screen, a month calendar, Shabbat times, and a built-in
+Torah and Tehillim reader.
+
+[<img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="72">](https://f-droid.org/packages/com.hebrewcal/)
+
+Also available from [GitHub Releases](https://github.com/attam5740/hebrewcal-android/releases).
+See the [changelog](CHANGELOG.md) for what is new.
 
 ---
 
@@ -14,8 +20,12 @@ persistent lockscreen notification on Android 8+.
 - **Weekly Parsha** displayed on Shabbat
 - **Zmanim (prayer times)** — user selects exactly which times to show
 - **Lockscreen notification** — persistent, always visible on lockscreen (Android 8+)
-- **Home screen Glance widget** — also available as a resizable home screen widget
-- **Calendar screen** — the app now launches into a full month grid (Hebrew or Gregorian),
+- **Home screen Glance widget** — resizable, with adjustable background transparency
+- **Shabbat and Yom Tov** — candle-lighting time with a live countdown on Friday and Erev Yom
+  Tov, Havdalah by your chosen opinion, and a Shabbat Shalom banner on the lockscreen
+- **Sun, moon, and direction** — a sun-arc view of the day with the current sha'ah zmanit,
+  moon phase and the Birkat HaLevana window, and a compass pointing to Jerusalem
+- **Calendar screen** — the app launches into a full month grid (Hebrew or Gregorian),
   with both the Hebrew and Gregorian date shown in every cell; tap a day to see its holidays,
   fast start/end times, and zmanim, with links straight into the reader for that day's parsha,
   haftarah, and daily Tehillim; Settings is reached from its gear (⚙) icon
@@ -42,10 +52,20 @@ app/
 │   ├── HebrewCalendarRepository.kt   # KosherJava wrapper — date, holiday, parsha
 │   ├── ZmanimRepository.kt           # KosherJava zmanim calculation
 │   ├── UserPreferences.kt            # DataStore persistence + all models/enums
-│   └── LocationHelper.kt             # GPS + geocoding via FusedLocationProvider
+│   ├── LocationHelper.kt             # One-shot coarse location via the platform LocationManager
+│   ├── CalendarMonth.kt              # Month grid model (Hebrew or Gregorian)
+│   ├── ShabbatTimes.kt               # Candle lighting and Havdalah
+│   ├── FastSchedule.kt               # Major/minor fast start and end
+│   ├── CelestialCalculator.kt        # Sun arc and sha'ot zmaniyot
+│   ├── LunarCalculator.kt            # Moon phase and Birkat HaLevana window
+│   ├── MizrachCalculator.kt          # Bearing and distance to Jerusalem
+│   ├── SefariaRepository.kt          # Sefaria text + calendars API with disk cache
+│   ├── ReaderWindow.kt               # Chapter-by-chapter reader extension logic
+│   └── PrefetchPlanner.kt            # Which texts to download ahead
 ├── service/
 │   ├── CalendarNotificationService.kt # Foreground service — notification + alarm scheduling
-│   └── MidnightUpdateWorker.kt        # WorkManager daily backup refresh
+│   ├── MidnightUpdateWorker.kt        # WorkManager daily backup refresh
+│   └── TextPrefetchJob.kt             # JobScheduler job for offline text downloads
 ├── receiver/
 │   └── Receivers.kt                   # Boot, DateChange, ZmanAlarm broadcast receivers
 ├── ui/
@@ -53,8 +73,16 @@ app/
 │   │   └── LockscreenNotificationBuilder.kt  # RemoteViews notification layout builder
 │   ├── widget/
 │   │   └── HebrewDateWidget.kt               # Glance AppWidget (home screen)
+│   ├── calendar/
+│   │   ├── CalendarActivity.kt               # Launcher: translucent month grid
+│   │   ├── DaySheet.kt                       # Day details, zmanim, reader links
+│   │   ├── CelestialArcView.kt               # Sun arc, sha'ah zmanit, moon phase
+│   │   └── MizrachCompassDialog.kt           # Jerusalem compass
+│   ├── reader/
+│   │   ├── TextReaderActivity.kt             # Translucent Torah/Tehillim reader
+│   │   └── ReaderViewModel.kt                # Loading, chapter window, mode memory
 │   ├── settings/
-│   │   ├── SettingsActivity.kt               # Entry point, Navigation host
+│   │   ├── SettingsActivity.kt               # Settings, opened from the calendar's gear icon
 │   │   ├── SettingsViewModel.kt              # State + business logic for settings
 │   │   ├── MainSettingsScreen.kt             # Main settings Composable
 │   │   └── ZmanimSelectionScreen.kt          # Per-zman checklist Composable
@@ -98,12 +126,21 @@ Jewish calendar library for the JVM.
 | Location Source | GPS / Manual City | GPS |
 | Selected Zmanim | Per-zman checklist | 8 defaults |
 
+### Shabbat & Celestial
+| Setting | Options | Default |
+|---|---|---|
+| Shabbat & Chag dynamic lockscreen | On / Off | On |
+| Candle lighting offset | 18 / 20 / 30 / 40 minutes before sunset | 18 |
+| Havdalah opinion | 8.5° / 42 min / 50 min / 72 min (Rabbeinu Tam) | 8.5° |
+| Show celestial arc | On / Off | On |
+
 ### Reader & Downloads
 | Setting | Options | Default |
 |---|---|---|
 | Download texts ahead | Off / Wi-Fi only / Any network | Wi-Fi only |
 | Tehillim ahead | 3 days / 1 week / 2 weeks | 1 week |
 | Parsha ahead | 1 week / 3 weeks / 6 weeks | 3 weeks |
+| Widget background opacity | 10% to 100% | 60% |
 
 ### Default selected zmanim
 - Alot HaShachar, HaNetz, Sof Zman Shema (GRA), Sof Zman Tefilla (GRA),
@@ -124,6 +161,7 @@ Jewish calendar library for the JVM.
 - Shkiah (Sunset)
 - Tzet HaKochavim (Nightfall)
 - Tzet HaKochavim (Rabbeinu Tam)
+- Candle Lighting, Havdalah, Havdalah (Rabbeinu Tam) — shown on the relevant days
 
 ---
 
@@ -159,9 +197,14 @@ lockscreen, even when the device is locked.
 | `FOREGROUND_SERVICE` | Persistent notification service |
 | `FOREGROUND_SERVICE_SPECIAL_USE` | Android 14+ foreground service |
 | `RECEIVE_BOOT_COMPLETED` | Restart after device reboot |
-| `SCHEDULE_EXACT_ALARM` | Precise zman transition timing |
-| `ACCESS_FINE_LOCATION` | GPS-based zmanim (optional) |
+| `SCHEDULE_EXACT_ALARM`, `USE_EXACT_ALARM` | Precise zman transition timing |
+| `ACCESS_COARSE_LOCATION` | One-time match to the nearest city for zmanim (optional) |
+| `ACCESS_NOTIFICATION_POLICY` | Keeping the notification visible in Do Not Disturb (optional) |
+| `INTERNET` | Fetching Torah and Tehillim texts from Sefaria |
 | `WAKE_LOCK` | Ensures alarm delivery |
+
+The app requests no precise location, no network-state access, and no vibration permission.
+The Jerusalem compass uses the rotation sensor, which needs no permission.
 
 ---
 
@@ -170,20 +213,48 @@ lockscreen, even when the device is locked.
 ### Requirements
 - Android Studio Hedgehog (2023.1.1) or newer
 - Kotlin 1.9+
+- JDK 17 or newer
 - Min SDK 26 (Android 8.0)
-- Target SDK 35
+- Target SDK 34
 
 ### Build
 ```bash
-git clone <repo>
-cd hebrewcal
+git clone https://github.com/attam5740/hebrewcal-android.git
+cd hebrewcal-android
 ./gradlew assembleDebug
+./gradlew testDebugUnitTest
 ```
 
 ### Install
 ```bash
 adb install app/build/outputs/apk/debug/app-debug.apk
 ```
+
+---
+
+## Releasing
+
+F-Droid builds every tag from source and compares its build with the APK attached to the
+GitHub release ([reproducible builds](https://f-droid.org/docs/Reproducible_Builds/)). The
+recipe is mirrored in [`metadata/com.hebrewcal.yml`](metadata/com.hebrewcal.yml). A release
+only reaches F-Droid if all of these hold:
+
+1. `versionCode` and `versionName` are bumped in `app/build.gradle`, and
+   `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` exists (500 characters at most).
+2. The tag is `v<versionName>` and points at the commit the APK was built from.
+3. The attached asset is named `Hebrew-Calendar-v<versionName>.apk`.
+4. It is a **release** build (`./gradlew assembleRelease`, not debug) of a clean checkout of
+   that tag, signed with the release key.
+
+```bash
+git worktree add /tmp/hebrewcal-release v1.15 && cd /tmp/hebrewcal-release
+./gradlew assembleRelease
+scripts/release.sh app/build/outputs/apk/release/app-release-unsigned.apk 1.15
+gh release create v1.15 dist/Hebrew-Calendar-v1.15.apk --title v1.15
+```
+
+`scripts/release.sh` refuses debug builds and checks the signing certificate against the one
+F-Droid allows. The keystore and its password never belong in the repository.
 
 ---
 
@@ -194,7 +265,7 @@ When multiple events overlap, the notification shows the highest-priority label:
 1. Major Yom Tov (Rosh Hashana, Yom Kippur, Pesach, Shavuot, Sukkot, Shmini Atzeret/Simchat Torah)
 2. Chol HaMoed + Hoshana Raba
 3. Rosh Chodesh
-4. Fast days (Tisha B'Av, Yom Kippur Katan, etc.)
+4. Fast days (Tisha B'Av, Tzom Gedalyah, Asara B'Tevet, Ta'anit Esther, Shiva Asar B'Tammuz)
 5. Minor holidays (Chanukah, Purim, Lag B'Omer, Tu B'Shvat, Yom Ha'Atzmaut, etc.)
 6. Shabbat
 7. Regular weekday (no label shown)

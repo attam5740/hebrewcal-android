@@ -1,0 +1,9 @@
+New since 1.12:
+
+• Calendar screen: Hebrew/Gregorian month grid, day details, zmanim, links to parsha, haftarah, Tehillim
+• Shabbat: candle-lighting countdown, Havdalah (4 opinions), Shabbat Shalom banner
+• Sun arc, sha'ot zmaniyot, moon phase, Birkat HaLevana, Jerusalem compass
+• Reader: Tehillim/Torah switch, continuous scrolling, haftarah, navigation dial, offline downloads
+• Fast start and end times
+• Widget: adjustable transparency; "can't load widget" fixed
+• New icon

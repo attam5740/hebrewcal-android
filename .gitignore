@@ -21,3 +21,9 @@ bin/
 gen/
 out/
 .gitnexus
+
+# Release signing: never commit keys, passwords, or signed artifacts
+dist/
+*.keystore
+*.jks
+*.pass

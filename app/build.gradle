@@ -12,8 +12,15 @@ android {
         applicationId "com.hebrewcal"
         minSdk 26
         targetSdk 34
-        versionCode 21
-        versionName "1.14"
+        versionCode 22
+        versionName "1.15"
+    }
+
+    // F-Droid: keep Google's encrypted dependency-metadata block out of the APK so the
+    // release build stays verifiable (reproducible) against the published binary.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 
     buildTypes {

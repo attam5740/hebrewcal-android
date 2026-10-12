@@ -1,6 +1,0 @@
-New: navigation dial and modern English.
-
-• Navigation dial (◎) in the reader: jump to any Tehillim chapter, or to any Torah chapter or parsha
-• English now uses Sefaria's contemporary JPS Tanakh (2023) instead of the 1917 translation
-• Footnote markers removed from English text
-• Refreshed glowing Tehillim and parsha pills on the widget
