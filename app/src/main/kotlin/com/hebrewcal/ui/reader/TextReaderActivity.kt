@@ -300,7 +300,8 @@ private val ACTIVE_GOLD = Color(0xFFFFD255)   // vivid warm amber
 private val ACTIVE_BG = Color(0x47FFC94D)     // stronger amber pill behind active toggles
 private val INACTIVE = Color(0xE6FFFFFF)      // near-white, clearly legible
 private val DISABLED = Color(0x66FFFFFF)
-private val MINT = Color(0xFF6EE7B7)         // haftarah / supplement accent
+private val MINT = Color(0xFF6EE7B7)         // Torah / haftarah accent (matches the parsha pill)
+private val SKY = Color(0xFF7EC8E3)          // Elul supplement accent (app secondary)
 
 @Composable
 private fun BarToggle(label: String, active: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
@@ -637,7 +638,8 @@ private fun ReaderBody(
     val tikkun = textMode == MODE_TIKKUN
     val gematria = remember { HebrewDateFormatter() }
     val stam = remember { FontFamily(Font(R.font.stam_ashkenaz)) }
-    val gold = Color(0xFFD4AF37)
+    // Heading accent follows the source, matching the widget pills: amber for Tehillim, mint for Torah/haftarah.
+    val accent = if (mode == "tehillim") ACTIVE_GOLD else MINT
 
     // Scroll-spacing markers and source line breaks fold into the flowing text.
     fun layout(t: String): String =
@@ -791,17 +793,17 @@ private fun ReaderBody(
                         // Visual separation for the Elul supplement: rule + labeled header.
                         Box(
                             Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 2.dp)
-                                .height(1.dp).background(MINT.copy(alpha = 0.45f))
+                                .height(1.dp).background(SKY.copy(alpha = 0.45f))
                         ) {}
                         Text(
                             if (hebrew) "תהילים לאלול" else "Elul Tehillim",
-                            color = MINT, fontSize = (sizeSp * 0.8f).sp,
+                            color = SKY, fontSize = (sizeSp * 0.8f).sp,
                             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                             textAlign = TextAlign.Start
                         )
                     }
                     Text(
-                        section.title, color = if (section.extra) MINT else gold, fontSize = (sizeSp + 2).sp,
+                        section.title, color = if (section.extra) SKY else accent, fontSize = (sizeSp + 2).sp,
                         modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp),
                         textAlign = TextAlign.Start
                     )
@@ -812,13 +814,13 @@ private fun ReaderBody(
                             if (body.isBlank()) return@forEach
                             if (section.markChapters && tv.chapter != lastChapter) {
                                 if (lastChapter != -1) {
-                                    withStyle(SpanStyle(color = gold, fontSize = (sizeSp * 0.7f).sp)) {
+                                    withStyle(SpanStyle(color = if (section.extra) SKY else accent, fontSize = (sizeSp * 0.7f).sp)) {
                                         append(if (hebrew) " ‹פרק ${gematria.formatHebrewNumber(tv.chapter)}› " else " ‹Ch. ${tv.chapter}› ")
                                     }
                                 }
                                 lastChapter = tv.chapter
                             }
-                            withStyle(SpanStyle(color = gold, fontSize = (sizeSp * 0.62f).sp)) {
+                            withStyle(SpanStyle(color = if (section.extra) SKY else accent, fontSize = (sizeSp * 0.62f).sp)) {
                                 append(if (hebrew) gematria.formatHebrewNumber(tv.verse.num) else tv.verse.num.toString())
                             }
                             append(" ")
@@ -869,7 +871,7 @@ private fun TikkunScrollBody(
     onZoom: (Float) -> Unit
 ) {
     val listState = rememberLazyListState()
-    val gold = Color(0xFFD4AF37)
+    val accent = MINT   // tikkun is Torah-only; rule color matches the parsha pill
     // A prepend re-lays the whole range, so the rows gained at the top are the list's growth.
     val edgeScroll = rememberEdgeExtension(
         listState, lines.size, prependedSections, onExtendUp, onExtendDown, onPrependConsumed
@@ -898,7 +900,7 @@ private fun TikkunScrollBody(
                     if (line.firstLineOfPage && i != 0) {
                         Box(
                             Modifier.fillMaxWidth().padding(vertical = 10.dp)
-                                .height(1.dp).background(gold.copy(alpha = 0.35f))
+                                .height(1.dp).background(accent.copy(alpha = 0.35f))
                         ) {}
                     }
                     Text(
