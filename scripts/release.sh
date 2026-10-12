@@ -40,10 +40,13 @@ fi
 
 mkdir -p dist
 out="dist/Hebrew-Calendar-v$version.apk"
-cp "$unsigned" "$out"
-# Sign in place; the zip layout must stay identical to the unsigned build so F-Droid can copy
-# this signature onto its own build and get a byte-identical APK.
-"$bt/apksigner" sign --ks "$keystore" --ks-pass "file:$pass_file" --key-pass "file:$pass_file" "$out"
+rm -f "$out"
+# apksigner only appends a signing block; the zip entries stay identical to the unsigned build,
+# which is what lets F-Droid copy this signature onto its own build and get the same APK.
+# No --key-pass: the PKCS12 key shares the store password, and apksigner would otherwise read a
+# second line from the same password file.
+"$bt/apksigner" sign --ks "$keystore" --ks-pass "file:$pass_file" --out "$out" "$unsigned"
+rm -f "$out.idsig"
 
 cert="$("$bt/apksigner" verify --print-certs "$out" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
 if [ "$cert" != "$EXPECTED_CERT" ]; then
