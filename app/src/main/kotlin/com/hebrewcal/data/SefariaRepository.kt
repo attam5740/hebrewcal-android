@@ -29,7 +29,9 @@ class SefariaRepository(context: Context) {
         val url = "https://www.sefaria.org/api/texts/" +
             URLEncoder.encode(ref, "UTF-8").replace("+", "%20") +
             "?context=0&commentary=0" +
-            "&vhe=" + URLEncoder.encode(heVersion, "UTF-8") +
+            // The Masorah edition exists only for Tanakh; asking for it on a siddur
+            // ref returns the prayer with no Hebrew at all.
+            (if (ref.startsWith("Siddur")) "" else "&vhe=" + URLEncoder.encode(heVersion, "UTF-8")) +
             (enVersion?.let { "&ven=" + URLEncoder.encode(it, "UTF-8") } ?: "")
         runCatching {
             val body = httpGet(url)

@@ -803,7 +803,8 @@ private fun ReaderBody(
                             textAlign = TextAlign.Start
                         )
                     }
-                    Text(
+                    if (section.title.isBlank()) Spacer(Modifier.height(12.dp))
+                    else Text(
                         section.title, color = if (section.extra) SKY else accent, fontSize = (sizeSp + 2).sp,
                         modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp),
                         textAlign = TextAlign.Start
@@ -821,10 +822,12 @@ private fun ReaderBody(
                                 }
                                 lastChapter = tv.chapter
                             }
-                            withStyle(SpanStyle(color = if (section.extra) SKY else accent, fontSize = (sizeSp * 0.62f).sp)) {
-                                append(if (hebrew) gematria.formatHebrewNumber(tv.verse.num) else tv.verse.num.toString())
+                            if (mode != "tefillah") {
+                                withStyle(SpanStyle(color = if (section.extra) SKY else accent, fontSize = (sizeSp * 0.62f).sp)) {
+                                    append(if (hebrew) gematria.formatHebrewNumber(tv.verse.num) else tv.verse.num.toString())
+                                }
+                                append(" ")
                             }
-                            append(" ")
                             append(body)
                             append("  ")
                         }
@@ -1097,7 +1100,12 @@ private fun chapterSections(
     bookNameEn: String?,
     hebrew: Boolean,
     gematria: HebrewDateFormatter
-): List<ReaderSection> = text.chapters.map { ch ->
+): List<ReaderSection> = if (mode == "tefillah") {
+    // A prayer has paragraphs, not chapters and verses: one untitled section each.
+    text.chapters.flatMap { ch ->
+        ch.verses.map { ReaderSection("", listOf(AliyotPartitioner.TaggedVerse(ch.number, it)), markChapters = false) }
+    }
+} else text.chapters.map { ch ->
     val header = when {
         hebrew -> "פרק ${gematria.formatHebrewNumber(ch.number)}"
         mode == "parsha" -> "${bookNameEn ?: "Chapter"} ${ch.number}"

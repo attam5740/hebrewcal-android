@@ -150,6 +150,8 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
     private fun extend(down: Boolean) {
         val s = _state.value
         val start = window ?: return
+        // A prayer is one complete text, not a chapter in a book to keep reading through.
+        if (s.mode == "tefillah") return
         if (s.loading || s.error != null || extendJob?.isActive == true) return
         if ((if (down) ReaderWindows.nextFetch(start) else ReaderWindows.prevFetch(start)) == null) return
         val gen = generation
