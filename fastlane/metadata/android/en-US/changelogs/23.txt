@@ -1,0 +1,1 @@
+Fixed: tapping the Birkat HaLevana badge on a day opened an empty reader with a "No internet connection" message. It now opens the blessing, in Hebrew or English.

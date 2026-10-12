@@ -4,6 +4,13 @@ All notable changes to Hebrew Calendar are listed here, newest first.
 Version codes match `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`,
 which is what F-Droid shows.
 
+## 1.16 (version code 23)
+
+### Fixed
+- **Birkat HaLevana.** Tapping the Birkat HaLevana badge on the day sheet opened an empty reader
+  with a "No internet connection" message. It now opens the blessing, shown as plain paragraphs
+  in Hebrew or English.
+
 ## 1.15 (version code 22)
 
 Everything since 1.12. Versions 1.13 and 1.14 were development builds and were never published.
