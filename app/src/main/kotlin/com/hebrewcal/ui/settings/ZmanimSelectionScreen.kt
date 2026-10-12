@@ -100,6 +100,16 @@ fun ZmanimSelectionScreen(
                 )
             ) { key -> ZmanCheckRow(key, prefs.selectedZmanim, viewModel::toggleZman) }
 
+            item { ZmanimGroupHeader("Shabbat & Chag") }
+
+            items(
+                listOf(
+                    ZmanimKeys.CANDLE_LIGHTING,
+                    ZmanimKeys.HAVDALAH,
+                    ZmanimKeys.HAVDALAH_RT
+                )
+            ) { key -> ZmanCheckRow(key, prefs.selectedZmanim, viewModel::toggleZman) }
+
             item {
                 Spacer(Modifier.height(8.dp))
                 val count = prefs.selectedZmanim.size

@@ -29,7 +29,13 @@ data class UserPreferences(
     val showElulTehillim: Boolean = true,
     val prefetchNetwork: PrefetchNetwork = PrefetchNetwork.WIFI,
     val prefetchTehillimDays: Int = 7,
-    val prefetchParshaWeeks: Int = 3
+    val prefetchParshaWeeks: Int = 3,
+    /** Home-screen widget background opacity, 10..100 percent. */
+    val widgetOpacity: Int = 60,
+    val candleLightingOffsetMinutes: Int = 18,
+    val havdalahOpinion: HavdalahOpinion = HavdalahOpinion.STANDARD_8_5,
+    val showShabbatBanner: Boolean = true,
+    val showCelestialArc: Boolean = true
 )
 
 enum class CalendarLanguage { HEBREW, ENGLISH }
@@ -56,13 +62,17 @@ object ZmanimKeys {
     const val SHKIAH = "shkiah"
     const val TZET_HAKOCHAVIM = "tzet_hakochavim"
     const val TZET_RABBEINU_TAM = "tzet_rabbeinu_tam"
+    const val CANDLE_LIGHTING = "candle_lighting"
+    const val HAVDALAH = "havdalah"
+    const val HAVDALAH_RT = "havdalah_rt"
 
     val ALL = listOf(
         ALOT_HASHACHAR, MISHEYAKIR, HANETZ,
         SOF_ZMAN_SHEMA_GRA, SOF_ZMAN_SHEMA_MGA,
         SOF_ZMAN_TEFILLA_GRA, SOF_ZMAN_TEFILLA_MGA,
         CHATZOT, MINCHA_GEDOLA, MINCHA_KETANA,
-        PLAG_HAMINCHA, SHKIAH, TZET_HAKOCHAVIM, TZET_RABBEINU_TAM
+        PLAG_HAMINCHA, SHKIAH, TZET_HAKOCHAVIM, TZET_RABBEINU_TAM,
+        CANDLE_LIGHTING, HAVDALAH, HAVDALAH_RT
     )
 
     fun displayName(key: String): String = when (key) {
@@ -80,6 +90,9 @@ object ZmanimKeys {
         SHKIAH            -> "Shkiah (Sunset)"
         TZET_HAKOCHAVIM   -> "Tzet HaKochavim (Nightfall)"
         TZET_RABBEINU_TAM -> "Tzet HaKochavim (Rabbeinu Tam)"
+        CANDLE_LIGHTING   -> "Candle Lighting (Erev Shabbat/Chag)"
+        HAVDALAH          -> "Havdalah (Motzei Shabbat/Chag)"
+        HAVDALAH_RT       -> "Havdalah (Rabbeinu Tam 72m)"
         else              -> key
     }
 }
@@ -116,6 +129,11 @@ object PreferenceKeys {
     val PREFETCH_NETWORK = stringPreferencesKey("prefetch_network")
     val PREFETCH_TEHILLIM_DAYS = intPreferencesKey("prefetch_tehillim_days")
     val PREFETCH_PARSHA_WEEKS = intPreferencesKey("prefetch_parsha_weeks")
+    val WIDGET_OPACITY = intPreferencesKey("widget_opacity")
+    val CANDLE_LIGHTING_OFFSET = intPreferencesKey("candle_lighting_offset")
+    val HAVDALAH_OPINION = stringPreferencesKey("havdalah_opinion")
+    val SHOW_SHABBAT_BANNER = booleanPreferencesKey("show_shabbat_banner")
+    val SHOW_CELESTIAL_ARC = booleanPreferencesKey("show_celestial_arc")
 }
 
 class UserPreferencesRepository(private val context: Context) {
@@ -151,7 +169,14 @@ class UserPreferencesRepository(private val context: Context) {
                 prefs[PreferenceKeys.PREFETCH_NETWORK] ?: PrefetchNetwork.WIFI.name
             ),
             prefetchTehillimDays = prefs[PreferenceKeys.PREFETCH_TEHILLIM_DAYS] ?: 7,
-            prefetchParshaWeeks = prefs[PreferenceKeys.PREFETCH_PARSHA_WEEKS] ?: 3
+            prefetchParshaWeeks = prefs[PreferenceKeys.PREFETCH_PARSHA_WEEKS] ?: 3,
+            widgetOpacity = prefs[PreferenceKeys.WIDGET_OPACITY] ?: 60,
+            candleLightingOffsetMinutes = prefs[PreferenceKeys.CANDLE_LIGHTING_OFFSET] ?: 18,
+            havdalahOpinion = HavdalahOpinion.valueOf(
+                prefs[PreferenceKeys.HAVDALAH_OPINION] ?: HavdalahOpinion.STANDARD_8_5.name
+            ),
+            showShabbatBanner = prefs[PreferenceKeys.SHOW_SHABBAT_BANNER] ?: true,
+            showCelestialArc = prefs[PreferenceKeys.SHOW_CELESTIAL_ARC] ?: true
         )
     }
 
@@ -229,5 +254,25 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updatePrefetchParshaWeeks(weeks: Int) {
         context.dataStore.edit { it[PreferenceKeys.PREFETCH_PARSHA_WEEKS] = weeks }
+    }
+
+    suspend fun updateWidgetOpacity(percent: Int) {
+        context.dataStore.edit { it[PreferenceKeys.WIDGET_OPACITY] = percent.coerceIn(10, 100) }
+    }
+
+    suspend fun updateCandleLightingOffset(offsetMinutes: Int) {
+        context.dataStore.edit { it[PreferenceKeys.CANDLE_LIGHTING_OFFSET] = offsetMinutes }
+    }
+
+    suspend fun updateHavdalahOpinion(opinion: HavdalahOpinion) {
+        context.dataStore.edit { it[PreferenceKeys.HAVDALAH_OPINION] = opinion.name }
+    }
+
+    suspend fun updateShowShabbatBanner(show: Boolean) {
+        context.dataStore.edit { it[PreferenceKeys.SHOW_SHABBAT_BANNER] = show }
+    }
+
+    suspend fun updateShowCelestialArc(show: Boolean) {
+        context.dataStore.edit { it[PreferenceKeys.SHOW_CELESTIAL_ARC] = show }
     }
 }

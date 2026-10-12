@@ -82,12 +82,15 @@ class HebrewDateWidget : GlanceAppWidget(errorUiLayout = R.layout.widget_error) 
                 prefs.zmanimManualLat != 0.0 && prefs.zmanimManualLng != 0.0
             ) {
                 zmanimRepo.getZmanim(
-                    latitude       = prefs.zmanimManualLat,
-                    longitude      = prefs.zmanimManualLng,
-                    timeZone       = timeZone,
-                    date           = now,
-                    selectedZmanim = prefs.selectedZmanim,
-                    timeFormat     = prefs.zmanimTimeFormat
+                    latitude                    = prefs.zmanimManualLat,
+                    longitude                   = prefs.zmanimManualLng,
+                    timeZone                    = timeZone,
+                    date                        = now,
+                    selectedZmanim              = prefs.selectedZmanim,
+                    timeFormat                  = prefs.zmanimTimeFormat,
+                    israel                      = prefs.location == CalendarLocation.ISRAEL,
+                    candleLightingOffsetMinutes = prefs.candleLightingOffsetMinutes,
+                    havdalahOpinion             = prefs.havdalahOpinion
                 )
             } else null
 
@@ -177,20 +180,21 @@ fun HebrewDateWidgetContent(
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(ImageProvider(R.drawable.widget_bg))
+            .background(ImageProvider(widgetBackgroundRes(prefs.widgetOpacity)))
             .clickable(actionStartActivity<CalendarActivity>()),
-        contentAlignment = Alignment.TopStart
+        contentAlignment = Alignment.TopEnd
     ) {
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
                 .padding(16.dp),
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.Top,
+            horizontalAlignment = Alignment.End
         ) {
             // Hebrew date — large
             Text(
                 text  = dateInfo.hebrewDateString,
-                style = TextStyle(
+                style = TextStyle(textAlign = TextAlign.End, 
                     color      = parchmentColor,
                     fontSize   = TextUnit(22f, TextUnitType.Sp),
                     fontWeight = FontWeight.Bold
@@ -202,7 +206,7 @@ fun HebrewDateWidgetContent(
             if (prefs.showGregorianDate) {
                 Text(
                     text  = dateInfo.gregorianDateString,
-                    style = TextStyle(
+                    style = TextStyle(textAlign = TextAlign.End, 
                         color    = mutedColor,
                         fontSize = TextUnit(13f, TextUnitType.Sp)
                     )
@@ -219,7 +223,7 @@ fun HebrewDateWidgetContent(
                 Spacer(GlanceModifier.height(4.dp))
                 Text(
                     text  = subLine,
-                    style = TextStyle(
+                    style = TextStyle(textAlign = TextAlign.End, 
                         color      = goldColor,
                         fontSize   = TextUnit(13f, TextUnitType.Sp),
                         fontWeight = FontWeight.Medium
@@ -230,10 +234,10 @@ fun HebrewDateWidgetContent(
             val nextZman = zmanimData?.entries?.firstOrNull { it.isNext }
             if (nextZman != null) {
                 Spacer(GlanceModifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalAlignment = Alignment.End) {
                     Text(
                         text  = "▶ ${nextZman.displayName}",
-                        style = TextStyle(
+                        style = TextStyle(textAlign = TextAlign.End, 
                             color    = blueColor,
                             fontSize = TextUnit(12f, TextUnitType.Sp)
                         )
@@ -241,7 +245,7 @@ fun HebrewDateWidgetContent(
                     Spacer(GlanceModifier.width(6.dp))
                     Text(
                         text  = nextZman.timeString,
-                        style = TextStyle(
+                        style = TextStyle(textAlign = TextAlign.End, 
                             color      = blueColor,
                             fontSize   = TextUnit(12f, TextUnitType.Sp),
                             fontWeight = FontWeight.Bold
@@ -253,11 +257,11 @@ fun HebrewDateWidgetContent(
             // Glance/RemoteViews containers allow at most 10 children; with all optional
             // rows enabled the outer Column would exceed that, so the pills live in a
             // nested Column (which gets its own child budget).
-            if (tehillimLabel != null || parshaLabel != null) Column {
+            if (tehillimLabel != null || parshaLabel != null) Column(horizontalAlignment = Alignment.End) {
                 Spacer(GlanceModifier.height(8.dp))
                 if (tehillimLabel != null) Text(
                     text = tehillimLabel,
-                    style = TextStyle(color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
+                    style = TextStyle(textAlign = TextAlign.End, color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
                     modifier = GlanceModifier.clickable(
                     actionStartActivity<TextReaderActivity>(
                         actionParametersOf(
@@ -276,7 +280,7 @@ fun HebrewDateWidgetContent(
                     Spacer(GlanceModifier.height(4.dp))
                     Text(
                         text = parshaLabel,
-                        style = TextStyle(color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
+                        style = TextStyle(textAlign = TextAlign.End, color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
                         modifier = GlanceModifier.clickable(
                             actionStartActivity<TextReaderActivity>(
                                 actionParametersOf(
@@ -295,6 +299,14 @@ fun HebrewDateWidgetContent(
             }
         }
     }
+}
+
+/** Pre-baked rounded backgrounds in 10% steps (Glance cannot tint a drawable's alpha). */
+private fun widgetBackgroundRes(opacityPercent: Int): Int = when ((opacityPercent / 10).coerceIn(1, 10)) {
+    1 -> R.drawable.widget_bg_10; 2 -> R.drawable.widget_bg_20; 3 -> R.drawable.widget_bg_30
+    4 -> R.drawable.widget_bg_40; 5 -> R.drawable.widget_bg_50; 6 -> R.drawable.widget_bg_60
+    7 -> R.drawable.widget_bg_70; 8 -> R.drawable.widget_bg_80; 9 -> R.drawable.widget_bg_90
+    else -> R.drawable.widget_bg_100
 }
 
 class HebrewDateWidgetReceiver : GlanceAppWidgetReceiver() {

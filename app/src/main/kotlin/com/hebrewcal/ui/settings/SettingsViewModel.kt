@@ -87,6 +87,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         reschedulePrefetch()
     }
 
+    fun setWidgetOpacity(percent: Int) = viewModelScope.launch {
+        prefsRepo.updateWidgetOpacity(percent)
+        notifyServiceRefresh()   // the service refresh also redraws the widget
+    }
+
     private suspend fun reschedulePrefetch() {
         val network = prefsRepo.preferences.first().prefetchNetwork
         TextPrefetch.schedule(getApplication(), network, runNow = true)
@@ -130,6 +135,26 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         val current = prefsRepo.preferences.first().selectedZmanim.toMutableSet()
         if (selected) current.add(key) else current.remove(key)
         prefsRepo.updateSelectedZmanim(current)
+        notifyServiceRefresh()
+    }
+
+    fun setCandleLightingOffset(offsetMinutes: Int) = viewModelScope.launch {
+        prefsRepo.updateCandleLightingOffset(offsetMinutes)
+        notifyServiceRefresh()
+    }
+
+    fun setHavdalahOpinion(opinion: HavdalahOpinion) = viewModelScope.launch {
+        prefsRepo.updateHavdalahOpinion(opinion)
+        notifyServiceRefresh()
+    }
+
+    fun setShowShabbatBanner(show: Boolean) = viewModelScope.launch {
+        prefsRepo.updateShowShabbatBanner(show)
+        notifyServiceRefresh()
+    }
+
+    fun setShowCelestialArc(show: Boolean) = viewModelScope.launch {
+        prefsRepo.updateShowCelestialArc(show)
         notifyServiceRefresh()
     }
 

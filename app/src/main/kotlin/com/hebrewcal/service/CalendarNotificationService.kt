@@ -124,15 +124,33 @@ class CalendarNotificationService : Service() {
                     HebrewDateInfo("", "", null, null, false, 0, "", 0)
                 }
 
+                val isIsrael = prefs.location == CalendarLocation.ISRAEL
+                val shabbatTimes = if (lat != 0.0 && lng != 0.0) {
+                    try {
+                        zmanimRepo.getShabbatTimes(
+                            latitude                    = lat,
+                            longitude                   = lng,
+                            timeZone                    = timeZone,
+                            date                        = now,
+                            israel                      = isIsrael,
+                            candleLightingOffsetMinutes = prefs.candleLightingOffsetMinutes,
+                            havdalahOpinion             = prefs.havdalahOpinion
+                        )
+                    } catch (e: Exception) { null }
+                } else null
+
                 val zmanimData = if (prefs.showZmanim && lat != 0.0 && lng != 0.0) {
                     try {
                         zmanimRepo.getZmanim(
-                            latitude       = lat,
-                            longitude      = lng,
-                            timeZone       = timeZone,
-                            date           = now,
-                            selectedZmanim = prefs.selectedZmanim,
-                            timeFormat     = prefs.zmanimTimeFormat
+                            latitude                    = lat,
+                            longitude                   = lng,
+                            timeZone                    = timeZone,
+                            date                        = now,
+                            selectedZmanim              = prefs.selectedZmanim,
+                            timeFormat                  = prefs.zmanimTimeFormat,
+                            israel                      = isIsrael,
+                            candleLightingOffsetMinutes = prefs.candleLightingOffsetMinutes,
+                            havdalahOpinion             = prefs.havdalahOpinion
                         )
                     } catch (e: Exception) { null }
                 } else null
@@ -158,19 +176,21 @@ class CalendarNotificationService : Service() {
                 } else null
 
                 val notification = LockscreenNotificationBuilder.build(
-                    context       = applicationContext,
-                    dateInfo      = dateInfo,
-                    zmanimData    = zmanimData,
-                    showZmanim    = prefs.showZmanim,
-                    showGregorian = prefs.showGregorianDate,
-                    showParsha    = prefs.showParsha,
-                    showOmer      = prefs.showOmer,
+                    context             = applicationContext,
+                    dateInfo            = dateInfo,
+                    zmanimData          = zmanimData,
+                    showZmanim          = prefs.showZmanim,
+                    showGregorian       = prefs.showGregorianDate,
+                    showParsha          = prefs.showParsha,
+                    showOmer            = prefs.showOmer,
                     tehillimActionLabel = tehillimActionLabel,
                     tehillimActionRef   = tehillimPortion.sefariaRef,
                     parshaActionLabel   = parshaActionLabel,
                     diaspora            = prefs.location == CalendarLocation.DIASPORA,
                     languageName        = prefs.language.name,
-                    elulRef             = elulRef
+                    elulRef             = elulRef,
+                    shabbatTimes        = shabbatTimes,
+                    showShabbatBanner   = prefs.showShabbatBanner
                 )
                 NotificationManagerCompat.from(applicationContext)
                     .notify(LockscreenNotificationBuilder.NOTIFICATION_ID, notification)
@@ -206,11 +226,14 @@ class CalendarNotificationService : Service() {
         cancelZmanAlarms(alarmManager)
 
         val futureTimes = zmanimRepo.getFutureZmanimTimes(
-            latitude       = lat,
-            longitude      = lng,
-            timeZone       = TimeZone.getDefault(),
-            date           = Date(),
-            selectedZmanim = prefs.selectedZmanim
+            latitude                    = lat,
+            longitude                   = lng,
+            timeZone                    = TimeZone.getDefault(),
+            date                        = Date(),
+            selectedZmanim              = prefs.selectedZmanim,
+            israel                      = prefs.location == CalendarLocation.ISRAEL,
+            candleLightingOffsetMinutes = prefs.candleLightingOffsetMinutes,
+            havdalahOpinion             = prefs.havdalahOpinion
         )
 
         futureTimes.forEachIndexed { index, (key, time) ->

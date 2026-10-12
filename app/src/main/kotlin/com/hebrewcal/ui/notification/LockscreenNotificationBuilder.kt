@@ -56,7 +56,9 @@ object LockscreenNotificationBuilder {
         parshaActionLabel: String? = null,
         diaspora: Boolean = true,
         languageName: String = "ENGLISH",
-        elulRef: String? = null
+        elulRef: String? = null,
+        shabbatTimes: com.hebrewcal.data.ShabbatTimesResult? = null,
+        showShabbatBanner: Boolean = true
     ): Notification {
         val contentIntent = Intent(context, CalendarActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -70,14 +72,41 @@ object LockscreenNotificationBuilder {
 
         val omerText = if (showOmer && dateInfo.omerDay > 0) dateInfo.omerText else null
 
+        val isHeb = languageName == "HEBREW"
+        val nowMs = System.currentTimeMillis()
+        var shabbatBannerText: String? = null
+
+        if (showShabbatBanner && shabbatTimes != null) {
+            val timeFmt = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
+            if (shabbatTimes.isErevShabbat || shabbatTimes.isErevYomTov) {
+                shabbatTimes.candleLighting?.let { cl ->
+                    val diffMin = ((cl.time - nowMs) / (1000 * 60)).toInt()
+                    val clStr = timeFmt.format(cl)
+                    shabbatBannerText = when {
+                        diffMin in 1..180 -> if (isHeb) "🕯️ שבת בעוד $diffMin דק׳ ($clStr)" else "🕯️ Shabbat in ${diffMin}m ($clStr)"
+                        diffMin in -60..0 -> if (isHeb) "🕯️ שבת שלום (הדלקה $clStr)" else "🕯️ Shabbat Shalom (Lit $clStr)"
+                        else -> if (isHeb) "🕯️ הדלקת נרות: $clStr" else "🕯️ Candle Lighting: $clStr"
+                    }
+                }
+            } else if (shabbatTimes.isShabbat || shabbatTimes.isYomTov) {
+                val shabbatTitle = if (isHeb) "שַׁבָּת שָׁלוֹם" else "Shabbat Shalom"
+                val havStr = shabbatTimes.havdalah?.let { timeFmt.format(it) }
+                shabbatBannerText = if (havStr != null) {
+                    if (isHeb) "$shabbatTitle · הבדלה $havStr" else "$shabbatTitle · Havdalah $havStr"
+                } else {
+                    shabbatTitle
+                }
+            }
+        }
+
+        val primaryHolidayText = shabbatBannerText
+            ?: dateInfo.holidayName
+            ?: if (dateInfo.isShabbat) "שַׁבָּת"
+            else omerText ?: ""
+
         // --- Collapsed view ---
         remoteViews.setTextViewText(R.id.tv_hebrew_date, dateInfo.hebrewDateString)
-        remoteViews.setTextViewText(
-            R.id.tv_holiday,
-            dateInfo.holidayName
-                ?: if (dateInfo.isShabbat) "שַׁבָּת"
-                else omerText ?: ""
-        )
+        remoteViews.setTextViewText(R.id.tv_holiday, primaryHolidayText)
         if (showGregorian) {
             remoteViews.setTextViewText(R.id.tv_gregorian, dateInfo.gregorianDateString)
             remoteViews.setViewVisibility(R.id.tv_gregorian, android.view.View.VISIBLE)
@@ -96,10 +125,7 @@ object LockscreenNotificationBuilder {
 
         // --- Expanded view ---
         expandedViews.setTextViewText(R.id.tv_hebrew_date_exp, dateInfo.hebrewDateString)
-        expandedViews.setTextViewText(
-            R.id.tv_holiday_exp,
-            dateInfo.holidayName ?: if (dateInfo.isShabbat) "שַׁבָּת" else ""
-        )
+        expandedViews.setTextViewText(R.id.tv_holiday_exp, primaryHolidayText)
         if (showGregorian) {
             expandedViews.setTextViewText(R.id.tv_gregorian_exp, dateInfo.gregorianDateString)
             expandedViews.setViewVisibility(R.id.tv_gregorian_exp, android.view.View.VISIBLE)
@@ -222,7 +248,7 @@ object LockscreenNotificationBuilder {
 
         // Build a sub-text for standard lockscreen fallback (shown when custom view isn't rendered)
         val subText = listOfNotNull(
-            dateInfo.holidayName,
+            shabbatBannerText ?: dateInfo.holidayName,
             dateInfo.parshaName
         ).joinToString(" · ").ifEmpty { dateInfo.gregorianDateString }
 

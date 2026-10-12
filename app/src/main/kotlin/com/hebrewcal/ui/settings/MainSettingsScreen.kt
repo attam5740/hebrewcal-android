@@ -258,6 +258,14 @@ fun MainSettingsScreen(
                 )
             }
 
+            // Widget appearance
+            OpacitySettingRow(
+                label    = "Widget background opacity",
+                subtitle = "How much of the wallpaper shows through the home-screen widget",
+                percent  = prefs.widgetOpacity,
+                onChange = viewModel::setWidgetOpacity
+            )
+
             Spacer(Modifier.height(8.dp))
 
             // ── Zmanim Section ────────────────────────────────────────────
@@ -408,6 +416,48 @@ fun MainSettingsScreen(
                 }
             }
 
+            Spacer(Modifier.height(8.dp))
+
+            // ── Shabbat & Celestial Section ──────────────────────────────
+            SettingsSectionHeader(icon = Icons.Default.WbSunny, title = "Shabbat & Celestial Features")
+
+            SwitchSettingRow(
+                label    = "Shabbat & Chag Dynamic Lockscreen",
+                subtitle = "Active countdown on Friday and dignified Shabbat Shalom / Havdalah banner",
+                checked  = prefs.showShabbatBanner,
+                onCheck  = viewModel::setShowShabbatBanner
+            )
+
+            val candleOffsets = listOf(18, 20, 30, 40)
+            SegmentedSettingRow(
+                label    = "Candle Lighting Offset",
+                subtitle = "Minutes before sunset on Friday / Erev Yom Tov",
+                options  = candleOffsets.map { "${it}m" },
+                selected = candleOffsets.indexOf(prefs.candleLightingOffsetMinutes).coerceAtLeast(0),
+                onSelect = { idx -> viewModel.setCandleLightingOffset(candleOffsets[idx]) }
+            )
+
+            val havdalahOptions = listOf(
+                HavdalahOpinion.STANDARD_8_5 to "8.5° (Std)",
+                HavdalahOpinion.MINUTES_42 to "42 min",
+                HavdalahOpinion.MINUTES_50 to "50 min",
+                HavdalahOpinion.MINUTES_72_RT to "72m RT"
+            )
+            SegmentedSettingRow(
+                label    = "Havdalah Opinion",
+                subtitle = "Calculation used for Motzei Shabbat and Yom Tov",
+                options  = havdalahOptions.map { it.second },
+                selected = havdalahOptions.indexOfFirst { it.first == prefs.havdalahOpinion }.coerceAtLeast(0),
+                onSelect = { idx -> viewModel.setHavdalahOpinion(havdalahOptions[idx].first) }
+            )
+
+            SwitchSettingRow(
+                label    = "Show Celestial Arc & Astrolabe",
+                subtitle = "Visual sun trajectory, shaot zmaniyot clock, and moon phase in Day Sheet",
+                checked  = prefs.showCelestialArc,
+                onCheck  = viewModel::setShowCelestialArc
+            )
+
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -432,6 +482,33 @@ fun SettingsSectionHeader(icon: ImageVector, title: String) {
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     Spacer(Modifier.height(4.dp))
+}
+
+@Composable
+fun OpacitySettingRow(label: String, subtitle: String? = null, percent: Int, onChange: (Int) -> Unit) {
+    // Local value while dragging; the preference (and widget redraw) updates on release.
+    var value by remember(percent) { mutableStateOf(percent.toFloat()) }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(label, style = MaterialTheme.typography.bodyLarge)
+                Text("${value.toInt()}%", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+            }
+            if (subtitle != null) {
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Slider(
+                value = value,
+                onValueChange = { value = (it / 10f).toInt() * 10f },
+                onValueChangeFinished = { onChange(value.toInt().coerceIn(10, 100)) },
+                valueRange = 10f..100f,
+                steps = 8
+            )
+        }
+    }
 }
 
 @Composable

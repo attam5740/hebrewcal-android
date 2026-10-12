@@ -75,7 +75,16 @@ class CalendarActivity : ComponentActivity() {
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(onClick = { vm.today() }) { Text("●", color = ACTIVE_GOLD, fontSize = 12.sp) }
+                        // Jump back to the current month: a labeled outlined pill, not a bare dot.
+                        TextButton(onClick = { vm.today() }) {
+                            Text(
+                                if (hebrew) "היום" else "Today",
+                                color = ACTIVE_GOLD, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier
+                                    .border(1.dp, ACTIVE_GOLD.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 10.dp, vertical = 2.dp)
+                            )
+                        }
                         TextButton(onClick = { vm.toggleMode() }) {
                             Text(
                                 if (view.hebrewMode) "ע" else "G",

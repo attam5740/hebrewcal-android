@@ -95,7 +95,13 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
         val tehillim: TehillimPortion,
         val elulRef: String?,
         val parsha: ParshaRef?,
-        val parshaLoading: Boolean
+        val parshaLoading: Boolean,
+        val shabbatTimes: ShabbatTimesResult?,
+        val celestialArc: CelestialArcData?,
+        val moonInfo: MoonPhaseInfo,
+        val birkatHaLevana: BirkatHaLevanaInfo,
+        val latitude: Double,
+        val longitude: Double
     )
 
     private val _detail = MutableStateFlow<DayDetail?>(null)
@@ -130,6 +136,8 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
         val lng = p.zmanimManualLng
         val tz = TimeZone.getDefault()
         val hasLoc = lat != 0.0 || lng != 0.0
+        val isHebrew = p.language == CalendarLanguage.HEBREW
+        val isIsrael = p.location == CalendarLocation.ISRAEL
 
         val info = calRepo.getDateInfo(
             date = d,
@@ -148,15 +156,66 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
         // No past/next highlighting: the selected day is often not today.
         val zm = if (!hasLoc) emptyList() else zmanimRepo.getZmanim(
             latitude = lat, longitude = lng, timeZone = tz, date = d,
-            selectedZmanim = p.selectedZmanim, timeFormat = p.zmanimTimeFormat
+            selectedZmanim = p.selectedZmanim, timeFormat = p.zmanimTimeFormat,
+            israel = isIsrael, candleLightingOffsetMinutes = p.candleLightingOffsetMinutes,
+            havdalahOpinion = p.havdalahOpinion
         ).entries
-        val locale = if (p.language == CalendarLanguage.HEBREW) Locale("he") else Locale.ENGLISH
-        val weekday = date.dayOfWeek.getDisplayName(TextStyle.FULL, locale)
+
+        val shabbatTimes = if (!hasLoc) null else ShabbatTimes.calculate(
+            date = d,
+            latitude = lat,
+            longitude = lng,
+            timeZone = tz,
+            israel = isIsrael,
+            candleLightingOffsetMinutes = p.candleLightingOffsetMinutes,
+            havdalahOpinion = p.havdalahOpinion
+        )
+
+        val celestialArc = if (!hasLoc || !p.showCelestialArc) null else CelestialCalculator.calculate(
+            latitude = lat,
+            longitude = lng,
+            timeZone = tz,
+            targetDate = d,
+            isHebrew = isHebrew
+        )
+
         val jd = JewishDate(d)
+        val moonInfo = LunarCalculator.getMoonPhase(
+            dayOfMonth = jd.jewishDayOfMonth,
+            daysInMonth = jd.daysInJewishMonth,
+            isHebrew = isHebrew
+        )
+
+        val birkatHaLevana = if (!hasLoc) BirkatHaLevanaInfo(false, null, null, "", "")
+        else LunarCalculator.calculateBirkatHaLevana(
+            date = d,
+            latitude = lat,
+            longitude = lng,
+            timeZone = tz,
+            isHebrew = isHebrew
+        )
+
+        val locale = if (isHebrew) Locale("he") else Locale.ENGLISH
+        val weekday = date.dayOfWeek.getDisplayName(TextStyle.FULL, locale)
         val tehillim = TehillimSchedule.portionFor(jd.jewishDayOfMonth, jd.daysInJewishMonth)
         val elul = if (!p.showElulTehillim) null
         else ElulTehillim.portionFor(jd.jewishMonth, jd.jewishDayOfMonth)?.sefariaRef
 
-        return DayDetail(info, weekday, zm, hasLoc, tehillim, elul, null, parshaLoading = true)
+        return DayDetail(
+            info = info,
+            weekday = weekday,
+            zmanim = zm,
+            hasLocation = hasLoc,
+            tehillim = tehillim,
+            elulRef = elul,
+            parsha = null,
+            parshaLoading = true,
+            shabbatTimes = shabbatTimes,
+            celestialArc = celestialArc,
+            moonInfo = moonInfo,
+            birkatHaLevana = birkatHaLevana,
+            latitude = lat,
+            longitude = lng
+        )
     }
 }

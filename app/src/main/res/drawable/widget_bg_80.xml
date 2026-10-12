@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget background at 80% opacity (user setting); corners baked in because Glance cornerRadius breaks on OxygenOS. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#CC1A1A2E" />
+    <corners android:radius="16dp" />
+</shape>

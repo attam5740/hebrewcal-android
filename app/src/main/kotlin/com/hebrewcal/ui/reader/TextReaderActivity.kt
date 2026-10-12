@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
 import com.hebrewcal.data.TorahNavigation
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -223,8 +225,6 @@ class TextReaderActivity : ComponentActivity() {
                         mode = state.mode,
                         torahSide = state.mode != "tehillim",
                         onToggleMode = { vm.toggleMode(hebrewUi) },
-                        showHaftarah = state.mode == "parsha" && !week.parsha?.haftarot.isNullOrEmpty(),
-                        onHaftarah = { haftarah() },
                         onNav = { showNav = true },
                         onTextMode = { m ->
                             textMode = m
@@ -300,7 +300,7 @@ private val ACTIVE_GOLD = Color(0xFFFFD255)   // vivid warm amber
 private val ACTIVE_BG = Color(0x47FFC94D)     // stronger amber pill behind active toggles
 private val INACTIVE = Color(0xE6FFFFFF)      // near-white, clearly legible
 private val DISABLED = Color(0x66FFFFFF)
-private val MINT = Color(0xFF6EE7B7)         // Torah / haftarah accent (matches the parsha pill)
+private val MINT = Color(0xFF6EE7B7)         // haftarah accent (matches the banner's haftarah ref)
 private val SKY = Color(0xFF7EC8E3)          // Elul supplement accent (app secondary)
 
 @Composable
@@ -415,7 +415,6 @@ private fun FlameGoButton(onGo: () -> Unit) {
 @Composable
 private fun ModeToggle(torah: Boolean, onToggle: () -> Unit) {
     val knobX by animateFloatAsState(if (torah) 1f else 0f, spring(dampingRatio = 0.6f, stiffness = 500f), label = "knob")
-    val (phase, _) = rememberFlame()
     Canvas(
         Modifier.padding(horizontal = 4.dp).size(56.dp, 22.dp)
             .clip(RoundedCornerShape(11.dp))
@@ -441,10 +440,16 @@ private fun ModeToggle(torah: Boolean, onToggle: () -> Unit) {
         drawRoundRect(scrollColor, Offset(sx - 5.dp.toPx(), sy - 3.dp.toPx()), Size(10.dp.toPx(), 6.dp.toPx()), CornerRadius(1.dp.toPx()), style = Stroke(1.dp.toPx()))
         drawLine(scrollColor, Offset(sx - 5.dp.toPx(), sy - 4.dp.toPx()), Offset(sx - 5.dp.toPx(), sy + 4.dp.toPx()), 1.6f.dp.toPx())
         drawLine(scrollColor, Offset(sx + 5.dp.toPx(), sy - 4.dp.toPx()), Offset(sx + 5.dp.toPx(), sy + 4.dp.toPx()), 1.6f.dp.toPx())
+        // Atzei chaim: thin handle stubs protruding 2dp past each roller end.
+        for (dx in listOf(-5f, 5f)) for (dir in listOf(-1f, 1f)) drawLine(
+            scrollColor, Offset(sx + dx.dp.toPx(), sy + dir * 4.dp.toPx()), Offset(sx + dx.dp.toPx(), sy + dir * 6.2f.dp.toPx()),
+            0.9f.dp.toPx(), cap = StrokeCap.Round
+        )
         // Flame knob: no halo, rests beside the active glyph rather than over it.
         val kx = 23.dp.toPx() + (size.width - 46.dp.toPx()) * knobX
-        rotate(phase.value * 360f, pivot = Offset(kx, r)) { drawCircle(Brush.sweepGradient(FLAME, center = Offset(kx, r)), radius = 7.dp.toPx(), center = Offset(kx, r)) }
-        drawCircle(Color(0xFFFFB300), radius = 4.5f.dp.toPx(), center = Offset(kx, r))
+        // Subdued knob: a muted amber disc with a soft rim (no flame animation).
+        drawCircle(Color(0xFFC9972B).copy(alpha = 0.55f), radius = 7.dp.toPx(), center = Offset(kx, r))
+        drawCircle(Color(0xFFE0B84C).copy(alpha = 0.9f), radius = 5.dp.toPx(), center = Offset(kx, r))
     }
 }
 
@@ -458,15 +463,15 @@ private fun WeekBanner(parsha: ParshaRef?, hebrew: Boolean, onParsha: () -> Unit
         else "Parashat ${parsha.nameEn}$sep${parsha.sefariaRef.replaceFirst('.', ' ').replace('.', ':')}"
     val haft = parsha.haftarot.joinToString(", ") { if (hebrew) it.nameHe else it.nameEn }
     Row(
-        Modifier.fillMaxWidth().height(18.dp).background(Color(0x59181818)).padding(horizontal = 10.dp),
+        Modifier.fillMaxWidth().height(28.dp).background(Color(0x59181818)).padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(parshaText, color = ACTIVE_GOLD, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onParsha() })
+            modifier = Modifier.weight(1f, fill = false).fillMaxHeight().clip(RoundedCornerShape(6.dp)).clickable { onParsha() }.padding(horizontal = 4.dp).wrapContentHeight())
         if (haft.isNotBlank()) {
             Text(sep, color = INACTIVE, fontSize = 11.sp)
             Text((if (hebrew) "הפטרה: " else "Haftarah: ") + haft, color = MINT, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onHaftarah() })
+                modifier = Modifier.weight(1f, fill = false).fillMaxHeight().clip(RoundedCornerShape(6.dp)).clickable { onHaftarah() }.padding(horizontal = 4.dp).wrapContentHeight())
         }
     }
 }
@@ -559,8 +564,6 @@ private fun ReaderBar(
     mode: String = "tehillim",
     torahSide: Boolean = false,
     onToggleMode: () -> Unit = {},
-    showHaftarah: Boolean = false,
-    onHaftarah: () -> Unit = {},
     onNav: () -> Unit = {},
     onTextMode: (String) -> Unit, onNikkud: () -> Unit, onTeamim: () -> Unit,
     onAliyot: () -> Unit, onClose: () -> Unit
@@ -577,9 +580,6 @@ private fun ReaderBar(
             )
             // Tehillim ⇄ Torah, then the week's haftarah when there is one.
             ModeToggle(torah = torahSide, onToggle = onToggleMode)
-            if (showHaftarah) TextButton(onClick = onHaftarah) {
-                Text("ה", color = MINT, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-            }
             // Navigation dial (jump to any chapter / parsha).
             TextButton(onClick = onNav) {
                 Icon(Icons.Default.MenuBook, contentDescription = "Jump to chapter or parsha", tint = ACTIVE_GOLD, modifier = Modifier.size(24.dp))
@@ -639,7 +639,8 @@ private fun ReaderBody(
     val gematria = remember { HebrewDateFormatter() }
     val stam = remember { FontFamily(Font(R.font.stam_ashkenaz)) }
     // Heading accent follows the source, matching the widget pills: amber for Tehillim, mint for Torah/haftarah.
-    val accent = if (mode == "tehillim") ACTIVE_GOLD else MINT
+    // Heading accent follows the banner: amber for Tehillim and Torah, mint only for haftarah.
+    val accent = if (mode == "haftarah") MINT else ACTIVE_GOLD
 
     // Scroll-spacing markers and source line breaks fold into the flowing text.
     fun layout(t: String): String =
@@ -871,7 +872,7 @@ private fun TikkunScrollBody(
     onZoom: (Float) -> Unit
 ) {
     val listState = rememberLazyListState()
-    val accent = MINT   // tikkun is Torah-only; rule color matches the parsha pill
+    val accent = ACTIVE_GOLD   // tikkun is Torah-only; rule matches the Torah reference amber
     // A prepend re-lays the whole range, so the rows gained at the top are the list's growth.
     val edgeScroll = rememberEdgeExtension(
         listState, lines.size, prependedSections, onExtendUp, onExtendDown, onPrependConsumed

@@ -28,8 +28,16 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import java.text.SimpleDateFormat
+import java.util.Locale
 import com.hebrewcal.data.CalendarLocation
 import com.hebrewcal.data.ReaderButtons
+import com.hebrewcal.data.ShabbatTimes
 import com.hebrewcal.data.UserPreferences
 import com.hebrewcal.ui.reader.TextReaderActivity
 
@@ -62,6 +70,17 @@ fun DaySheet(
             putStringArrayListExtra(TextReaderActivity.EXTRA_ALIYOT, ArrayList(aliyot))
         }
 
+    var showCompass by remember { mutableStateOf(false) }
+
+    if (showCompass && d.hasLocation) {
+        MizrachCompassDialog(
+            latitude = d.latitude,
+            longitude = d.longitude,
+            isHebrew = hebrew,
+            onDismiss = { showCompass = false }
+        )
+    }
+
     CompositionLocalProvider(
         LocalLayoutDirection provides if (hebrew) LayoutDirection.Rtl else LayoutDirection.Ltr
     ) {
@@ -72,7 +91,7 @@ fun DaySheet(
             Alignment.BottomCenter
         ) {
             Column(
-                Modifier.fillMaxWidth().fillMaxHeight(0.62f)
+                Modifier.fillMaxWidth().fillMaxHeight(0.68f)
                     .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
                     .background(Color(0xE0141414))
                     .clickable(
@@ -94,6 +113,63 @@ fun DaySheet(
                         modifier = Modifier.padding(top = 6.dp)
                     )
                 }
+
+                // Shabbat & Chag Highlight Banner
+                d.shabbatTimes?.let { st ->
+                    if (st.isErevShabbat || st.isErevYomTov) {
+                        st.candleLighting?.let { cl ->
+                            val timeFormat = SimpleDateFormat(
+                                if (prefs.zmanimTimeFormat == com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm",
+                                Locale.getDefault()
+                            )
+                            val clStr = timeFormat.format(cl)
+                            Text(
+                                "🕯️ " + ShabbatTimes.formatCandleLighting(hebrew, clStr),
+                                color = ACTIVE_GOLD,
+                                fontSize = 15.sp,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                        }
+                    } else if (st.isShabbat || st.isYomTov) {
+                        st.havdalah?.let { hav ->
+                            val timeFormat = SimpleDateFormat(
+                                if (prefs.zmanimTimeFormat == com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm",
+                                Locale.getDefault()
+                            )
+                            val havStr = timeFormat.format(hav)
+                            val rtStr = st.havdalahRt?.let { timeFormat.format(it) }
+                            Text(
+                                "🍷 " + ShabbatTimes.formatHavdalah(hebrew, havStr, rtStr),
+                                color = ACTIVE_GOLD,
+                                fontSize = 15.sp,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                        }
+                    } else {
+                        // Regular weekday — no Shabbat/Chag banner
+                    }
+                }
+
+                // Celestial Arc & Shaot Zmaniyot card
+                d.celestialArc?.let { arc ->
+                    Spacer(Modifier.height(10.dp))
+                    CelestialArcView(
+                        arcData = arc,
+                        moonInfo = d.moonInfo,
+                        birkatHaLevana = d.birkatHaLevana,
+                        isHebrew = hebrew,
+                        onOpenCompass = { showCompass = true },
+                        onOpenBirkatHaLevana = {
+                            onOpen(reader(
+                                "tefillah", "Siddur Ashkenaz, Berachot, Birkat HaLevana",
+                                if (hebrew) "ברכת הלבנה" else "Birkat HaLevana", false
+                            ))
+                        }
+                    )
+                }
+
                 HorizontalDivider(
                     Modifier.padding(vertical = 10.dp),
                     thickness = 0.5.dp, color = Color.White.copy(alpha = 0.15f)
