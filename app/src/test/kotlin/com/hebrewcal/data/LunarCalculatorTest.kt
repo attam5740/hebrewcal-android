@@ -26,16 +26,26 @@ class LunarCalculatorTest {
 
     @Test
     fun testMoonPhaseProgression() {
-        val newMoon = LunarCalculator.getMoonPhase(1, 30, false)
-        assertEquals("New Moon", newMoon.phaseName)
-        assertEquals(0, newMoon.illuminationPercent)
+        // The molad is the traditional mean new moon, so it is an independent check on the epoch.
+        for (month in listOf(JewishDate.TISHREI, JewishDate.CHESHVAN, JewishDate.NISSAN, JewishDate.AV)) {
+            val molad = com.kosherjava.zmanim.hebrewcalendar.JewishCalendar(5787, month, 1).moladAsDate
+            val atMolad = LunarCalculator.getMoonPhase(molad, false)
+            val offset = minOf(atMolad.phaseFraction, 1 - atMolad.phaseFraction)
+            assertTrue("month $month: molad should be within a day of new moon, was $offset", offset < 0.034f)
+            assertEquals("New Moon", atMolad.phaseName)
 
-        val fullMoon = LunarCalculator.getMoonPhase(15, 30, false)
-        assertEquals("Full Moon", fullMoon.phaseName)
-        assertTrue("Full Moon should be near 90-100% illumination", fullMoon.illuminationPercent >= 90)
+            val dayMs = 86_400_000L
+            val full = LunarCalculator.getMoonPhase(java.util.Date(molad.time + (14.77 * dayMs).toLong()), false)
+            assertEquals("Full Moon", full.phaseName)
+            assertTrue(full.illuminationPercent >= 98)
 
-        val thirdQuarter = LunarCalculator.getMoonPhase(22, 30, false)
-        assertEquals("Third Quarter", thirdQuarter.phaseName)
+            val quarter = LunarCalculator.getMoonPhase(java.util.Date(molad.time + (7.38 * dayMs).toLong()), false)
+            assertEquals("First Quarter", quarter.phaseName)
+            assertTrue(quarter.illuminationPercent in 45..55)
+
+            val third = LunarCalculator.getMoonPhase(java.util.Date(molad.time + (22.15 * dayMs).toLong()), false)
+            assertEquals("Third Quarter", third.phaseName)
+        }
     }
 
     @Test

@@ -35,7 +35,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.hebrewcal.data.CalendarLocation
+import com.hebrewcal.data.CelestialArcData
+import com.hebrewcal.data.CelestialCalculator
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import java.util.Date
 import com.hebrewcal.data.ReaderButtons
 import com.hebrewcal.data.ShabbatTimes
 import com.hebrewcal.data.UserPreferences
@@ -153,13 +163,18 @@ fun DaySheet(
                 }
 
                 // Celestial Arc & Shaot Zmaniyot card
-                d.celestialArc?.let { arc ->
+                d.celestialArc?.let { liveArc(it, d.latitude, d.longitude, hebrew) }?.let { arc ->
                     Spacer(Modifier.height(10.dp))
                     CelestialArcView(
                         arcData = arc,
                         moonInfo = d.moonInfo,
                         birkatHaLevana = d.birkatHaLevana,
                         isHebrew = hebrew,
+                        southern = d.latitude < 0,
+                        formatTime = { java.text.SimpleDateFormat(
+                            if (prefs.zmanimTimeFormat == com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm",
+                            java.util.Locale.getDefault()
+                        ).format(it) },
                         onOpenCompass = { showCompass = true },
                         onOpenBirkatHaLevana = {
                             onOpen(reader(
@@ -244,4 +259,32 @@ private fun LinkRow(label: String, value: String, onClick: () -> Unit) {
         Text(value, color = Color.White, fontSize = 14.sp)
         Text("  ›", color = ACTIVE_GOLD, fontSize = 16.sp)
     }
+}
+
+/**
+ * Today's arc, recomputed against the clock. [arc] is a snapshot from when the sheet was
+ * built, so on its own the sun lags whenever the sheet is reopened or the app is resumed.
+ * This refreshes it immediately each time the screen starts, then on every minute boundary
+ * while it stays visible; ticking stops while the app is in the background. Other days have
+ * no "now" and are returned unchanged.
+ */
+@Composable
+private fun liveArc(arc: CelestialArcData, lat: Double, lng: Double, hebrew: Boolean): CelestialArcData {
+    val owner = LocalLifecycleOwner.current
+    val live by produceState(arc, arc, lat, lng, hebrew) {
+        if (!arc.isLive) return@produceState
+        owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                val now = Date()
+                value = withContext(Dispatchers.Default) {
+                    CelestialCalculator.calculate(
+                        latitude = lat, longitude = lng,
+                        targetDate = arc.sunrise ?: now, currentRealTime = now, isHebrew = hebrew
+                    )
+                } ?: arc
+                delay(60_000L - now.time % 60_000L)
+            }
+        }
+    }
+    return live
 }

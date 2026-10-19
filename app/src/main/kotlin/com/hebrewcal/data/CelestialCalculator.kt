@@ -2,6 +2,7 @@ package com.hebrewcal.data
 
 import com.kosherjava.zmanim.ComplexZmanimCalendar
 import com.kosherjava.zmanim.util.GeoLocation
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -16,6 +17,7 @@ data class CelestialArcData(
     val shaahZmanitMinutes: Int,      // duration in rounded minutes
     val currentShaahIndex: Float,     // e.g. 4.25 (0.0 to 12.0)
     val isDaytime: Boolean,
+    val isLive: Boolean,              // the day shown is today, so "now" is on it
     val dayProgress: Float,           // 0.0 at sunrise, 0.5 at chatzot, 1.0 at sunset
     val arcProgress: Float,           // normalized 0.0 (alos) to 1.0 (tzais) or wrapped for night
     val formattedShaah: String        // e.g. "Hour 5 of 12 · 1 Sha'ah = 54m"
@@ -50,7 +52,9 @@ object CelestialCalculator {
         val shaahMinutes = (shaahMs / (60L * 1000L)).toInt()
 
         val nowMs = currentRealTime.time
-        val isDaytime = nowMs in sunrise.time..sunset.time
+        // Only today has a "now"; any other day is shown as an overview of its sun times.
+        val isLive = sameDay(targetDate, currentRealTime, timeZone)
+        val isDaytime = isLive && nowMs in sunrise.time..sunset.time
 
         val dayProgress: Float = when {
             nowMs <= sunrise.time -> 0f
@@ -77,14 +81,11 @@ object CelestialCalculator {
         }
 
         val hourNum = currentShaahIndex.toInt() + 1
-        val formattedShaah = if (isDaytime) {
-            if (isHebrew) {
-                "שעה $hourNum מתוך 12 · שעה זמנית = $shaahMinutes דק׳"
-            } else {
-                "Hour $hourNum of 12 · 1 Sha'ah = ${shaahMinutes}m"
-            }
-        } else {
-            if (isHebrew) "לילה" else "Nighttime"
+        val formattedShaah = when {
+            isDaytime -> if (isHebrew) "שעה $hourNum מתוך 12 · שעה זמנית = $shaahMinutes דק׳"
+                else "Hour $hourNum of 12 · 1 Sha'ah = ${shaahMinutes}m"
+            isLive -> if (isHebrew) "לילה" else "Nighttime"
+            else -> if (isHebrew) "שעה זמנית = $shaahMinutes דק׳" else "1 Sha'ah = ${shaahMinutes}m"
         }
 
         return CelestialArcData(
@@ -97,9 +98,17 @@ object CelestialCalculator {
             shaahZmanitMinutes = shaahMinutes,
             currentShaahIndex = currentShaahIndex,
             isDaytime = isDaytime,
+            isLive = isLive,
             dayProgress = dayProgress,
             arcProgress = arcProgress,
             formattedShaah = formattedShaah
         )
+    }
+
+    private fun sameDay(a: Date, b: Date, tz: TimeZone): Boolean {
+        val ca = Calendar.getInstance(tz).apply { time = a }
+        val cb = Calendar.getInstance(tz).apply { time = b }
+        return ca.get(Calendar.YEAR) == cb.get(Calendar.YEAR) &&
+            ca.get(Calendar.DAY_OF_YEAR) == cb.get(Calendar.DAY_OF_YEAR)
     }
 }

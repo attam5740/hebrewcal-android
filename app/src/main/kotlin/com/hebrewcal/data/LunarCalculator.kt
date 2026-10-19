@@ -10,6 +10,9 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.roundToInt
 
 data class MoladInfo(
     val monthName: String,
@@ -125,26 +128,32 @@ object LunarCalculator {
         )
     }
 
-    /**
-     * Computes the moon illumination and phase for the given Hebrew day of month (1 to 29/30).
-     */
-    fun getMoonPhase(dayOfMonth: Int, daysInMonth: Int, isHebrew: Boolean = false): MoonPhaseInfo {
-        val fraction = (dayOfMonth.toFloat() - 1f) / daysInMonth.toFloat()
-        // Day 1 = ~0%, Day 15 = 100%, Day 30 = ~0%
-        val illumination = if (fraction <= 0.5f) {
-            (fraction * 2f * 100f).toInt()
-        } else {
-            ((1f - fraction) * 2f * 100f).toInt()
-        }.coerceIn(0, 100)
+    private const val SYNODIC_DAYS = 29.530588853
+    /** A known new moon, 2000-01-06 18:14 UTC; lunar months are counted from it. */
+    private const val NEW_MOON_EPOCH_MS = 947_182_440_000L
+    private const val DAY_MS = 86_400_000.0
 
+    /**
+     * The moon's phase at [at], from its age in an average-length lunar month. The real moon
+     * runs up to about 14 hours ahead of or behind the average, which shifts the percentage
+     * by at most about 6 points: close enough for the phase picture and its name.
+     */
+    fun getMoonPhase(at: Date, isHebrew: Boolean = false): MoonPhaseInfo {
+        val days = (at.time - NEW_MOON_EPOCH_MS) / DAY_MS
+        val age = ((days % SYNODIC_DAYS) + SYNODIC_DAYS) % SYNODIC_DAYS
+        val fraction = (age / SYNODIC_DAYS).toFloat()
+        val illumination = ((1 - cos(2 * PI * fraction)) / 2 * 100).roundToInt()
+
+        // New, quarter and full moons are named for a day either side of the exact moment.
+        val day = (1 / SYNODIC_DAYS).toFloat()
         val name = when {
-            dayOfMonth in 1..2 -> if (isHebrew) "מולד (לבנה חדשה)" else "New Moon"
-            dayOfMonth in 3..6 -> if (isHebrew) "חרמש ראשון" else "Waxing Crescent"
-            dayOfMonth in 7..8 -> if (isHebrew) "רבע ראשון" else "First Quarter"
-            dayOfMonth in 9..13 -> if (isHebrew) "ירח מתמלא" else "Waxing Gibbous"
-            dayOfMonth in 14..16 -> if (isHebrew) "ירח מלא" else "Full Moon"
-            dayOfMonth in 17..21 -> if (isHebrew) "ירח מתמעט" else "Waning Gibbous"
-            dayOfMonth in 22..23 -> if (isHebrew) "רבע אחרון" else "Third Quarter"
+            fraction < day || fraction > 1 - day -> if (isHebrew) "מולד (לבנה חדשה)" else "New Moon"
+            fraction < 0.25f - day -> if (isHebrew) "חרמש ראשון" else "Waxing Crescent"
+            fraction < 0.25f + day -> if (isHebrew) "רבע ראשון" else "First Quarter"
+            fraction < 0.5f - day -> if (isHebrew) "ירח מתמלא" else "Waxing Gibbous"
+            fraction < 0.5f + day -> if (isHebrew) "ירח מלא" else "Full Moon"
+            fraction < 0.75f - day -> if (isHebrew) "ירח מתמעט" else "Waning Gibbous"
+            fraction < 0.75f + day -> if (isHebrew) "רבע אחרון" else "Third Quarter"
             else -> if (isHebrew) "חרמש אחרון" else "Waning Crescent"
         }
 

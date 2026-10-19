@@ -55,4 +55,17 @@ class CelestialCalculatorTest {
         assertFalse("11:30 PM should be nighttime", arcData!!.isDaytime)
         assertEquals("Nighttime label expected", "Nighttime", arcData.formattedShaah)
     }
+
+    @Test
+    fun otherDayIsAnOverview() {
+        val day = Calendar.getInstance(tz).apply { set(2026, Calendar.OCTOBER, 5, 0, 0, 0) }.time
+        val nextDayNoon = Calendar.getInstance(tz).apply { set(2026, Calendar.OCTOBER, 6, 12, 0, 0) }.time
+        val arcData = CelestialCalculator.calculate(
+            latitude = lat, longitude = lng, timeZone = tz,
+            targetDate = day, currentRealTime = nextDayNoon
+        )!!
+        assertFalse(arcData.isLive)
+        assertFalse("another day has no sun position", arcData.isDaytime)
+        assertTrue(arcData.formattedShaah.startsWith("1 Sha'ah = "))
+    }
 }

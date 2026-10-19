@@ -180,11 +180,10 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
         )
 
         val jd = JewishDate(d)
-        val moonInfo = LunarCalculator.getMoonPhase(
-            dayOfMonth = jd.jewishDayOfMonth,
-            daysInMonth = jd.daysInJewishMonth,
-            isHebrew = isHebrew
-        )
+        // Today's moon as it is now; any other day's at midday.
+        val moonAt = if (date == LocalDate.now()) Date()
+            else Date.from(date.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant())
+        val moonInfo = LunarCalculator.getMoonPhase(moonAt, isHebrew)
 
         val birkatHaLevana = if (!hasLoc) BirkatHaLevanaInfo(false, null, null, "", "")
         else LunarCalculator.calculateBirkatHaLevana(
