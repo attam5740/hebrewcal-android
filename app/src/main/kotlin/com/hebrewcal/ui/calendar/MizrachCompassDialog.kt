@@ -1,10 +1,12 @@
 package com.hebrewcal.ui.calendar
 
 import android.content.Context
+import android.hardware.GeomagneticField
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -25,6 +27,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.hebrewcal.data.MizrachCalculator
 import com.hebrewcal.data.MizrachResult
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -53,7 +57,13 @@ fun MizrachCompassDialog(
     var lastVibratedAlignment by remember { mutableStateOf(false) }
 
     // Sensor registration
-    DisposableEffect(Unit) {
+    DisposableEffect(latitude, longitude) {
+        // The sensors report heading from magnetic north, but the bearing to Jerusalem is from
+        // true north. The local declination (e.g. about -10° in Ontario) bridges the two;
+        // without it the needle is off by that much and lights up at the wrong spot.
+        val declination = GeomagneticField(
+            latitude.toFloat(), longitude.toFloat(), 0f, System.currentTimeMillis()
+        ).declination.toDouble()
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
             ?: sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION)
@@ -64,6 +74,18 @@ fun MizrachCompassDialog(
             val listener = object : SensorEventListener {
                 private val rotationMatrix = FloatArray(9)
                 private val orientation = FloatArray(3)
+                // Low-pass filter on the unit circle (sin/cos), so noise near 0°/360° averages
+                // out instead of flipping between 359° and 1°.
+                private var sx = 0.0
+                private var cy = 0.0
+                private var primed = false
+
+                private fun smooth(deg: Double) {
+                    val r = Math.toRadians(deg)
+                    if (!primed) { sx = Math.sin(r); cy = Math.cos(r); primed = true }
+                    else { sx += 0.15 * (Math.sin(r) - sx); cy += 0.15 * (Math.cos(r) - cy) }
+                    deviceHeading = ((Math.toDegrees(Math.atan2(sx, cy)) + 360.0) % 360.0).toFloat()
+                }
 
                 override fun onSensorChanged(event: SensorEvent) {
                     if (event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
@@ -71,9 +93,9 @@ fun MizrachCompassDialog(
                         SensorManager.getOrientation(rotationMatrix, orientation)
                         val azimuthRad = orientation[0]
                         val azimuthDeg = (Math.toDegrees(azimuthRad.toDouble()) + 360.0) % 360.0
-                        deviceHeading = azimuthDeg.toFloat()
+                        smooth(azimuthDeg + declination)
                     } else if (event.sensor.type == Sensor.TYPE_ORIENTATION) {
-                        deviceHeading = event.values[0]
+                        smooth(event.values[0].toDouble() + declination)
                     }
                 }
 
@@ -100,22 +122,36 @@ fun MizrachCompassDialog(
         )
     }
 
+    // Alignment with hysteresis: it turns on within 5° but only turns off past 9°, so a heading
+    // hovering at the threshold no longer toggles the dial (and the haptic) on and off.
+    val offTarget = abs(((mizrachResult.bearingDegrees - deviceHeading) % 360f + 540f) % 360f - 180f)
+    var aligned by remember { mutableStateOf(false) }
+    if (!aligned && offTarget <= 5f) aligned = true
+    else if (aligned && offTarget > 9f) aligned = false
+    // 0..1, eased, so the ring and needle glow fade rather than flash.
+    val glow by animateFloatAsState(if (aligned) 1f else 0f, tween(400), label = "align_glow")
+
     // Trigger gentle haptic vibration upon snapping into alignment
-    LaunchedEffect(mizrachResult.isFacingJerusalem) {
-        if (mizrachResult.isFacingJerusalem && !lastVibratedAlignment) {
+    LaunchedEffect(aligned) {
+        if (aligned && !lastVibratedAlignment) {
             // View haptics need no VIBRATE permission (the Vibrator API does, and the app declares none).
             view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
             lastVibratedAlignment = true
-        } else if (!mizrachResult.isFacingJerusalem) {
+        } else if (!aligned) {
             lastVibratedAlignment = false
         }
     }
 
     // Pointer rotation relative to the phone's top
     val relativeJerusalemAngle = (mizrachResult.bearingDegrees - deviceHeading + 360f) % 360f
+    // Unwrapped angle: always move by the shortest delta, so crossing 0°/360° never makes the
+    // needle spin the long way round.
+    var continuousAngle by remember { mutableFloatStateOf(relativeJerusalemAngle) }
+    val delta = ((relativeJerusalemAngle - continuousAngle) % 360f + 540f) % 360f - 180f
+    if (delta != 0f) continuousAngle += delta
     val animatedAngle by animateFloatAsState(
-        targetValue = relativeJerusalemAngle,
-        animationSpec = tween(120),
+        targetValue = continuousAngle,
+        animationSpec = tween(200),
         label = "compass_rotation"
     )
 
@@ -168,9 +204,9 @@ fun MizrachCompassDialog(
 
                         // Dial circle
                         drawCircle(
-                            color = if (mizrachResult.isFacingJerusalem) GOLD_PRIMARY else Color(0x33B0A898),
+                            color = lerp(Color(0x33B0A898), GOLD_PRIMARY, glow),
                             radius = radius,
-                            style = Stroke(width = if (mizrachResult.isFacingJerusalem) 3.5.dp.toPx() else 1.5.dp.toPx())
+                            style = Stroke(width = (1.5f + 2f * glow).dp.toPx())
                         )
 
                         // 4 cardinal tick marks
@@ -216,7 +252,7 @@ fun MizrachCompassDialog(
                                 path = arrowPath,
                                 brush = Brush.verticalGradient(
                                     colors = listOf(
-                                        if (mizrachResult.isFacingJerusalem) GOLD_GLOW else GOLD_PRIMARY,
+                                        lerp(GOLD_PRIMARY, GOLD_GLOW, glow),
                                         Color(0xFF8C6D1F)
                                     )
                                 )
@@ -232,8 +268,9 @@ fun MizrachCompassDialog(
                     }
                 }
 
-                // Alignment status text
-                if (mizrachResult.isFacingJerusalem) {
+                // Alignment status text: a fixed-height slot, cross-faded, so the dialog never resizes
+                Crossfade(aligned, Modifier.height(22.dp), tween(400), label = "align_text") { isAligned ->
+                if (isAligned) {
                     Text(
                         text = if (isHebrew) "✦ פונה בדיוק לירושלים ✦" else "✦ Aligned with Jerusalem ✦",
                         color = GOLD_PRIMARY,
@@ -250,6 +287,7 @@ fun MizrachCompassDialog(
                         color = Color.White,
                         fontSize = 13.sp
                     )
+                }
                 }
 
                 // Distance to Temple Mount
