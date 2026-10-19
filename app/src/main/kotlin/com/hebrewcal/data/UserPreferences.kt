@@ -35,7 +35,9 @@ data class UserPreferences(
     val candleLightingOffsetMinutes: Int = 18,
     val havdalahOpinion: HavdalahOpinion = HavdalahOpinion.STANDARD_8_5,
     val showShabbatBanner: Boolean = true,
-    val showCelestialArc: Boolean = true
+    val showCelestialArc: Boolean = true,
+    /** The first-run permissions checklist has been seen and closed. */
+    val setupDone: Boolean = false
 )
 
 enum class CalendarLanguage { HEBREW, ENGLISH }
@@ -134,6 +136,7 @@ object PreferenceKeys {
     val HAVDALAH_OPINION = stringPreferencesKey("havdalah_opinion")
     val SHOW_SHABBAT_BANNER = booleanPreferencesKey("show_shabbat_banner")
     val SHOW_CELESTIAL_ARC = booleanPreferencesKey("show_celestial_arc")
+    val SETUP_DONE = booleanPreferencesKey("setup_done")
 }
 
 class UserPreferencesRepository(private val context: Context) {
@@ -176,7 +179,8 @@ class UserPreferencesRepository(private val context: Context) {
                 prefs[PreferenceKeys.HAVDALAH_OPINION] ?: HavdalahOpinion.STANDARD_8_5.name
             ),
             showShabbatBanner = prefs[PreferenceKeys.SHOW_SHABBAT_BANNER] ?: true,
-            showCelestialArc = prefs[PreferenceKeys.SHOW_CELESTIAL_ARC] ?: true
+            showCelestialArc = prefs[PreferenceKeys.SHOW_CELESTIAL_ARC] ?: true,
+            setupDone = prefs[PreferenceKeys.SETUP_DONE] ?: false
         )
     }
 
@@ -274,5 +278,9 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateShowCelestialArc(show: Boolean) {
         context.dataStore.edit { it[PreferenceKeys.SHOW_CELESTIAL_ARC] = show }
+    }
+
+    suspend fun updateSetupDone(done: Boolean) {
+        context.dataStore.edit { it[PreferenceKeys.SETUP_DONE] = done }
     }
 }

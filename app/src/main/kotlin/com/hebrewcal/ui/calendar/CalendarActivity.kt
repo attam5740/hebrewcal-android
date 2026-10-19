@@ -1,7 +1,17 @@
 package com.hebrewcal.ui.calendar
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.core.content.ContextCompat
+import com.hebrewcal.service.CalendarNotificationService
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -48,6 +58,44 @@ import com.kosherjava.zmanim.hebrewcalendar.JewishCalendar
 class CalendarActivity : ComponentActivity() {
 
     private val vm: CalendarViewModel by viewModels()
+
+    // Bumped on resume and after each permission answer, so the checklist re-reads grants
+    // (including ones changed on the app's system settings page).
+    private val permTick = mutableIntStateOf(0)
+    private var notifAsked = false
+    private var locationAsked = false
+
+    private val notifLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        notifAsked = true
+        if (granted) CalendarNotificationService.refresh(this)
+        permTick.intValue++
+    }
+    private val locationLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        locationAsked = true
+        if (granted) vm.detectCity()
+        permTick.intValue++
+    }
+
+    override fun onResume() {
+        super.onResume()
+        permTick.intValue++
+    }
+
+    private fun granted(permission: String) =
+        ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+
+    private fun notificationsGranted() =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || granted(Manifest.permission.POST_NOTIFICATIONS)
+
+    /** Needed, or denied for good (Android no longer shows its dialog), or granted. */
+    private fun itemState(isGranted: Boolean, asked: Boolean, permission: String) = when {
+        isGranted -> SetupItem.DONE
+        asked && !shouldShowRequestPermissionRationale(permission) -> SetupItem.DENIED
+        else -> SetupItem.NEEDED
+    }
+
+    private fun openAppSettings() =
+        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -159,10 +207,47 @@ class CalendarActivity : ComponentActivity() {
                 detail?.let { d ->
                     DaySheet(d, hebrew, prefs, onDismiss = { vm.select(null) }, onOpen = { startActivity(it) })
                 }
+
+                val setupDone by vm.setupDone.collectAsState()
+                val cityDetect by vm.cityDetect.collectAsState()
+                @Suppress("UNUSED_VARIABLE") val tick = permTick.intValue
+                val notif = itemState(notificationsGranted(), notifAsked, NOTIFICATIONS)
+                val location = itemState(granted(Manifest.permission.ACCESS_COARSE_LOCATION), locationAsked,
+                    Manifest.permission.ACCESS_COARSE_LOCATION)
+                val hasCity = prefs.zmanimManualLat != 0.0 || prefs.zmanimManualLng != 0.0
+                // An install that already has everything (e.g. updated from an older version) skips the checklist.
+                LaunchedEffect(setupDone, notif, location, hasCity) {
+                    if (setupDone == false && notif == SetupItem.DONE && location == SetupItem.DONE && hasCity &&
+                        cityDetect == CalendarViewModel.CityDetect.IDLE && !notifAsked && !locationAsked) vm.finishSetup()
+                }
+                // Location granted another way (e.g. on the system settings page) still needs a city.
+                LaunchedEffect(setupDone, location) {
+                    if (setupDone == false && location == SetupItem.DONE && !hasCity &&
+                        cityDetect == CalendarViewModel.CityDetect.IDLE) vm.detectCity()
+                }
+                if (setupDone == false) {
+                    SetupChecklist(
+                        hebrew = hebrew,
+                        notifications = notif,
+                        location = location,
+                        city = if (hasCity) prefs.zmanimManualCity else "",
+                        cityDetect = cityDetect,
+                        onNotifications = {
+                            if (notif == SetupItem.DENIED) openAppSettings() else notifLauncher.launch(NOTIFICATIONS)
+                        },
+                        onLocation = {
+                            if (location == SetupItem.DENIED) openAppSettings()
+                            else locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                        },
+                        onDone = { vm.finishSetup() }
+                    )
+                }
             }
         }
     }
 }
+
+private const val NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS"
 
 internal val ACTIVE_GOLD = Color(0xFFFFD255)
 internal val INACTIVE = Color(0xE6FFFFFF)

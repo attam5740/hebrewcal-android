@@ -4,12 +4,14 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hebrewcal.data.*
+import com.hebrewcal.service.CalendarNotificationService
 import com.kosherjava.zmanim.hebrewcalendar.JewishDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -35,6 +37,29 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
 
     val prefs: StateFlow<UserPreferences> = prefsRepo.preferences
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserPreferences())
+
+    /** Null until preferences load, so the first-run checklist never flashes on a set-up install. */
+    val setupDone: StateFlow<Boolean?> = prefsRepo.preferences.map { it.setupDone }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    fun finishSetup() = viewModelScope.launch { prefsRepo.updateSetupDone(true) }
+
+    enum class CityDetect { IDLE, WORKING, FAILED }
+    val cityDetect = MutableStateFlow(CityDetect.IDLE)
+
+    /** Location permission was just granted: save the nearest city, as Settings' "Detect" does. */
+    fun detectCity() = viewModelScope.launch {
+        cityDetect.value = CityDetect.WORKING
+        try {
+            val loc = LocationHelper(getApplication()).getCurrentLocation()
+            val nearest = CityDatabase.findNearest(loc.latitude, loc.longitude)
+            prefsRepo.updateZmanimManualLocation(nearest.name, nearest.latitude, nearest.longitude)
+            CalendarNotificationService.refresh(getApplication())
+            cityDetect.value = CityDetect.IDLE
+        } catch (e: Exception) {
+            cityDetect.value = CityDetect.FAILED
+        }
+    }
 
     /** Which month the grid is showing. [hebrewMode] picks which anchor pair is used. */
     data class View(
