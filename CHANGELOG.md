@@ -4,6 +4,28 @@ All notable changes to Hebrew Calendar are listed here, newest first.
 Version codes match `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`,
 which is what F-Droid shows.
 
+## 1.17 (version code 24)
+
+### Added
+- **First-run setup.** A new install opens with a short checklist that asks for notifications
+  and approximate location, each with its own Allow button. Allowing location saves the nearest
+  city straight away, so zmanim, the sun arc and the compass work without a trip to Settings.
+
+### Changed
+- **Sun arc.** The sun now rises at the right (east) end of the arc and sets at the left (west).
+  The path it has travelled is drawn bright, an arrowhead shows where it is heading, the ends are
+  labelled with the sunrise and sunset times, and a countdown shows the time left until sunset.
+  Today's arc stays current while it is open; other days show that day's sunrise, sunset and
+  sha'ah length.
+- **Moon.** The moon is drawn in its current phase. Its phase and illumination now come from the
+  moon's age, counted from a known new moon, instead of the day of the Hebrew month, which could
+  be off by about 10 percentage points.
+
+### Fixed
+- **Jerusalem compass.** It now corrects for magnetic declination, so the direction is measured
+  from true north (it was off by about 10° in parts of North America). It also no longer jitters,
+  spins the long way round, or flashes on and off at the edge of alignment.
+
 ## 1.16 (version code 23)
 
 ### Fixed

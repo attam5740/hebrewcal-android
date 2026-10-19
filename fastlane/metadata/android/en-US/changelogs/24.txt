@@ -1,0 +1,4 @@
+New: a quick setup on first launch asks for notifications and location, and finds your city.
+Sun arc: the sun rises in the east (right) and sets in the west (left), shows where it is heading, the sunrise and sunset times, and the time left until sunset. It stays current while open.
+Moon: drawn in its real phase, with a more accurate percentage.
+Fixed: the Jerusalem compass now measures from true north and no longer flickers.

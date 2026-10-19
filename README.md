@@ -23,8 +23,11 @@ See the [changelog](CHANGELOG.md) for what is new.
 - **Home screen Glance widget** — resizable, with adjustable background transparency
 - **Shabbat and Yom Tov** — candle-lighting time with a live countdown on Friday and Erev Yom
   Tov, Havdalah by your chosen opinion, and a Shabbat Shalom banner on the lockscreen
-- **Sun, moon, and direction** — a sun-arc view of the day with the current sha'ah zmanit,
-  moon phase and the Birkat HaLevana window, and a compass pointing to Jerusalem
+- **Sun, moon, and direction** — a sun arc for today that shows where the sun is heading, with
+  sunrise, sunset, the time left until sunset and the current sha'ah zmanit; the moon drawn in
+  its current phase; the Birkat HaLevana window; and a compass pointing to Jerusalem from true north
+- **First-run setup** — a new install asks for notifications and location in one short
+  checklist, and saves the nearest city as soon as location is allowed
 - **Calendar screen** — the app launches into a full month grid (Hebrew or Gregorian),
   with both the Hebrew and Gregorian date shown in every cell; tap a day to see its holidays,
   fast start/end times, and zmanim, with links straight into the reader for that day's parsha,
@@ -193,12 +196,12 @@ lockscreen, even when the device is locked.
 
 | Permission | Required for |
 |---|---|
-| `POST_NOTIFICATIONS` | Showing the notification (Android 13+) |
+| `POST_NOTIFICATIONS` | Showing the notification (Android 13+); asked on first launch |
 | `FOREGROUND_SERVICE` | Persistent notification service |
 | `FOREGROUND_SERVICE_SPECIAL_USE` | Android 14+ foreground service |
 | `RECEIVE_BOOT_COMPLETED` | Restart after device reboot |
 | `SCHEDULE_EXACT_ALARM`, `USE_EXACT_ALARM` | Precise zman transition timing |
-| `ACCESS_COARSE_LOCATION` | One-time match to the nearest city for zmanim (optional) |
+| `ACCESS_COARSE_LOCATION` | One-time match to the nearest city for zmanim (optional; asked on first launch) |
 | `ACCESS_NOTIFICATION_POLICY` | Keeping the notification visible in Do Not Disturb (optional) |
 | `INTERNET` | Fetching Torah and Tehillim texts from Sefaria |
 | `WAKE_LOCK` | Ensures alarm delivery |
@@ -247,10 +250,10 @@ only reaches F-Droid if all of these hold:
    that tag, signed with the release key.
 
 ```bash
-git worktree add /tmp/hebrewcal-release v1.16 && cd /tmp/hebrewcal-release
+git worktree add /tmp/hebrewcal-release v1.17 && cd /tmp/hebrewcal-release
 ./gradlew assembleRelease
-scripts/release.sh app/build/outputs/apk/release/app-release-unsigned.apk 1.16
-gh release create v1.16 dist/Hebrew-Calendar-v1.16.apk --title v1.16
+scripts/release.sh app/build/outputs/apk/release/app-release-unsigned.apk 1.17
+gh release create v1.17 dist/Hebrew-Calendar-v1.17.apk --title v1.17
 ```
 
 `scripts/release.sh` refuses debug builds and checks the signing certificate against the one

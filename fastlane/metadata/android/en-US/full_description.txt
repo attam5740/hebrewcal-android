@@ -21,9 +21,9 @@ Hebrew Calendar displays the current Hebrew date as a persistent lockscreen noti
 • Shabbat Shalom banner on the lockscreen during Shabbat and Yom Tov
 
 <b>Sun, moon &amp; direction</b>
-• Sun-arc view of the day with the current sha'ah zmanit (halachic hour)
-• Moon phase and illumination, and the Birkat HaLevana window with its text
-• Jerusalem compass: direction and distance to Jerusalem from your city
+• Sun arc for today showing where the sun is heading, the time left until sunset, and the current sha'ah zmanit (halachic hour)
+• The moon drawn in its current phase, with its illumination, and the Birkat HaLevana window with its text
+• Jerusalem compass, measured from true north: direction and distance to Jerusalem from your city
 
 <b>Zmanim (Prayer Times)</b>
 • Halachic times calculated by KosherJava — Alot HaShachar, HaNetz, Sof Zman Shema (GRA &amp; MGA), Chatzot, Mincha, Shkiah, Tzet HaKochavim, and more
