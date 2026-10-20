@@ -20,6 +20,14 @@ class SettingsActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { /* Permission result handled in UI flow */ }
 
+    private val exportSettingsLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri -> uri?.let(viewModel::exportSettings) }
+
+    private val importSettingsLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let(viewModel::importSettings) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -32,6 +40,11 @@ class SettingsActivity : ComponentActivity() {
                             onNavigateToZmanimSelection = { navController.navigate("zmanim_selection") },
                             onRequestLocationPermission = {
                                 locationPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                            },
+                            onSaveSettings = { exportSettingsLauncher.launch("hebrew-calendar-settings.json") },
+                            // Some file managers label .json as octet-stream or text, so accept those too.
+                            onRestoreSettings = {
+                                importSettingsLauncher.launch(arrayOf("application/json", "application/octet-stream", "text/plain"))
                             }
                         )
                     }

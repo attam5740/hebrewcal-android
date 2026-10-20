@@ -24,7 +24,9 @@ import com.hebrewcal.data.*
 fun MainSettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateToZmanimSelection: () -> Unit,
-    onRequestLocationPermission: () -> Unit
+    onRequestLocationPermission: () -> Unit,
+    onSaveSettings: () -> Unit,
+    onRestoreSettings: () -> Unit
 ) {
     val context = LocalContext.current
     val prefs by viewModel.preferences.collectAsState()
@@ -457,6 +459,30 @@ fun MainSettingsScreen(
                 checked  = prefs.showCelestialArc,
                 onCheck  = viewModel::setShowCelestialArc
             )
+
+            Spacer(Modifier.height(24.dp))
+            SettingsSectionHeader(icon = Icons.Default.SettingsBackupRestore, title = "Backup")
+
+            val backupStatus by viewModel.backupStatus.collectAsState()
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Settings file", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Save every setting to a file, or restore from one",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                OutlinedButton(onClick = onSaveSettings) { Text("Save") }
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(onClick = onRestoreSettings) { Text("Restore") }
+            }
+            backupStatus?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            }
 
             Spacer(Modifier.height(24.dp))
         }

@@ -2,14 +2,17 @@ package com.hebrewcal.ui.settings
 
 import android.app.Application
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hebrewcal.data.*
 import com.hebrewcal.service.CalendarNotificationService
 import com.hebrewcal.service.TextPrefetch
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -156,6 +159,36 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setShowCelestialArc(show: Boolean) = viewModelScope.launch {
         prefsRepo.updateShowCelestialArc(show)
         notifyServiceRefresh()
+    }
+
+    private val _backupStatus = MutableStateFlow<String?>(null)
+    val backupStatus: StateFlow<String?> = _backupStatus
+
+    fun exportSettings(uri: Uri) = viewModelScope.launch {
+        _backupStatus.value = try {
+            withContext(Dispatchers.IO) {
+                val json = prefsRepo.exportSettingsJson()
+                getApplication<Application>().contentResolver.openOutputStream(uri, "wt")!!
+                    .use { it.write(json.toByteArray()) }
+            }
+            "Settings saved"
+        } catch (e: Exception) {
+            "Couldn't save settings"
+        }
+    }
+
+    fun importSettings(uri: Uri) = viewModelScope.launch {
+        _backupStatus.value = try {
+            val n = withContext(Dispatchers.IO) {
+                val json = getApplication<Application>().contentResolver.openInputStream(uri)!!
+                    .use { it.readBytes().decodeToString() }
+                prefsRepo.importSettingsJson(json)
+            }
+            notifyServiceRefresh()
+            "Restored $n settings"
+        } catch (e: Exception) {
+            "Couldn't restore: not a Hebrew Calendar settings file"
+        }
     }
 
     private fun notifyServiceRefresh() {

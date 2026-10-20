@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "hebrew_cal_prefs")
@@ -282,5 +283,29 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateSetupDone(done: Boolean) {
         context.dataStore.edit { it[PreferenceKeys.SETUP_DONE] = done }
+    }
+
+    /** All settings as a [SettingsBackup] JSON document. */
+    suspend fun exportSettingsJson(): String =
+        SettingsBackup.toJson(context.dataStore.data.first().asMap().mapKeys { it.key.name })
+
+    /** Replaces all settings with the file's contents. Returns how many were restored. */
+    suspend fun importSettingsJson(json: String): Int {
+        val values = SettingsBackup.fromJson(json)
+        context.dataStore.edit { prefs ->
+            prefs.clear()
+            values.forEach { (name, v) ->
+                when (v) {
+                    is Boolean -> prefs[booleanPreferencesKey(name)] = v
+                    is Int -> prefs[intPreferencesKey(name)] = v
+                    is Long -> prefs[longPreferencesKey(name)] = v
+                    is Float -> prefs[floatPreferencesKey(name)] = v
+                    is Double -> prefs[doublePreferencesKey(name)] = v
+                    is String -> prefs[stringPreferencesKey(name)] = v
+                    is Set<*> -> prefs[stringSetPreferencesKey(name)] = v.map { it as String }.toSet()
+                }
+            }
+        }
+        return values.size
     }
 }
