@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.height
@@ -646,11 +647,15 @@ private fun ReaderBody(
     fun layout(t: String): String =
         t.replace("{פ}", "").replace("{ס}", "").replace("\n", " ").trim()
 
-    fun verseBody(heRaw: String, en: String): String = when {
+    // flip: this verse was tapped, so show it in the other language.
+    fun verseBody(heRaw: String, en: String, flip: Boolean = false): String = when {
         tikkun -> HebrewVocalization.strip(layout(heRaw), showNikkud = false, showTeamim = false)
-        hebrew -> HebrewVocalization.strip(layout(heRaw), nikkud, teamim)
+        hebrew != flip -> HebrewVocalization.strip(layout(heRaw), nikkud, teamim)
         else -> layout(en)
     }
+
+    // Verses tapped into the other language; cleared when the text or the language mode changes.
+    var flippedVerses by remember(text, textMode) { mutableStateOf(setOf<String>()) }
 
     // Section list: one per aliyah when partitioning, else one per chapter.
     val sections = remember(text, mode, bookNameEn, aliyot, hebrew, elulText) {
@@ -812,7 +817,10 @@ private fun ReaderBody(
                     val paragraph = buildAnnotatedString {
                         var lastChapter = -1
                         section.verses.forEach { tv ->
-                            val body = verseBody(tv.verse.he, tv.verse.en)
+                            val verseKey = "${if (section.extra) "e" else "m"}:${tv.chapter}:${tv.verse.num}"
+                            // If the other language has no text for this verse, keep the original.
+                            val body = verseBody(tv.verse.he, tv.verse.en, verseKey in flippedVerses)
+                                .ifBlank { verseBody(tv.verse.he, tv.verse.en) }
                             if (body.isBlank()) return@forEach
                             if (section.markChapters && tv.chapter != lastChapter) {
                                 if (lastChapter != -1) {
@@ -822,6 +830,7 @@ private fun ReaderBody(
                                 }
                                 lastChapter = tv.chapter
                             }
+                            pushStringAnnotation("verse", verseKey)
                             if (mode != "tefillah") {
                                 withStyle(SpanStyle(color = if (section.extra) SKY else accent, fontSize = (sizeSp * 0.62f).sp)) {
                                     append(if (hebrew) gematria.formatHebrewNumber(tv.verse.num) else tv.verse.num.toString())
@@ -830,9 +839,12 @@ private fun ReaderBody(
                             }
                             append(body)
                             append("  ")
+                            pop()
                         }
                     }
-                    Text(
+                    // Tap a verse to read just that verse in the other language; tap again to
+                    // switch back. The scroll layout has no translation, so tikkun ignores taps.
+                    ClickableText(
                         paragraph,
                         style = TextStyle(
                             color = Color.White,
@@ -842,7 +854,14 @@ private fun ReaderBody(
                             textDirection = TextDirection.Content,
                             fontFamily = if (tikkun) stam else null
                         ),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { offset ->
+                            if (!tikkun) paragraph.getStringAnnotations("verse", offset, offset)
+                                .firstOrNull()?.let { a ->
+                                    flippedVerses = if (a.item in flippedVerses) flippedVerses - a.item
+                                        else flippedVerses + a.item
+                                }
+                        }
                     )
                 }
                 item { Text(if (hebrew) "מקור: ספריא" else "Source: Sefaria", color = Color(0xFFAA9977), fontSize = 11.sp, modifier = Modifier.padding(16.dp)) }
