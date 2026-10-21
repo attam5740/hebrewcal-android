@@ -112,10 +112,21 @@ class CalendarActivity : ComponentActivity() {
                 Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = { vm.step(-1) }) { Text("‹", color = INACTIVE, fontSize = 26.sp) }
-                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        var showNavigator by remember { mutableStateOf(false) }
+                        Column(
+                            Modifier.weight(1f).clickable { showNavigator = true },
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Text(grid.title, color = Color.White, fontSize = 20.sp)
                             Text(grid.subtitle, color = INACTIVE, fontSize = 12.sp)
                         }
+                        if (showNavigator) DateNavigatorDialog(
+                            view = view,
+                            hebrewUi = hebrew,
+                            onPick = { hm, y, m -> showNavigator = false; vm.jumpTo(hm, y, m) },
+                            onToday = { showNavigator = false; vm.today() },
+                            onDismiss = { showNavigator = false }
+                        )
                         TextButton(onClick = { vm.step(1) }) { Text("›", color = INACTIVE, fontSize = 26.sp) }
                     }
                     Row(

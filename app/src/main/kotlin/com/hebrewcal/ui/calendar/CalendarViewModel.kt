@@ -107,6 +107,13 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
+    /** Jump the grid straight to a month, from the date navigator. */
+    fun jumpTo(hebrewMode: Boolean, year: Int, month: Int) {
+        val v = _view.value
+        _view.value = if (hebrewMode) v.copy(hebrewMode = true, hYear = year, hMonth = month)
+        else v.copy(hebrewMode = false, gYear = year, gMonth = month)
+    }
+
     fun toggleMode() {
         _view.value = _view.value.copy(hebrewMode = !_view.value.hebrewMode)
     }
