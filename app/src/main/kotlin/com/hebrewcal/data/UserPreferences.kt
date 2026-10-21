@@ -38,13 +38,17 @@ data class UserPreferences(
     val showShabbatBanner: Boolean = true,
     val showCelestialArc: Boolean = true,
     /** The first-run permissions checklist has been seen and closed. */
-    val setupDone: Boolean = false
+    val setupDone: Boolean = false,
+    val nusach: Nusach = Nusach.ASHKENAZ
 )
 
 enum class CalendarLanguage { HEBREW, ENGLISH }
 enum class CalendarLocation { ISRAEL, DIASPORA }
 enum class ZmanimTimeFormat { TWELVE_HOUR, TWENTY_FOUR_HOUR }
 enum class ZmanimLocationSource { GPS, MANUAL }
+
+/** Which siddur the app's prayer texts follow (e.g. Birkat HaLevana and its Aleinu). */
+enum class Nusach { ASHKENAZ, SEFARD, EDOT_HAMIZRACH }
 
 /** Background download policy for upcoming reader texts. */
 enum class PrefetchNetwork { OFF, WIFI, ANY }
@@ -138,6 +142,7 @@ object PreferenceKeys {
     val SHOW_SHABBAT_BANNER = booleanPreferencesKey("show_shabbat_banner")
     val SHOW_CELESTIAL_ARC = booleanPreferencesKey("show_celestial_arc")
     val SETUP_DONE = booleanPreferencesKey("setup_done")
+    val NUSACH = stringPreferencesKey("nusach")
 }
 
 class UserPreferencesRepository(private val context: Context) {
@@ -181,7 +186,8 @@ class UserPreferencesRepository(private val context: Context) {
             ),
             showShabbatBanner = prefs[PreferenceKeys.SHOW_SHABBAT_BANNER] ?: true,
             showCelestialArc = prefs[PreferenceKeys.SHOW_CELESTIAL_ARC] ?: true,
-            setupDone = prefs[PreferenceKeys.SETUP_DONE] ?: false
+            setupDone = prefs[PreferenceKeys.SETUP_DONE] ?: false,
+            nusach = Nusach.valueOf(prefs[PreferenceKeys.NUSACH] ?: Nusach.ASHKENAZ.name)
         )
     }
 
@@ -283,6 +289,10 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateSetupDone(done: Boolean) {
         context.dataStore.edit { it[PreferenceKeys.SETUP_DONE] = done }
+    }
+
+    suspend fun updateNusach(nusach: Nusach) {
+        context.dataStore.edit { it[PreferenceKeys.NUSACH] = nusach.name }
     }
 
     /** All settings as a [SettingsBackup] JSON document. */

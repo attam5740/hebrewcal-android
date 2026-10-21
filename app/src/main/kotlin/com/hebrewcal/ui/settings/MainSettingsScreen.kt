@@ -174,6 +174,20 @@ fun MainSettingsScreen(
                 }
             )
 
+            // Nusach
+            val nusachOptions = listOf(
+                Nusach.ASHKENAZ to "Ashkenaz",
+                Nusach.SEFARD to "Sefard",
+                Nusach.EDOT_HAMIZRACH to "Edot Mizrach"
+            )
+            SegmentedSettingRow(
+                label    = "Custom (Nusach)",
+                subtitle = "Which siddur prayer texts follow, e.g. Birkat HaLevana and its Aleinu",
+                options  = nusachOptions.map { it.second },
+                selected = nusachOptions.indexOfFirst { it.first == prefs.nusach }.coerceAtLeast(0),
+                onSelect = { idx -> viewModel.setNusach(nusachOptions[idx].first) }
+            )
+
             // Show Parsha
             SwitchSettingRow(
                 label    = "Show Weekly Parsha",

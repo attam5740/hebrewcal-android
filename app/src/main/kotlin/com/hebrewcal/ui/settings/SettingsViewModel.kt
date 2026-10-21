@@ -40,6 +40,10 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         notifyServiceRefresh()
     }
 
+    fun setNusach(nusach: Nusach) = viewModelScope.launch {
+        prefsRepo.updateNusach(nusach)
+    }
+
     fun setShowParsha(show: Boolean) = viewModelScope.launch {
         prefsRepo.updateShowParsha(show)
         notifyServiceRefresh()

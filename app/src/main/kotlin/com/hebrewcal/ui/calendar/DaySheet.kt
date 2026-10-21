@@ -178,7 +178,9 @@ fun DaySheet(
                         onOpenCompass = { showCompass = true },
                         onOpenBirkatHaLevana = {
                             onOpen(reader(
-                                "tefillah", "Siddur Ashkenaz, Weekday, Maariv, Birkat HaLevana",
+                                "tefillah",
+                                com.hebrewcal.data.Tefillot.kiddushLevanaRefs(prefs.nusach)
+                                    .joinToString(com.hebrewcal.data.Tefillot.REF_SEPARATOR),
                                 if (hebrew) "ברכת הלבנה" else "Birkat HaLevana", false
                             ))
                         }

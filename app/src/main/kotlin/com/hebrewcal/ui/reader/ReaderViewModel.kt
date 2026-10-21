@@ -10,6 +10,7 @@ import com.hebrewcal.data.ReaderWindow
 import com.hebrewcal.data.ReaderWindows
 import com.hebrewcal.data.SefariaRepository
 import com.hebrewcal.data.TehillimSchedule
+import com.hebrewcal.data.Tefillot
 import com.hebrewcal.data.TikkunLayout
 import com.hebrewcal.data.TikkunLayoutRepository
 import com.hebrewcal.data.TorahNavigation
@@ -99,7 +100,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                 if (resolvedTitle.isBlank()) resolvedTitle = p.heRef
             } else resolvedRef = ref
             val bookNameEn = if (mode != "tehillim") resolvedRef.substringBefore('.', "").ifBlank { null } else null
-            repo.fetchText(resolvedRef).fold(
+            fetchCombined(resolvedRef).fold(
                 onSuccess = { text ->
                     val w = ReaderWindows.fromRef(resolvedRef, text); window = w
                     val elulText = if (mode == "tehillim" && elulRef.isNotBlank()) repo.fetchText(elulRef).getOrNull() else null
@@ -112,6 +113,20 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                 onFailure = { _state.value = UiState(false, OFFLINE, resolvedTitle, null, mode, bookNameEn, aliyot) }
             )
         }
+    }
+
+    /**
+     * A ref may be several Sefaria refs joined with [Tefillot.REF_SEPARATOR] (a prayer
+     * service and its conclusion); they are fetched in order and shown as one text,
+     * sections renumbered so every verse key stays unique.
+     */
+    private suspend fun fetchCombined(ref: String): Result<SefariaText> {
+        val parts = ref.split(Tefillot.REF_SEPARATOR)
+        if (parts.size == 1) return repo.fetchText(ref)
+        val texts = parts.map { part -> repo.fetchText(part.trim()).getOrElse { return Result.failure(it) } }
+        var n = 0
+        val chapters = texts.flatMap { it.chapters }.map { ch -> n++; com.hebrewcal.data.Chapter(n, ch.verses) }
+        return Result.success(SefariaText(texts.first().heRef, chapters))
     }
 
     /** Jump to any Tehillim chapter or Torah chapter/parsha from the navigation dial. */
