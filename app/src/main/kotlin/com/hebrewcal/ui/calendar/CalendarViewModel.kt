@@ -86,16 +86,32 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
         else CalendarMonths.gregorianMonth(v.gYear, v.gMonth, israel, he, today)
     }
 
+    /**
+     * Each calendar has its own month anchor; this re-points the inactive one at the
+     * month now shown, so toggling Hebrew/Gregorian lands where the user is, not where
+     * they were before navigating.
+     */
+    private fun synced(v: View): View {
+        val jd = JewishDate()
+        return if (v.hebrewMode) {
+            jd.setJewishDate(v.hYear, v.hMonth, 1)
+            v.copy(gYear = jd.gregorianYear, gMonth = jd.gregorianMonth + 1)
+        } else {
+            jd.setGregorianDate(v.gYear, v.gMonth - 1, 1)
+            v.copy(hYear = jd.jewishYear, hMonth = jd.jewishMonth)
+        }
+    }
+
     fun step(delta: Int) {
         val v = _view.value
-        _view.value = if (v.hebrewMode) {
+        _view.value = synced(if (v.hebrewMode) {
             val (y, m) = if (delta > 0) CalendarMonths.nextHebrewMonth(v.hYear, v.hMonth)
             else CalendarMonths.prevHebrewMonth(v.hYear, v.hMonth)
             v.copy(hYear = y, hMonth = m)
         } else {
             LocalDate.of(v.gYear, v.gMonth, 1).plusMonths(delta.toLong())
                 .let { v.copy(gYear = it.year, gMonth = it.monthValue) }
-        }
+        })
     }
 
     fun today() {
@@ -110,8 +126,10 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
     /** Jump the grid straight to a month, from the date navigator. */
     fun jumpTo(hebrewMode: Boolean, year: Int, month: Int) {
         val v = _view.value
-        _view.value = if (hebrewMode) v.copy(hebrewMode = true, hYear = year, hMonth = month)
-        else v.copy(hebrewMode = false, gYear = year, gMonth = month)
+        _view.value = synced(
+            if (hebrewMode) v.copy(hebrewMode = true, hYear = year, hMonth = month)
+            else v.copy(hebrewMode = false, gYear = year, gMonth = month)
+        )
     }
 
     fun toggleMode() {
@@ -146,6 +164,16 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
         if (date == null) {
             _detail.value = null
             return
+        }
+        // Keep the other calendar pointed at the tapped day (the shown grid stays put),
+        // so toggling after picking a day lands on that day's month.
+        _view.value = _view.value.let { v ->
+            if (v.hebrewMode) v.copy(gYear = date.year, gMonth = date.monthValue)
+            else {
+                val jd = JewishDate()
+                jd.setGregorianDate(date.year, date.monthValue - 1, date.dayOfMonth)
+                v.copy(hYear = jd.jewishYear, hMonth = jd.jewishMonth)
+            }
         }
         val p = prefs.value
         detailJob = viewModelScope.launch {
