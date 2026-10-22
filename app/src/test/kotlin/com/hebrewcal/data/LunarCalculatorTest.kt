@@ -9,22 +9,6 @@ import java.util.TimeZone
 class LunarCalculatorTest {
 
     @Test
-    fun testMoladCalculation() {
-        // Year 5787, Month Tishrei (JewishDate.TISHREI = 7)
-        val moladInfo = LunarCalculator.calculateMolad(
-            jewishMonth = JewishDate.TISHREI,
-            jewishYear = 5787,
-            isHebrew = false
-        )
-
-        assertNotNull(moladInfo)
-        assertTrue("Hours should be 0-23", moladInfo.hours in 0..23)
-        assertTrue("Minutes should be 0-59", moladInfo.minutes in 0..59)
-        assertTrue("Chalakim should be 0-1079", moladInfo.chalakim in 0..1079)
-        assertTrue("Formatted string should contain Molad and chalakim", moladInfo.formattedString.contains("Molad") && moladInfo.formattedString.contains("chalakim"))
-    }
-
-    @Test
     fun testMoonPhaseProgression() {
         // The molad is the traditional mean new moon, so it is an independent check on the epoch.
         for (month in listOf(JewishDate.TISHREI, JewishDate.CHESHVAN, JewishDate.NISSAN, JewishDate.AV)) {

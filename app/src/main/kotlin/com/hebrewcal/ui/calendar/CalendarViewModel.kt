@@ -91,15 +91,12 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
      * month now shown, so toggling Hebrew/Gregorian lands where the user is, not where
      * they were before navigating.
      */
-    private fun synced(v: View): View {
-        val jd = JewishDate()
-        return if (v.hebrewMode) {
-            jd.setJewishDate(v.hYear, v.hMonth, 1)
-            v.copy(gYear = jd.gregorianYear, gMonth = jd.gregorianMonth + 1)
-        } else {
-            jd.setGregorianDate(v.gYear, v.gMonth - 1, 1)
-            v.copy(hYear = jd.jewishYear, hMonth = jd.jewishMonth)
-        }
+    private fun synced(v: View): View = if (v.hebrewMode) {
+        val (gy, gm) = CalendarMonths.gregorianAnchor(v.hYear, v.hMonth)
+        v.copy(gYear = gy, gMonth = gm)
+    } else {
+        val (hy, hm) = CalendarMonths.hebrewAnchor(v.gYear, v.gMonth)
+        v.copy(hYear = hy, hMonth = hm)
     }
 
     fun step(delta: Int) {
@@ -245,7 +242,7 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
             else Date.from(date.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant())
         val moonInfo = LunarCalculator.getMoonPhase(moonAt, isHebrew)
 
-        val birkatHaLevana = if (!hasLoc) BirkatHaLevanaInfo(false, null, null, "", "")
+        val birkatHaLevana = if (!hasLoc) BirkatHaLevanaInfo(false, null, null, "")
         else LunarCalculator.calculateBirkatHaLevana(
             date = d,
             latitude = lat,

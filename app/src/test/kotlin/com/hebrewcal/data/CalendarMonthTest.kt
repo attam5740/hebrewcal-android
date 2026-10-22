@@ -50,4 +50,22 @@ class CalendarMonthTest {
         assertEquals(5790 to JewishDate.ADAR, CalendarMonths.prevHebrewMonth(5790, JewishDate.ADAR_II))
         assertEquals(5790 to JewishDate.ADAR_II, CalendarMonths.prevHebrewMonth(5790, JewishDate.NISSAN))
     }
+
+    @Test fun anchorsLandInTheRightCalendarMonth() {
+        // 1 Tishrei 5787 is September 12, 2026.
+        assertEquals(2026 to 9, CalendarMonths.gregorianAnchor(5787, 7))
+        assertEquals(5787 to 7, CalendarMonths.hebrewAnchor(2026, 10))
+        // 5787 is a leap year; Adar II begins in March 2027.
+        assertEquals(2027 to 3, CalendarMonths.gregorianAnchor(5787, 13))
+        // A month's anchor must contain its own first day: mapping back gives the same
+        // Hebrew month or the one before (when the Gregorian month starts mid-month).
+        for (m in listOf(7, 10, 12, 13, 1, 6)) {
+            val (gy, gm) = CalendarMonths.gregorianAnchor(5787, m)
+            val back = CalendarMonths.hebrewAnchor(gy, gm)
+            assertTrue(
+                "month $m anchored to $gy-$gm which maps back to $back",
+                back == 5787 to m || CalendarMonths.nextHebrewMonth(back.first, back.second) == 5787 to m
+            )
+        }
+    }
 }

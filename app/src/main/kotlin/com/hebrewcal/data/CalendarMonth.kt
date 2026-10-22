@@ -53,6 +53,19 @@ object CalendarMonths {
         return MonthGrid(title, sub, grid(first, last, inIsrael, today))
     }
 
+    /** The Gregorian (year, month) containing day 1 of a Hebrew month. */
+    fun gregorianAnchor(hYear: Int, hMonth: Int): Pair<Int, Int> {
+        val jd = JewishDate(hYear, hMonth, 1)
+        return jd.gregorianYear to jd.gregorianMonth + 1
+    }
+
+    /** The Hebrew (year, month) containing day 1 of a Gregorian month. */
+    fun hebrewAnchor(gYear: Int, gMonth: Int): Pair<Int, Int> {
+        val jd = JewishDate()
+        jd.setGregorianDate(gYear, gMonth - 1, 1)
+        return jd.jewishYear to jd.jewishMonth
+    }
+
     fun nextHebrewMonth(year: Int, month: Int): Pair<Int, Int> {
         val jd = JewishDate(year, month, 1); jd.forward(java.util.Calendar.MONTH, 1); return jd.jewishYear to jd.jewishMonth
     }

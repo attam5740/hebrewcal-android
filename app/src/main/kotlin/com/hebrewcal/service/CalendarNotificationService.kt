@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.glance.appwidget.updateAll
 import com.hebrewcal.data.*
@@ -47,6 +48,7 @@ class CalendarNotificationService : Service() {
                 startForeground(LockscreenNotificationBuilder.NOTIFICATION_ID, placeholder)
             }
         } catch (e: Exception) {
+            Log.w(TAG, "startForeground failed", e)
             stopSelf()
             return
         }
@@ -86,7 +88,7 @@ class CalendarNotificationService : Service() {
                 System.currentTimeMillis() + RESTART_DELAY_MS,
                 pi
             )
-        } catch (e: Exception) { /* non-fatal */ }
+        } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
     }
 
     private fun refreshAndSchedule() {
@@ -104,7 +106,7 @@ class CalendarNotificationService : Service() {
                 // location is available — falls back to civil-midnight rollover.
                 val tzetToday = try {
                     zmanimRepo.getTzetHakochavim(lat, lng, timeZone, now)
-                } catch (e: Exception) { null }
+                } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
 
                 val dateInfo = try {
                     calRepo.getDateInfo(
@@ -121,6 +123,7 @@ class CalendarNotificationService : Service() {
                         }
                     )
                 } catch (e: Exception) {
+                    Log.w(TAG, "date info failed, blank notification content", e)
                     HebrewDateInfo("", "", null, null, false, 0, "", 0)
                 }
 
@@ -136,7 +139,7 @@ class CalendarNotificationService : Service() {
                             candleLightingOffsetMinutes = prefs.candleLightingOffsetMinutes,
                             havdalahOpinion             = prefs.havdalahOpinion
                         )
-                    } catch (e: Exception) { null }
+                    } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
                 } else null
 
                 val zmanimData = if (prefs.showZmanim && lat != 0.0 && lng != 0.0) {
@@ -152,7 +155,7 @@ class CalendarNotificationService : Service() {
                             candleLightingOffsetMinutes = prefs.candleLightingOffsetMinutes,
                             havdalahOpinion             = prefs.havdalahOpinion
                         )
-                    } catch (e: Exception) { null }
+                    } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
                 } else null
 
                 val hebrew = prefs.language == CalendarLanguage.HEBREW
@@ -160,19 +163,19 @@ class CalendarNotificationService : Service() {
                     dateInfo.hebrewDayNumber, dateInfo.daysInMonth
                 )
                 val tehillimActionLabel = if (prefs.showTehillimButton) {
-                    try { ReaderButtons.tehillimLabel(tehillimPortion, hebrew) } catch (e: Exception) { null }
+                    try { ReaderButtons.tehillimLabel(tehillimPortion, hebrew) } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
                 } else null
                 val parshaActionLabel = if (prefs.showParshaButton) {
                     try {
                         calRepo.upcomingParshaName(now, prefs.location, prefs.language)
                             ?.let { ReaderButtons.parshaLabel(it, hebrew) }
-                    } catch (e: Exception) { null }
+                    } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
                 } else null
 
                 val elulRef = if (prefs.showElulTehillim) {
                     try {
                         ElulTehillim.portionFor(dateInfo.jewishMonth, dateInfo.hebrewDayNumber)?.sefariaRef
-                    } catch (e: Exception) { null }
+                    } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
                 } else null
 
                 val notification = LockscreenNotificationBuilder.build(
@@ -200,15 +203,16 @@ class CalendarNotificationService : Service() {
                 // and renders the (now halachically advanced) Hebrew date.
                 try {
                     HebrewDateWidget().updateAll(applicationContext)
-                } catch (e: Exception) { /* widget not placed yet — non-fatal */ }
+                } catch (e: Exception) { Log.w(TAG, "widget update skipped", e) }
 
                 if (prefs.showZmanim && lat != 0.0 && lng != 0.0) {
-                    try { scheduleZmanAlarms(lat, lng, prefs) } catch (e: Exception) { /* non-fatal */ }
+                    try { scheduleZmanAlarms(lat, lng, prefs) } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
                 }
-                try { scheduleMidnightAlarm() } catch (e: Exception) { /* non-fatal */ }
-                try { scheduleWidgetTzetAlarm(lat, lng, timeZone, now, tzetToday) } catch (e: Exception) { /* non-fatal */ }
+                try { scheduleMidnightAlarm() } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
+                try { scheduleWidgetTzetAlarm(lat, lng, timeZone, now, tzetToday) } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
             } catch (e: Exception) {
                 // Outer guard — service stays alive even if everything above fails
+                Log.e(TAG, "refresh failed; notification left stale", e)
             }
         }
     }
@@ -343,6 +347,7 @@ class CalendarNotificationService : Service() {
     }
 
     companion object {
+        private const val TAG = "HebrewCalService"
         const val ZMAN_ALARM_BASE_REQUEST_CODE = 2000
         const val MIDNIGHT_ALARM_REQUEST_CODE = 2100
         const val RESTART_REQUEST_CODE = 2200

@@ -124,14 +124,17 @@ fun DaySheet(
                     )
                 }
 
+                val timeFormat = remember(prefs.zmanimTimeFormat) {
+                    SimpleDateFormat(
+                        if (prefs.zmanimTimeFormat == com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm",
+                        Locale.getDefault()
+                    )
+                }
+
                 // Shabbat & Chag Highlight Banner
                 d.shabbatTimes?.let { st ->
                     if (st.isErevShabbat || st.isErevYomTov) {
                         st.candleLighting?.let { cl ->
-                            val timeFormat = SimpleDateFormat(
-                                if (prefs.zmanimTimeFormat == com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm",
-                                Locale.getDefault()
-                            )
                             val clStr = timeFormat.format(cl)
                             Text(
                                 "🕯️ " + ShabbatTimes.formatCandleLighting(hebrew, clStr),
@@ -143,10 +146,6 @@ fun DaySheet(
                         }
                     } else if (st.isShabbat || st.isYomTov) {
                         st.havdalah?.let { hav ->
-                            val timeFormat = SimpleDateFormat(
-                                if (prefs.zmanimTimeFormat == com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm",
-                                Locale.getDefault()
-                            )
                             val havStr = timeFormat.format(hav)
                             val rtStr = st.havdalahRt?.let { timeFormat.format(it) }
                             Text(
@@ -171,10 +170,7 @@ fun DaySheet(
                         birkatHaLevana = d.birkatHaLevana,
                         isHebrew = hebrew,
                         southern = d.latitude < 0,
-                        formatTime = { java.text.SimpleDateFormat(
-                            if (prefs.zmanimTimeFormat == com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm",
-                            java.util.Locale.getDefault()
-                        ).format(it) },
+                        formatTime = { timeFormat.format(it) },
                         onOpenCompass = { showCompass = true },
                         onOpenBirkatHaLevana = {
                             onOpen(reader(

@@ -19,7 +19,6 @@ data class CelestialArcData(
     val isDaytime: Boolean,
     val isLive: Boolean,              // the day shown is today, so "now" is on it
     val dayProgress: Float,           // 0.0 at sunrise, 0.5 at chatzot, 1.0 at sunset
-    val arcProgress: Float,           // normalized 0.0 (alos) to 1.0 (tzais) or wrapped for night
     val formattedShaah: String        // e.g. "Hour 5 of 12 · 1 Sha'ah = 54m"
 )
 
@@ -69,17 +68,6 @@ object CelestialCalculator {
             0f
         }
 
-        val totalArcMs = tzais.time - alos.time
-        val arcProgress: Float = if (totalArcMs > 0) {
-            when {
-                nowMs <= alos.time -> 0f
-                nowMs >= tzais.time -> 1f
-                else -> ((nowMs - alos.time).toDouble() / totalArcMs.toDouble()).toFloat()
-            }
-        } else {
-            dayProgress
-        }
-
         val hourNum = currentShaahIndex.toInt() + 1
         val formattedShaah = when {
             isDaytime -> if (isHebrew) "שעה $hourNum מתוך 12 · שעה זמנית = $shaahMinutes דק׳"
@@ -100,7 +88,6 @@ object CelestialCalculator {
             isDaytime = isDaytime,
             isLive = isLive,
             dayProgress = dayProgress,
-            arcProgress = arcProgress,
             formattedShaah = formattedShaah
         )
     }

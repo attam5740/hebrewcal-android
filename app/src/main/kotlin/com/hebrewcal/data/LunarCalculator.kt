@@ -1,33 +1,16 @@
 package com.hebrewcal.data
 
-import com.kosherjava.zmanim.ComplexZmanimCalendar
-import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter
 import com.kosherjava.zmanim.hebrewcalendar.JewishCalendar
-import com.kosherjava.zmanim.hebrewcalendar.JewishDate
-import com.kosherjava.zmanim.util.GeoLocation
-import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
-import java.util.Locale
 import java.util.TimeZone
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.roundToInt
 
-data class MoladInfo(
-    val monthName: String,
-    val dayOfWeekName: String,
-    val hours: Int,
-    val minutes: Int,
-    val chalakim: Int,
-    val formattedString: String
-)
-
 data class BirkatHaLevanaInfo(
     val isOpenNow: Boolean,
     val earliestStart: Date?,
     val latestEnd: Date?,
-    val formattedWindow: String,
     val statusText: String
 )
 
@@ -38,49 +21,6 @@ data class MoonPhaseInfo(
 )
 
 object LunarCalculator {
-
-    /**
-     * Calculates the exact traditional Molad for the given Hebrew month and year.
-     */
-    fun calculateMolad(
-        jewishMonth: Int,
-        jewishYear: Int,
-        isHebrew: Boolean = false
-    ): MoladInfo {
-        val jd = JewishDate(jewishYear, jewishMonth, 1)
-        val molad = jd.molad
-
-        val hours = molad.moladHours
-        val minutes = molad.moladMinutes
-        val chalakim = molad.moladChalakim
-
-        // Calculate civil day of week for the molad
-        // KosherJava chalakimSinceMoladTohu: 1 day = 24 hours = 25920 chalakim
-        val totalChalakim = molad.chalakimSinceMoladTohu
-        val dayOfWeekIndex = ((totalChalakim / 25920L) % 7L).toInt() + 1 // 1 = Sunday, 7 = Shabbat
-
-        val formatter = HebrewDateFormatter().apply { isHebrewFormat = isHebrew }
-        val monthName = formatter.formatMonth(jd)
-
-        val dayNamesEn = arrayOf("", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Shabbat")
-        val dayNamesHe = arrayOf("", "ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת")
-        val dayName = if (isHebrew) dayNamesHe.getOrElse(dayOfWeekIndex) { "" } else dayNamesEn.getOrElse(dayOfWeekIndex) { "" }
-
-        val formattedString = if (isHebrew) {
-            "מולד $monthName: יום $dayName, בשעה $hours:$minutes ו-$chalakim חלקים"
-        } else {
-            "Molad $monthName: $dayName, $hours:${minutes.toString().padStart(2, '0')} and $chalakim chalakim"
-        }
-
-        return MoladInfo(
-            monthName = monthName,
-            dayOfWeekName = dayName,
-            hours = hours,
-            minutes = minutes,
-            chalakim = chalakim,
-            formattedString = formattedString
-        )
-    }
 
     /**
      * Calculates the Birkat HaLevana (Kiddush Levana) window for the given date and location.
@@ -94,7 +34,7 @@ object LunarCalculator {
         isHebrew: Boolean = false
     ): BirkatHaLevanaInfo {
         if (latitude == 0.0 && longitude == 0.0) {
-            return BirkatHaLevanaInfo(false, null, null, "", "")
+            return BirkatHaLevanaInfo(false, null, null, "")
         }
 
         val jcal = JewishCalendar(date)
@@ -104,11 +44,6 @@ object LunarCalculator {
         val isOpen = if (earliest != null && latest != null) {
             !date.before(earliest) && !date.after(latest)
         } else false
-
-        val df = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
-        val formattedWindow = if (earliest != null && latest != null) {
-            "${df.format(earliest)} – ${df.format(latest)}"
-        } else ""
 
         val statusText = when {
             isOpen -> if (isHebrew) "זמן ברכת הלבנה" else "Birkat HaLevana Open"
@@ -123,7 +58,6 @@ object LunarCalculator {
             isOpenNow = isOpen,
             earliestStart = earliest,
             latestEnd = latest,
-            formattedWindow = formattedWindow,
             statusText = statusText
         )
     }

@@ -60,16 +60,19 @@ fun CelestialArcView(
     onOpenBirkatHaLevana: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "sun_pulse")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 0.85f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseAlpha"
-    )
+    // The pulse only feeds the daytime sun glow; no endless animation at night.
+    val pulseAlpha = if (arcData.isDaytime) {
+        val pulse by rememberInfiniteTransition(label = "sun_pulse").animateFloat(
+            initialValue = 0.4f,
+            targetValue = 0.85f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(2000, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulseAlpha"
+        )
+        pulse
+    } else 0f
 
     Column(
         modifier = modifier
