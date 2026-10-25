@@ -46,7 +46,20 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion '1.5.8'
     }
+
+    // The About screen shows this version's release notes: the same text F-Droid shows,
+    // copied from fastlane/.../changelogs/<versionCode>.txt into the app's assets.
+    sourceSets.main.assets.srcDir(layout.buildDirectory.dir("generated/whatsnew"))
 }
+
+def copyWhatsNew = tasks.register('copyWhatsNew', Copy) {
+    from(rootProject.file("fastlane/metadata/android/en-US/changelogs")) {
+        include "${android.defaultConfig.versionCode}.txt"
+        rename { "whats_new.txt" }
+    }
+    into layout.buildDirectory.dir("generated/whatsnew")
+}
+tasks.named('preBuild') { dependsOn copyWhatsNew }
 
 dependencies {
     // Core

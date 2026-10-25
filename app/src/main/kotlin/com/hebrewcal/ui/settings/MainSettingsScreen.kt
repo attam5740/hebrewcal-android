@@ -5,6 +5,7 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -178,18 +179,34 @@ fun MainSettingsScreen(
             )
 
             // Nusach
-            val nusachOptions = listOf(
-                Nusach.ASHKENAZ to "Ashkenaz",
-                Nusach.SEFARD to "Sefard",
-                Nusach.EDOT_HAMIZRACH to "Mizrachi"
-            )
-            SegmentedSettingRow(
-                label    = "Custom (Nusach)",
-                subtitle = "Which siddur prayer texts follow, e.g. Birkat HaLevana and its Aleinu",
-                options  = nusachOptions.map { it.second },
-                selected = nusachOptions.indexOfFirst { it.first == prefs.nusach }.coerceAtLeast(0),
-                onSelect = { idx -> viewModel.setNusach(nusachOptions[idx].first) }
-            )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(Modifier.padding(top = 12.dp, bottom = 4.dp)) {
+                    Text("Custom (Nusach)", style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(horizontal = 16.dp))
+                    Text("Which siddur the prayer texts follow", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
+                    listOf(
+                        Nusach.ASHKENAZ to "Ashkenaz",
+                        Nusach.SEFARD to "Sefard",
+                        Nusach.EDOT_HAMIZRACH to "Edot HaMizrach",
+                        Nusach.CHABAD to "Chabad (Siddur Torah Or)"
+                    ).forEach { (n, label) ->
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .selectable(selected = prefs.nusach == n, role = Role.RadioButton) { viewModel.setNusach(n) }
+                                .padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = prefs.nusach == n, onClick = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
 
             // Show Parsha
             SwitchSettingRow(
@@ -546,6 +563,9 @@ fun MainSettingsScreen(
             }
 
             Spacer(Modifier.height(24.dp))
+            AboutSection()
+
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
@@ -688,5 +708,43 @@ private fun GeoStatusRow(status: SettingsViewModel.GeoCodeStatus, currentCity: S
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall)
             }
+    }
+}
+
+private const val SOURCE_URL = "https://github.com/attam5740/hebrewcal-android"
+
+@Composable
+private fun AboutSection() {
+    val context = LocalContext.current
+    val version = remember {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
+    }
+    // This version's release notes, bundled at build time from the F-Droid changelog.
+    val whatsNew = remember {
+        runCatching { context.assets.open("whats_new.txt").bufferedReader().use { it.readText().trim() } }.getOrNull()
+    }
+    SettingsSectionHeader(icon = Icons.Default.Info, title = "About")
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Hebrew Calendar $version", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            if (whatsNew != null) {
+                Text("What's new", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(whatsNew, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text("Free and open source (MIT). Texts from Sefaria; Chabad's Shabbat-eve prayers from Siddur Torah Or on Hebrew Wikisource (CC BY-SA); zmanim by KosherJava.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(SOURCE_URL)))
+                }) { Text("Source code") }
+                OutlinedButton(onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("$SOURCE_URL/blob/main/CHANGELOG.md")))
+                }) { Text("Full changelog") }
+            }
+        }
     }
 }

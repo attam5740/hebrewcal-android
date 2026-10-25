@@ -136,13 +136,12 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         }.getOrElse { return Result.failure(it) }
         // One chapter per part of the service (consecutive siddur sections merged into its main
         // parts), so the reader can fold and title each one.
-        val parts = com.hebrewcal.data.PrayerSections.group(refs)
-        val chapters = parts.mapIndexed { i, part ->
-            val verses = part.indices.flatMap { k -> texts[k].chapters.flatMap { it.verses } }
-            com.hebrewcal.data.Chapter(i + 1, verses.mapIndexed { k, v -> com.hebrewcal.data.Verse(k + 1, v.he, v.en) })
+        val units = com.hebrewcal.data.PrayerSections.units(refs, texts.map { t -> t.chapters.flatMap { it.verses } })
+        val chapters = units.mapIndexed { i, u ->
+            com.hebrewcal.data.Chapter(i + 1, u.verses.mapIndexed { k, v -> com.hebrewcal.data.Verse(k + 1, v.he, v.en) })
         }
-        val titles = parts.map { part ->
-            part.title ?: com.hebrewcal.data.SefariaRefs.sectionTitle(refs[part.indices.first], texts[part.indices.first].heRef)
+        val titles = units.map { u ->
+            u.title ?: com.hebrewcal.data.SefariaRefs.sectionTitle(refs[u.firstRef], texts[u.firstRef].heRef)
         }
         return Result.success(SefariaText(texts.first().heRef, chapters, titles))
     }

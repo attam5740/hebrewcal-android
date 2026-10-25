@@ -18,6 +18,7 @@ object SefariaRefs {
 
     /** The section name at the end of a ref, minus a paragraph range ("Torah Study 2-3"). */
     fun sectionTitle(ref: String, heRef: String): SectionTitle {
+        if (ref.startsWith(WikisourceText.PREFIX)) WikisourceText.heading(ref).let { return SectionTitle(it, it) }
         val en = ref.substringAfterLast(", ").trim()
         val he = heRef.substringAfterLast(", ").trim()
         return if (RANGE.containsMatchIn(en)) SectionTitle(RANGE.replace(en, ""), he.substringBeforeLast(' ', he))

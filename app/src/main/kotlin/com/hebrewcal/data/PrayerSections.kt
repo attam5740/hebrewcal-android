@@ -6,6 +6,9 @@ package com.hebrewcal.data
  * parts: each entry below starts a part, which runs until the next part starts.
  */
 object PrayerSections {
+    private const val CH = "Weekday Siddur Chabad"
+    private fun torahOr(heading: String) = WikisourceText.ref(WikisourceText.TORAH_OR_SHABBAT_EVE, heading)
+
     private val STARTS: Map<String, SectionTitle> = mapOf(
         "Siddur Ashkenaz, Weekday, Shacharit, Preparatory Prayers, Modeh Ani" to SectionTitle("Upon Arising", "השכמת הבוקר"),
         "Siddur Ashkenaz, Weekday, Shacharit, Preparatory Prayers, Torah Blessings" to SectionTitle("Torah Blessings", "ברכות התורה"),
@@ -50,7 +53,30 @@ object PrayerSections {
         "Siddur Ashkenaz, Shabbat, Minchah, Ashrei" to SectionTitle("Ashrei, Uva Letzion", "אשרי · ובא לציון"),
         "Siddur Ashkenaz, Shabbat, Minchah, Torah Reading, Removing the Torah from Ark, Va'ani Tefillati" to SectionTitle("Torah Reading", "קריאת התורה"),
         "Siddur Ashkenaz, Shabbat, Minchah, Amidah, Patriarchs" to SectionTitle("Amidah", "עמידה"),
-        "Siddur Ashkenaz, Shabbat, Minchah, Tzidkatkhah Tzedek" to SectionTitle("Tzidkatcha, Aleinu", "צדקתך · עלינו")
+        "Siddur Ashkenaz, Shabbat, Minchah, Tzidkatkhah Tzedek" to SectionTitle("Tzidkatcha, Aleinu", "צדקתך · עלינו"),
+        // ── Chabad (Siddur Torah Or) ──
+        "$CH, Shacharit, Upon Arising" to SectionTitle("Upon Arising", "השכמת הבוקר"),
+        "$CH, Shacharit, Morning Blessings 32" to SectionTitle("Preparation for Prayer", "הכנה לתפילה"),
+        "$CH, Shacharit, Hodu" to SectionTitle("Pesukei Dezimra", "פסוקי דזמרה"),
+        "$CH, Shacharit, Blessings of the Shema" to SectionTitle("Shema and Its Blessings", "קריאת שמע וברכותיה"),
+        "$CH, Shacharit, The Amidah" to SectionTitle("Amidah", "עמידה"),
+        "$CH, Shacharit, Tachnun" to SectionTitle("Tachanun", "תחנון"),
+        "$CH, Shacharit, Torah Reading" to SectionTitle("Torah Reading", "קריאת התורה"),
+        "$CH, Shacharit, Ashrei Uva LeZion" to SectionTitle("Ashrei, Uva Letzion", "אשרי · ובא לציון"),
+        "$CH, Shacharit, Song of the Day" to SectionTitle("Song of the Day", "שיר של יום"),
+        "$CH, Shacharit, Kaveh" to SectionTitle("Kaveh, Aleinu", "קוה · עלינו"),
+        "$CH, Shacharit, Rabbenu Tam" to SectionTitle("Rabbeinu Tam Tefillin, Six Remembrances", "תפילין דרבינו תם · שש זכירות"),
+        "$CH, Mincha, Korbanot" to SectionTitle("Korbanot", "קרבנות"),
+        "$CH, Mincha, Ashrei" to SectionTitle("Ashrei", "אשרי"),
+        "$CH, Mincha, Amidah" to SectionTitle("Amidah", "עמידה"),
+        "$CH, Mincha, Tachanun" to SectionTitle("Tachanun", "תחנון"),
+        "$CH, Mincha, Aleinu" to SectionTitle("Aleinu", "עלינו"),
+        "$CH, Maariv" to SectionTitle("Shema and Its Blessings", "קריאת שמע וברכותיה"),
+        "$CH, Bedtime Shema" to SectionTitle("Shema", "קריאת שמע"),
+        "$CH, Kiddush Levanah" to SectionTitle("Halleluyah", "הללויה"),
+        torahOr("מנחה לערב שבת") to SectionTitle("Hodu, Patach Eliyahu", "הודו · פתח אליהו"),
+        torahOr("סדר קבלת שבת") to SectionTitle("Lechu Neranenah", "לכו נרננה"),
+        torahOr("מעריב לשבת ויום טוב") to SectionTitle("Shema and Its Blessings", "קריאת שמע וברכותיה")
     )
 
     /** One merged part: the [refs] indices it covers and its heading (null: keep the section's own). */
@@ -71,5 +97,82 @@ object PrayerSections {
         }
         close(refs.lastIndex)
         return parts
+    }
+
+    /**
+     * A point inside one long section where a new part starts: the paragraph whose text
+     * (vowels and cantillation removed) begins with [marker]. Rules apply in order, and
+     * [occurrence] picks the n-th match after the previous rule (ויכלו appears twice).
+     */
+    data class Split(val marker: String, val title: SectionTitle, val occurrence: Int = 1)
+
+    private val SPLITS: Map<String, List<Split>> = mapOf(
+        "$CH, Shacharit, Morning Blessings 1-31" to listOf(
+            Split("כל הברכות הללו", SectionTitle("Morning Blessings", "ברכות השחר")),
+            Split("ברכת התורה צריך", SectionTitle("Torah Blessings", "ברכות התורה"))
+        ),
+        "$CH, Shacharit, Morning Prayer" to listOf(
+            Split("ביום שאין אומרים תחנון", SectionTitle("Akedah", "עקדה")),
+            Split("נכון מאוד לומר בכל יום", SectionTitle("Korbanot", "קרבנות"))
+        ),
+        "$CH, Maariv" to listOf(
+            Split("אדני, שפתי תפתח", SectionTitle("Amidah", "עמידה")),
+            Split("למוצאי שבת", SectionTitle("Motzaei Shabbat", "מוצאי שבת")),
+            Split("עלינו לשבח", SectionTitle("Aleinu", "עלינו"))
+        ),
+        "$CH, Bedtime Shema" to listOf(
+            Split("יעלזו חסידים", SectionTitle("Yaalzu, Yoshev BeSeter", "יעלזו · יושב בסתר")),
+            Split("אלהינו ואלהי אבותינו, תבוא", SectionTitle("Confession", "וידוי")),
+            Split("אנא, בכח", SectionTitle("Ana Bekoach, HaMapil", "אנא בכח · המפיל"))
+        ),
+        "$CH, Kiddush Levanah" to listOf(
+            Split("יאשר רגליו", SectionTitle("Blessing of the Moon", "ברכת הלבנה")),
+            Split("קול דודי", SectionTitle("Kol Dodi, Psalms", "קול דודי · מזמורים")),
+            Split("עלינו לשבח", SectionTitle("Aleinu", "עלינו"))
+        ),
+        torahOr("סדר קבלת שבת") to listOf(
+            Split("שמור וזכור", SectionTitle("Lecha Dodi", "לכה דודי")),
+            Split("מזמור צ\"ב", SectionTitle("A Psalm for the Sabbath Day", "מזמור שיר ליום השבת")),
+            Split("זהר תרומה", SectionTitle("Kegavna", "כגונא"))
+        ),
+        torahOr("מעריב לשבת ויום טוב") to listOf(
+            Split("תפילת העמידה", SectionTitle("Amidah", "עמידה")),
+            Split("ויכלו השמים", SectionTitle("Vayechulu, Magen Avot", "ויכולו · מגן אבות"), occurrence = 2),
+            Split("מזמור כ\"ג", SectionTitle("Mizmor LeDavid, Aleinu", "מזמור לדוד · עלינו"))
+        )
+    )
+
+    private val MARKS = Regex("[\\u0591-\\u05BD\\u05BF-\\u05C7]")
+    private val TAGS = Regex("<[^>]*>")
+    private val SPACES = Regex("\\s+")
+    fun normalize(he: String): String =
+        SPACES.replace(MARKS.replace(TAGS.replace(he, "").replace('\u05BE', ' '), ""), " ").trim()
+
+    /** A finished part of the reader: its heading (null: the first section's own) and its paragraphs. */
+    data class Unit(val title: SectionTitle?, val firstRef: Int, val verses: List<Verse>)
+
+    /** Merges consecutive sections into parts ([group]) and splits long sections at [SPLITS]. */
+    fun units(refs: List<String>, paragraphs: List<List<Verse>>): List<Unit> {
+        val out = mutableListOf<Unit>()
+        for (part in group(refs)) {
+            var title = part.title
+            var firstRef = part.indices.first
+            var cur = mutableListOf<Verse>()
+            for (k in part.indices) {
+                val rules = SPLITS[refs[k]].orEmpty()
+                var next = 0
+                var seen = 0
+                for (v in paragraphs[k]) {
+                    val rule = rules.getOrNull(next)
+                    if (rule != null && normalize(v.he).startsWith(rule.marker) && ++seen == rule.occurrence) {
+                        if (cur.isNotEmpty()) { out += Unit(title, firstRef, cur); cur = mutableListOf() }
+                        title = rule.title; firstRef = k; next++; seen = 0
+                    }
+                    cur += v
+                }
+            }
+            if (cur.isNotEmpty()) out += Unit(title, firstRef, cur)
+        }
+        return out
     }
 }

@@ -11,7 +11,8 @@ class TefillotTest {
         val siddur = mapOf(
             Nusach.ASHKENAZ to "Siddur Ashkenaz",
             Nusach.SEFARD to "Siddur Sefard",
-            Nusach.EDOT_HAMIZRACH to "Siddur Edot HaMizrach"
+            Nusach.EDOT_HAMIZRACH to "Siddur Edot HaMizrach",
+            Nusach.CHABAD to "Weekday Siddur Chabad"
         )
         for (n in Nusach.values()) {
             val refs = Tefillot.kiddushLevanaRefs(n)

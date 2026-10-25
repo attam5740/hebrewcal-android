@@ -108,7 +108,9 @@ class PrayerWindowsTest {
         for (n in Nusach.values()) {
             val refs = Tefillot.refsFor(PrayerButton.BIRCHOT_HASHACHAR, n, null)
             assertTrue("$n includes the Torah blessings",
-                refs.any { it.contains("Torah") } || refs.last() == SiddurIndex.ALL_UNDER + "Siddur Edot HaMizrach, Preparatory Prayers")
+                refs.any { it.contains("Torah") } || refs.last() == SiddurIndex.ALL_UNDER + "Siddur Edot HaMizrach, Preparatory Prayers" ||
+                    // Chabad's Torah blessings are paragraphs 27-31 of its Morning Blessings section.
+                    refs.last() == "Weekday Siddur Chabad, Shacharit, Morning Blessings 1-31")
         }
     }
 
@@ -156,7 +158,8 @@ class PrayerWindowsTest {
             for (d in ServiceDay.values()) {
                 val refs = Tefillot.refsFor(b, n, null, d)
                 // Each part is a whole-service spec or a plain (possibly partial) section ref.
-                assertTrue("$n $b $d", refs.isNotEmpty() && refs.all { it.startsWith(SiddurIndex.ALL_UNDER) || it.startsWith("Siddur ") })
+                assertTrue("$n $b $d", refs.isNotEmpty() && refs.all { it.startsWith(SiddurIndex.ALL_UNDER) || it.startsWith("Siddur ") ||
+                    it.startsWith("Weekday Siddur Chabad") || it.startsWith(WikisourceText.PREFIX) })
             }
         assertTrue(Tefillot.refsFor(PrayerButton.ARVIT, Nusach.ASHKENAZ, null, ServiceDay.SHABBAT).any { it.contains("Kabbalat Shabbat") })
         assertTrue(Tefillot.refsFor(PrayerButton.MINCHA, Nusach.SEFARD, null, ServiceDay.EREV_SHABBAT).single().contains("Shabbat Eve Mincha"))
@@ -240,5 +243,74 @@ class PrayerWindowsTest {
         assertEquals(SiddurIndex.Spec("S, M", null, "S, M, B"), s)
         assertEquals(listOf("S, M, A"), SiddurIndex.leaves(json, s.path, s.after, s.before))
         assertTrue(Tefillot.refsFor(PrayerButton.ARVIT, Nusach.ASHKENAZ, null, ServiceDay.WEEKDAY).single().endsWith("Birkat HaLevana"))
+    }
+
+    @Test
+    fun chabadFollowsTorahOrWithSefardForShabbatDay() {
+        val bh = Tefillot.refsFor(PrayerButton.BIRCHOT_HASHACHAR, Nusach.CHABAD, null)
+        assertEquals("Weekday Siddur Chabad, Shacharit, Morning Blessings 1-31", bh.last())
+        assertEquals("Weekday Siddur Chabad, Shacharit, Morning Blessings 32",
+            Tefillot.refsFor(PrayerButton.SHACHARIT, Nusach.CHABAD, null, ServiceDay.WEEKDAY).first())
+        // Friday night comes from Torah Or on Wikisource; Friday Mincha adds Hodu, then weekday Mincha minus Tachanun.
+        val fridayNight = Tefillot.refsFor(PrayerButton.ARVIT, Nusach.CHABAD, null, ServiceDay.SHABBAT)
+        assertTrue(fridayNight.all { it.startsWith(WikisourceText.PREFIX) })
+        val fridayMincha = Tefillot.refsFor(PrayerButton.MINCHA, Nusach.CHABAD, null, ServiceDay.EREV_SHABBAT)
+        assertTrue(fridayMincha.first().startsWith(WikisourceText.PREFIX))
+        assertTrue(fridayMincha[1].endsWith(SiddurIndex.BEFORE + "Weekday Siddur Chabad, Mincha, Tachanun"))
+        // Shabbat day and Havdalah fall back to Nusach Sefard.
+        assertEquals(Tefillot.refsFor(PrayerButton.SHACHARIT, Nusach.SEFARD, null, ServiceDay.SHABBAT),
+            Tefillot.refsFor(PrayerButton.SHACHARIT, Nusach.CHABAD, null, ServiceDay.SHABBAT))
+        assertEquals(Tefillot.refsFor(PrayerButton.HAVDALAH, Nusach.SEFARD, null),
+            Tefillot.refsFor(PrayerButton.HAVDALAH, Nusach.CHABAD, null))
+    }
+
+    @Test
+    fun wikisourceSectionsStopAtTheNextPeerHeading() {
+        val extract = """
+            intro credit line
+            == מנחה לערב שבת ==
+            מזמור ק"ז
+            הוֹדוּ לַײָ כִּי טוֹב
+            == מעריב לשבת ויום טוב ==
+            שִׁיר הַמַּעֲלוֹת
+            === קריאת שמע עם ברכותיה ===
+            בָּרְכוּ אֶת יְיָ
+            ==== קדיש שלם ====
+            מַגִּיד מֵרֵאשִׁית אַחֲרִית2 וְ
+            == אחר ==
+            other
+        """.trimIndent()
+        assertEquals(listOf("מזמור ק\"ז", "הוֹדוּ לַײָ כִּי טוֹב"), WikisourceText.section(extract, "מנחה לערב שבת"))
+        val maariv = WikisourceText.section(extract, "מעריב לשבת ויום טוב")
+        assertEquals(listOf("שִׁיר הַמַּעֲלוֹת", "קריאת שמע עם ברכותיה", "בָּרְכוּ אֶת יְיָ", "קדיש שלם", "מַגִּיד מֵרֵאשִׁית אַחֲרִית וְ"), maariv)
+        val ref = WikisourceText.ref("סידור תורה אור/קבלת שבת", "מנחה לערב שבת")
+        assertEquals("סידור תורה אור/קבלת שבת", WikisourceText.page(ref))
+        assertEquals(SectionTitle("מנחה לערב שבת", "מנחה לערב שבת"), SefariaRefs.sectionTitle(ref, ""))
+        assertEquals("abc", WikisourceText.extract("""{"query":{"pages":[{"title":"x","extract":"abc"}]}}"""))
+    }
+
+    @Test
+    fun longChabadSectionsSplitIntoParts() {
+        fun v(he: String) = Verse(0, he, "")
+        val maariv = "Weekday Siddur Chabad, Maariv"
+        val units = PrayerSections.units(listOf(maariv), listOf(listOf(
+            v("וְהוּא רַחוּם"), v("בָּרְכוּ"), v("אֲדֹנָי, שְׂפָתַי תִּפְתָּח"), v("בָּרוּךְ"),
+            v("לְמוֹצָאֵי שַׁבָּת"), v("וִיהִי נֹעַם"), v("עָלֵינוּ לְשַׁבֵּחַ"), v("וְעַל כֵּן")
+        )))
+        assertEquals(listOf("קריאת שמע וברכותיה", "עמידה", "מוצאי שבת", "עלינו"), units.map { it.title?.he })
+        assertEquals(listOf(2, 2, 2, 2), units.map { it.verses.size })
+
+        // The second ויכלו (after the Amidah) starts a part; the first, inside it, does not.
+        val shabbat = WikisourceText.ref(WikisourceText.TORAH_OR_SHABBAT_EVE, "מעריב לשבת ויום טוב")
+        val fri = PrayerSections.units(listOf(shabbat), listOf(listOf(
+            v("ברכו"), v("תפילת העמידה"), v("אבות"), v("וַיְכֻלּוּ הַשָּׁמַיִם"), v("שלום"),
+            v("וַיְכֻלּוּ הַשָּׁמַיִם"), v("מגן אבות"), v("מזמור כ\"ג"), v("עלינו")
+        )))
+        assertEquals(listOf("קריאת שמע וברכותיה", "עמידה", "ויכולו · מגן אבות", "מזמור לדוד · עלינו"), fri.map { it.title?.he })
+        assertEquals(listOf(1, 4, 2, 2), fri.map { it.verses.size })
+
+        // A section without rules is one part with its own heading.
+        val plain = PrayerSections.units(listOf("Other, Thing"), listOf(listOf(v("a"), v("b"))))
+        assertEquals(1, plain.size); assertEquals(null, plain[0].title)
     }
 }

@@ -24,6 +24,7 @@ class SefariaRepository(context: Context) {
     private val enVersion: String? = null
 
     suspend fun fetchText(ref: String): Result<SefariaText> = withContext(Dispatchers.IO) {
+        if (ref.startsWith(WikisourceText.PREFIX)) return@withContext fetchWikisource(ref, cacheFirst = false)
         val cacheFile = textCacheFile(ref)
         // Try network; on failure fall back to cache.
         val url = "https://www.sefaria.org/api/texts/" +
@@ -44,13 +45,35 @@ class SefariaRepository(context: Context) {
     }
 
     private fun textCacheFile(ref: String) =
-        File(cacheDir, ref.replace(Regex("[^A-Za-z0-9._-]"), "_") + "_v3.json")
+        if (ref.startsWith(WikisourceText.PREFIX)) wikisourceCacheFile(WikisourceText.page(ref))
+        else File(cacheDir, ref.replace(Regex("[^A-Za-z0-9._-]"), "_") + "_v3.json")
+
+    // Hebrew page titles would all sanitize to underscores, so the file name is a hash.
+    private fun wikisourceCacheFile(page: String) = File(cacheDir, "ws_" + java.security.MessageDigest
+        .getInstance("SHA-1").digest(page.toByteArray()).joinToString("") { "%02x".format(it) } + ".json")
+
+    /** One Wikisource page is fetched (and cached) once; each section ref slices it. */
+    private fun fetchWikisource(ref: String, cacheFirst: Boolean): Result<SefariaText> {
+        val file = wikisourceCacheFile(WikisourceText.page(ref))
+        val heading = WikisourceText.heading(ref)
+        if (cacheFirst && file.exists()) runCatching { WikisourceText.toSefariaText(WikisourceText.extract(file.readText()), heading) }
+            .takeIf { it.isSuccess }?.let { return it }
+        return runCatching {
+            val body = httpGet(WikisourceText.apiUrl(WikisourceText.page(ref)))
+            val text = WikisourceText.toSefariaText(WikisourceText.extract(body), heading)
+            file.writeText(body)
+            text
+        }.recoverCatching {
+            if (file.exists()) WikisourceText.toSefariaText(WikisourceText.extract(file.readText()), heading) else throw it
+        }
+    }
 
     /**
      * Cache first: for siddur sections, which do not change, so a long service opens offline
      * and without re-downloading dozens of sections every time.
      */
     suspend fun fetchTextCacheFirst(ref: String): Result<SefariaText> = withContext(Dispatchers.IO) {
+        if (ref.startsWith(WikisourceText.PREFIX)) return@withContext fetchWikisource(ref, cacheFirst = true)
         val cacheFile = textCacheFile(ref)
         if (cacheFile.exists()) runCatching { SefariaTextParser.parse(cacheFile.readText()) }
             .takeIf { it.isSuccess }?.let { return@withContext it }
@@ -142,6 +165,8 @@ class SefariaRepository(context: Context) {
             connectTimeout = 10_000
             readTimeout = 15_000
             setRequestProperty("Accept", "application/json")
+            // Wikimedia asks API clients to identify themselves.
+            setRequestProperty("User-Agent", "HebrewCalendar (https://github.com/attam5740/hebrewcal-android)")
         }
         try {
             if (conn.responseCode !in 200..299) error("HTTP ${conn.responseCode}")

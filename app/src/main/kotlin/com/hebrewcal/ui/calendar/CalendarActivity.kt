@@ -241,6 +241,8 @@ class CalendarActivity : ComponentActivity() {
                         hebrew = hebrew,
                         notifications = notif,
                         location = location,
+                        dnd = if (getSystemService(android.app.NotificationManager::class.java).isNotificationPolicyAccessGranted)
+                            SetupItem.DONE else SetupItem.NEEDED,
                         city = if (hasCity) prefs.zmanimManualCity else "",
                         cityDetect = cityDetect,
                         onNotifications = {
@@ -250,6 +252,7 @@ class CalendarActivity : ComponentActivity() {
                             if (location == SetupItem.DENIED) openAppSettings()
                             else locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
                         },
+                        onDnd = { startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)) },
                         onDone = { vm.finishSetup() }
                     )
                 }

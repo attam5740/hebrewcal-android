@@ -35,10 +35,12 @@ fun SetupChecklist(
     hebrew: Boolean,
     notifications: SetupItem,
     location: SetupItem,
+    dnd: SetupItem,
     city: String,
     cityDetect: CalendarViewModel.CityDetect,
     onNotifications: () -> Unit,
     onLocation: () -> Unit,
+    onDnd: () -> Unit,
     onDone: () -> Unit
 ) {
     Box(
@@ -52,8 +54,8 @@ fun SetupChecklist(
             Text(if (hebrew) "הגדרה מהירה" else "Quick setup", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(4.dp))
             Text(
-                if (hebrew) "שני אישורים כדי שהלוח יעבוד במלואו. אפשר לשנות בכל עת בהגדרות."
-                else "Two permissions so everything works. You can change these any time in Settings.",
+                if (hebrew) "כמה אישורים כדי שהלוח יעבוד במלואו. אפשר לשנות בכל עת בהגדרות."
+                else "A few permissions so everything works. You can change these any time in Settings.",
                 color = INACTIVE, fontSize = 13.sp
             )
             Spacer(Modifier.height(16.dp))
@@ -78,6 +80,15 @@ fun SetupChecklist(
                 title = if (hebrew) "מיקום" else "Location",
                 detail = locationDetail,
                 state = location, hebrew = hebrew, onAllow = onLocation
+            )
+            Spacer(Modifier.height(12.dp))
+            ChecklistRow(
+                icon = "🌙",
+                title = if (hebrew) "עקיפת נא לא להפריע" else "Override Do Not Disturb",
+                detail = if (hebrew) "התאריך וזמני היום נשארים גלויים גם במצב נא לא להפריע ומצב שינה. אופציונלי."
+                    else "Keeps the date and zmanim visible during Do Not Disturb and Bedtime mode. Optional.",
+                // Android has no prompt for this access; Allow opens its settings page.
+                state = dnd, hebrew = hebrew, onAllow = onDnd
             )
             Spacer(Modifier.height(20.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {

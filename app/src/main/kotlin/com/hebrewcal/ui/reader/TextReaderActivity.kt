@@ -866,7 +866,8 @@ private fun ReaderBody(
                                 append(" ")
                             }
                             append(body)
-                            append("  ")
+                            // A prayer reads paragraph by paragraph; verses of Tanakh flow on.
+                            append(if (mode == "tefillah") "\n" else "  ")
                             pop()
                         }
                     }

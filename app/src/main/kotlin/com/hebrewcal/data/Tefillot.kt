@@ -21,13 +21,23 @@ object Tefillot {
             "Siddur Edot HaMizrach, Blessing of the Moon",
             "Siddur Edot HaMizrach, Weekday Arvit, Alenu"
         )
+        Nusach.CHABAD -> listOf("$CHABAD, Kiddush Levanah")   // ends with Aleinu
     }
+
+    /**
+     * Chabad follows Siddur Torah Or. Sefaria's "Weekday Siddur Chabad" is that text (taken
+     * from Wikisource); Torah Or's Shabbat-eve page comes from Wikisource directly. Neither has
+     * the Shabbat-day services, Havdalah or candle lighting: those use Nusach Sefard, from which
+     * Chabad's Nusach Ari derives.
+     */
+    private const val CHABAD = "Weekday Siddur Chabad"
+    private fun torahOr(heading: String) = WikisourceText.ref(WikisourceText.TORAH_OR_SHABBAT_EVE, heading)
 
     /** The Motzei Shabbat Havdalah service. Verified against Sefaria 2026-10 (the Sefard
      *  title really has a space before its comma; Sefard's text is Hebrew-only). */
     fun havdalahRefs(nusach: Nusach): List<String> = when (nusach) {
         Nusach.ASHKENAZ -> listOf("Siddur Ashkenaz, Shabbat, Havdalah")
-        Nusach.SEFARD -> listOf("Siddur Sefard, Motzaei Shabbat , Havdala")
+        Nusach.SEFARD, Nusach.CHABAD -> listOf("Siddur Sefard, Motzaei Shabbat , Havdala")
         Nusach.EDOT_HAMIZRACH -> listOf("Siddur Edot HaMizrach, Havdalah, Havdala")
     }
 
@@ -52,6 +62,7 @@ object Tefillot {
             "Siddur Sefard, Weekday Shacharit, Blessings on Torah 1-6"         // through Birkat Kohanim
         )
         Nusach.EDOT_HAMIZRACH -> listOf(all("Siddur Edot HaMizrach, Preparatory Prayers"))  // Modeh Ani .. Torah Blessings
+        Nusach.CHABAD -> listOf("$CHABAD, Shacharit, Upon Arising", "$CHABAD, Shacharit, Morning Blessings 1-31")
     }
 
     private fun all(path: String) = SiddurIndex.ALL_UNDER + path
@@ -61,6 +72,7 @@ object Tefillot {
         Nusach.ASHKENAZ -> listOf("Siddur Ashkenaz, Weekday, Maariv, Keri'at Shema al Hamita")
         Nusach.SEFARD -> listOf("Siddur Sefard, Bedtime Shema")
         Nusach.EDOT_HAMIZRACH -> listOf("Siddur Edot HaMizrach, Bedtime Shema")
+        Nusach.CHABAD -> listOf("$CHABAD, Bedtime Shema")
     }
 
     /**
@@ -113,6 +125,24 @@ object Tefillot {
                 }))
                 else -> if (shabbat) listOf(all("Siddur Sefard, Kabbalat Shabbat"), all("Siddur Sefard, Shabbat Eve Maariv"))
                     else listOf(all("Siddur Sefard, Weekday Maariv"))
+            }
+            Nusach.CHABAD -> when (button) {
+                PrayerButton.SHACHARIT -> if (shabbat) listOf(all("Siddur Sefard, Shabbat Morning Services")) else listOf(
+                    "$CHABAD, Shacharit, Morning Blessings 32",                  // Eilu Devarim
+                    after("$CHABAD, Shacharit", "$CHABAD, Shacharit, Morning Blessings")
+                )
+                PrayerButton.MINCHA -> when (day) {
+                    ServiceDay.SHABBAT -> listOf(all("Siddur Sefard, Shabbat Mincha"))
+                    // Torah Or: Hodu and Patach Eliyahu, then weekday Mincha without Tachanun.
+                    ServiceDay.EREV_SHABBAT -> listOf(
+                        torahOr("מנחה לערב שבת"),
+                        all("$CHABAD, Mincha") + SiddurIndex.BEFORE + "$CHABAD, Mincha, Tachanun",
+                        "$CHABAD, Mincha, Aleinu"
+                    )
+                    ServiceDay.WEEKDAY -> listOf(all("$CHABAD, Mincha"))
+                }
+                else -> if (shabbat) listOf(torahOr("סדר קבלת שבת"), torahOr("מעריב לשבת ויום טוב"))
+                    else listOf(all("$CHABAD, Maariv"))
             }
             Nusach.EDOT_HAMIZRACH -> when (button) {
                 PrayerButton.SHACHARIT -> if (shabbat) listOf(all("Siddur Edot HaMizrach, Shabbat Shacharit"), all("Siddur Edot HaMizrach, Shabbat Mussaf"))

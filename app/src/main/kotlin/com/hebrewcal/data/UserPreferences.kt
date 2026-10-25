@@ -52,7 +52,7 @@ enum class ZmanimTimeFormat { TWELVE_HOUR, TWENTY_FOUR_HOUR }
 enum class ZmanimLocationSource { GPS, MANUAL }
 
 /** Which siddur the app's prayer texts follow (e.g. Birkat HaLevana and its Aleinu). */
-enum class Nusach { ASHKENAZ, SEFARD, EDOT_HAMIZRACH }
+enum class Nusach { ASHKENAZ, SEFARD, EDOT_HAMIZRACH, CHABAD }
 
 /** Background download policy for upcoming reader texts. */
 enum class PrefetchNetwork { OFF, WIFI, ANY }
