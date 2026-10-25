@@ -4,6 +4,21 @@ All notable changes to Hebrew Calendar are listed here, newest first.
 Version codes match `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`,
 which is what F-Droid shows.
 
+## 1.20 (version code 27)
+
+### Changed
+- **Prayers fold by section.** A prayer opens with each part of the service folded to a
+  heading; tap a heading to open or close it. Siddur Ashkenaz's many small sections are merged
+  into the service's main parts (for example Pesukei Dezimra, Shema and its blessings, Amidah).
+- **Birchot HaShachar** runs from Modeh Ani through Birkat Kohanim in every custom, and
+  Shacharit begins right after it (with Eilu Devarim for Ashkenaz and Sefard).
+- Weekday Arvit no longer repeats Birkat HaLevana and Kriat Shema al HaMita, which have their
+  own buttons.
+
+### Added
+- **Prayers work offline.** Each prayer is kept on the phone after its first download, and the
+  background download also fetches the prayers for your custom.
+
 ## 1.19 (version code 26)
 
 ### Added
