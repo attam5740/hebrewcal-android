@@ -25,7 +25,11 @@ object LockscreenNotificationBuilder {
     const val NOTIFICATION_ID = 1001
     const val TEHILLIM_ACTION_REQUEST_CODE = 3001
     const val PARSHA_ACTION_REQUEST_CODE = 3002
-    const val HAVDALAH_ACTION_REQUEST_CODE = 3003
+    /** First of the request codes for prayer actions; one per [PrayerButton] ordinal. */
+    const val PRAYER_ACTION_REQUEST_CODE_BASE = 3010
+
+    /** A time-limited prayer shortcut shown as a standard notification action. */
+    data class PrayerAction(val key: String, val label: String, val title: String, val ref: String, val requestCode: Int)
 
     fun createNotificationChannel(context: Context) {
         val channel = NotificationChannel(
@@ -61,8 +65,8 @@ object LockscreenNotificationBuilder {
         shabbatTimes: com.hebrewcal.data.ShabbatTimesResult? = null,
         showShabbatBanner: Boolean = true,
         timeFormat: com.hebrewcal.data.ZmanimTimeFormat = com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR,
-        /** Set only on Motzei Shabbat, for 3 hours from Havdalah time (see HavdalahWindow). */
-        havdalahRef: String? = null
+        /** Prayers whose time window is open now (see PrayerWindows). */
+        prayerActions: List<PrayerAction> = emptyList()
     ): Notification {
         val contentIntent = Intent(context, CalendarActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -213,24 +217,23 @@ object LockscreenNotificationBuilder {
             expandedViews.setViewVisibility(R.id.tv_btn_tehillim, android.view.View.GONE)
             remoteViews.setViewVisibility(R.id.tv_btn_tehillim_c, android.view.View.GONE)
         }
-        // Motzei Shabbat: Havdalah is a standard notification action (below the content),
-        // built here and attached at the end, so the reader pills stay as they are.
-        val havdalahAction: NotificationCompat.Action? = havdalahRef?.let { ref ->
-            val hebrewUi = languageName == "HEBREW"
+        // Time-limited prayers (Havdalah, candle lighting, ...) are standard notification
+        // actions below the content, so the reader pills stay as they are.
+        val prayerNotificationActions = prayerActions.map { p ->
             val intent = Intent(context, TextReaderActivity::class.java).apply {
                 putExtra(TextReaderActivity.EXTRA_MODE, "tefillah")
-                putExtra(TextReaderActivity.EXTRA_REF, ref)
-                putExtra(TextReaderActivity.EXTRA_TITLE, if (hebrewUi) "הבדלה" else "Havdalah")
+                putExtra(TextReaderActivity.EXTRA_REF, p.ref)
+                putExtra(TextReaderActivity.EXTRA_TITLE, p.title)
                 putExtra(TextReaderActivity.EXTRA_LANG, languageName)
                 putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
                 putExtra(TextReaderActivity.EXTRA_TEAMIM, false)
-                data = android.net.Uri.parse("hebrewcal://reader/havdalah")
+                data = android.net.Uri.parse("hebrewcal://reader/prayer/${p.key}")
             }
             val pi = PendingIntent.getActivity(
-                context, HAVDALAH_ACTION_REQUEST_CODE, intent,
+                context, p.requestCode, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            NotificationCompat.Action.Builder(0, if (hebrewUi) "🍷 הבדלה" else "🍷 Havdalah", pi).build()
+            NotificationCompat.Action.Builder(0, p.label, pi).build()
         }
         if (parshaActionLabel != null) {
             val intent = Intent(context, TextReaderActivity::class.java).apply {
@@ -295,7 +298,7 @@ object LockscreenNotificationBuilder {
             // Gold accent: OEM skins (incl. OxygenOS) tint action pills / small icon with
             // this color, giving the reader buttons real contrast against the shade.
             .setColor(0xFFD4AF37.toInt())
-            .apply { havdalahAction?.let { addAction(it) } }
+            .apply { prayerNotificationActions.forEach { addAction(it) } }
             .build()
     }
 }

@@ -31,6 +31,44 @@ object Tefillot {
         Nusach.EDOT_HAMIZRACH -> listOf("Siddur Edot HaMizrach, Havdalah, Havdala")
     }
 
+    /** Birchot HaShachar. Sefard's 15 morning blessings sit in its "Blessings on Torah" node. */
+    fun birchotHashacharRefs(nusach: Nusach): List<String> = when (nusach) {
+        Nusach.ASHKENAZ -> listOf("Siddur Ashkenaz, Weekday, Shacharit, Preparatory Prayers, Morning Blessings")
+        Nusach.SEFARD -> listOf(
+            "Siddur Sefard, Weekday Shacharit, Morning Blessings",
+            "Siddur Sefard, Weekday Shacharit, Blessings on Torah"
+        )
+        Nusach.EDOT_HAMIZRACH -> listOf("Siddur Edot HaMizrach, Preparatory Prayers, Morning Blessings")
+    }
+
+    fun shemaAlHamitaRefs(nusach: Nusach): List<String> = when (nusach) {
+        Nusach.ASHKENAZ -> listOf("Siddur Ashkenaz, Weekday, Maariv, Keri'at Shema al Hamita")
+        Nusach.SEFARD -> listOf("Siddur Sefard, Bedtime Shema")
+        Nusach.EDOT_HAMIZRACH -> listOf("Siddur Edot HaMizrach, Bedtime Shema")
+    }
+
+    /**
+     * Candle lighting. Siddur Ashkenaz on Sefaria has no candle-lighting section, so Ashkenaz
+     * uses the Sefard linear siddur, whose blessings are worded the same.
+     */
+    fun candleLightingRefs(nusach: Nusach, kind: CandleKind): List<String> = when (nusach) {
+        Nusach.EDOT_HAMIZRACH -> listOf("Siddur Edot HaMizrach, Shabbat Candle Lighting")
+        else -> listOf(
+            "Shabbat Siddur Sefard Linear, Candle Lighting, " + when (kind) {
+                CandleKind.SHABBAT -> "Candle Lighting for Shabbos"
+                CandleKind.YOM_TOV -> "Candle Lighting for Yom Tov"
+                CandleKind.SHABBAT_YOM_TOV -> "Candle Lighting when Shabbos occurs on Yom Tov"
+            }
+        )
+    }
+
+    fun refsFor(button: PrayerButton, nusach: Nusach, candleKind: CandleKind?): List<String> = when (button) {
+        PrayerButton.BIRCHOT_HASHACHAR -> birchotHashacharRefs(nusach)
+        PrayerButton.CANDLE_LIGHTING -> candleLightingRefs(nusach, candleKind ?: CandleKind.SHABBAT)
+        PrayerButton.HAVDALAH -> havdalahRefs(nusach)
+        PrayerButton.SHEMA_AL_HAMITA -> shemaAlHamitaRefs(nusach)
+    }
+
     /** Several refs joined for one reader screen; [ReaderViewModel] splits on this. */
     const val REF_SEPARATOR = "||"
 }

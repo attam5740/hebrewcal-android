@@ -31,7 +31,7 @@ class SefariaRepository(context: Context) {
             "?context=0&commentary=0" +
             // The Masorah edition exists only for Tanakh; asking for it on a siddur
             // ref returns the prayer with no Hebrew at all.
-            (if (ref.startsWith("Siddur")) "" else "&vhe=" + URLEncoder.encode(heVersion, "UTF-8")) +
+            (if (ref.contains("Siddur")) "" else "&vhe=" + URLEncoder.encode(heVersion, "UTF-8")) +
             (enVersion?.let { "&ven=" + URLEncoder.encode(it, "UTF-8") } ?: "")
         runCatching {
             val body = httpGet(url)

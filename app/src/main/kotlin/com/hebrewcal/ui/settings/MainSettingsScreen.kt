@@ -475,6 +475,27 @@ fun MainSettingsScreen(
             )
 
             Spacer(Modifier.height(24.dp))
+            SettingsSectionHeader(icon = Icons.Default.Notifications, title = "Prayer Buttons")
+            Text(
+                "Shown in the notification only during each prayer's time, from your custom's siddur",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            listOf(
+                Triple(PrayerButton.BIRCHOT_HASHACHAR, "ברכות השחר · Morning Blessings", "Dawn until the latest time for Shema"),
+                Triple(PrayerButton.CANDLE_LIGHTING, "הדלקת נרות · Candle Lighting", "One hour before to one hour after candle lighting"),
+                Triple(PrayerButton.HAVDALAH, "הבדלה · Havdalah", "Motzei Shabbat, for three hours from Havdalah time"),
+                Triple(PrayerButton.SHEMA_AL_HAMITA, "קריאת שמע על המיטה · Bedtime Shema", "Nightfall until dawn")
+            ).forEach { (button, label, window) ->
+                SwitchSettingRow(
+                    label    = label,
+                    subtitle = window,
+                    checked  = button.key in prefs.prayerButtons,
+                    onCheck  = { on -> viewModel.setPrayerButton(button.key, on) }
+                )
+            }
+
+            Spacer(Modifier.height(24.dp))
             SettingsSectionHeader(icon = Icons.Default.SettingsBackupRestore, title = "Backup")
 
             val backupStatus by viewModel.backupStatus.collectAsState()

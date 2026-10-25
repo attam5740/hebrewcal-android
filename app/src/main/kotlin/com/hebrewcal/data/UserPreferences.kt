@@ -39,7 +39,9 @@ data class UserPreferences(
     val showCelestialArc: Boolean = true,
     /** The first-run permissions checklist has been seen and closed. */
     val setupDone: Boolean = false,
-    val nusach: Nusach = Nusach.ASHKENAZ
+    val nusach: Nusach = Nusach.ASHKENAZ,
+    /** Keys of the [PrayerButton]s to offer in the notification (all by default). */
+    val prayerButtons: Set<String> = PrayerButton.ALL_KEYS
 )
 
 enum class CalendarLanguage { HEBREW, ENGLISH }
@@ -143,6 +145,7 @@ object PreferenceKeys {
     val SHOW_CELESTIAL_ARC = booleanPreferencesKey("show_celestial_arc")
     val SETUP_DONE = booleanPreferencesKey("setup_done")
     val NUSACH = stringPreferencesKey("nusach")
+    val PRAYER_BUTTONS = stringSetPreferencesKey("prayer_buttons")
 }
 
 class UserPreferencesRepository(private val context: Context) {
@@ -187,7 +190,8 @@ class UserPreferencesRepository(private val context: Context) {
             showShabbatBanner = prefs[PreferenceKeys.SHOW_SHABBAT_BANNER] ?: true,
             showCelestialArc = prefs[PreferenceKeys.SHOW_CELESTIAL_ARC] ?: true,
             setupDone = prefs[PreferenceKeys.SETUP_DONE] ?: false,
-            nusach = Nusach.valueOf(prefs[PreferenceKeys.NUSACH] ?: Nusach.ASHKENAZ.name)
+            nusach = Nusach.valueOf(prefs[PreferenceKeys.NUSACH] ?: Nusach.ASHKENAZ.name),
+            prayerButtons = prefs[PreferenceKeys.PRAYER_BUTTONS] ?: PrayerButton.ALL_KEYS
         )
     }
 
@@ -289,6 +293,13 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateSetupDone(done: Boolean) {
         context.dataStore.edit { it[PreferenceKeys.SETUP_DONE] = done }
+    }
+
+    suspend fun updatePrayerButton(key: String, on: Boolean) {
+        context.dataStore.edit {
+            val current = it[PreferenceKeys.PRAYER_BUTTONS] ?: PrayerButton.ALL_KEYS
+            it[PreferenceKeys.PRAYER_BUTTONS] = if (on) current + key else current - key
+        }
     }
 
     suspend fun updateNusach(nusach: Nusach) {

@@ -42,6 +42,12 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setNusach(nusach: Nusach) = viewModelScope.launch {
         prefsRepo.updateNusach(nusach)
+        notifyServiceRefresh()
+    }
+
+    fun setPrayerButton(key: String, on: Boolean) = viewModelScope.launch {
+        prefsRepo.updatePrayerButton(key, on)
+        notifyServiceRefresh()
     }
 
     fun setShowParsha(show: Boolean) = viewModelScope.launch {

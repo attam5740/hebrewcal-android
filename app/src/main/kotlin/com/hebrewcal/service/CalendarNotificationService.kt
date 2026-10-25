@@ -178,9 +178,28 @@ class CalendarNotificationService : Service() {
                     } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
                 } else null
 
-                val havdalah = try {
-                    HavdalahWindow.status(now, lat, lng, timeZone, isIsrael, prefs.havdalahOpinion)
+                val prayers = try {
+                    PrayerWindows.status(
+                        now, lat, lng, timeZone, isIsrael,
+                        prefs.candleLightingOffsetMinutes, prefs.havdalahOpinion,
+                        PrayerButton.values().filter { it.key in prefs.prayerButtons }.toSet()
+                    )
                 } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
+                val hebrewUi = prefs.language == CalendarLanguage.HEBREW
+                val prayerActions = prayers?.active.orEmpty().map { w ->
+                    val (he, en, icon) = when (w.button) {
+                        PrayerButton.BIRCHOT_HASHACHAR -> Triple("ברכות השחר", "Morning Blessings", "🌅")
+                        PrayerButton.CANDLE_LIGHTING -> Triple("הדלקת נרות", "Candle Lighting", "🕯️")
+                        PrayerButton.HAVDALAH -> Triple("הבדלה", "Havdalah", "🍷")
+                        PrayerButton.SHEMA_AL_HAMITA -> Triple("קריאת שמע על המיטה", "Bedtime Shema", "🌙")
+                    }
+                    val title = if (hebrewUi) he else en
+                    LockscreenNotificationBuilder.PrayerAction(
+                        key = w.button.key, label = "$icon $title", title = title,
+                        ref = Tefillot.refsFor(w.button, prefs.nusach, w.candleKind).joinToString(Tefillot.REF_SEPARATOR),
+                        requestCode = LockscreenNotificationBuilder.PRAYER_ACTION_REQUEST_CODE_BASE + w.button.ordinal
+                    )
+                }
 
                 val notification = LockscreenNotificationBuilder.build(
                     context             = applicationContext,
@@ -199,8 +218,7 @@ class CalendarNotificationService : Service() {
                     shabbatTimes        = shabbatTimes,
                     showShabbatBanner   = prefs.showShabbatBanner,
                     timeFormat          = prefs.zmanimTimeFormat,
-                    havdalahRef         = if (havdalah?.active == true)
-                        Tefillot.havdalahRefs(prefs.nusach).joinToString(Tefillot.REF_SEPARATOR) else null
+                    prayerActions       = prayerActions
                 )
                 NotificationManagerCompat.from(applicationContext)
                     .notify(LockscreenNotificationBuilder.NOTIFICATION_ID, notification)
@@ -217,9 +235,9 @@ class CalendarNotificationService : Service() {
                 }
                 try { scheduleMidnightAlarm() } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
                 try { scheduleWidgetTzetAlarm(lat, lng, timeZone, now, tzetToday) } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
-                // Show or hide the Havdalah button exactly when its window opens or closes.
-                havdalah?.nextChange?.let { at ->
-                    try { scheduleRefreshAt(at, HAVDALAH_ALARM_REQUEST_CODE) } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
+                // Show or hide prayer buttons exactly when a window opens or closes.
+                prayers?.nextChange?.let { at ->
+                    try { scheduleRefreshAt(at, PRAYER_ALARM_REQUEST_CODE) } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
                 }
             } catch (e: Exception) {
                 // Outer guard — service stays alive even if everything above fails
@@ -380,7 +398,7 @@ class CalendarNotificationService : Service() {
         const val MIDNIGHT_ALARM_REQUEST_CODE = 2100
         const val RESTART_REQUEST_CODE = 2200
         const val WIDGET_TZET_ALARM_REQUEST_CODE = 2300
-        const val HAVDALAH_ALARM_REQUEST_CODE = 2400
+        const val PRAYER_ALARM_REQUEST_CODE = 2400
         const val RESTART_DELAY_MS = 5_000L
 
         fun start(context: Context) {
