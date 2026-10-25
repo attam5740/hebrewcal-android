@@ -89,7 +89,8 @@ class PrayerWindowsTest {
     fun disabledButtonsNeverShow() {
         val night = at(2026, Calendar.OCTOBER, 21, 23)
         assertTrue(PrayerButton.SHEMA_AL_HAMITA in activeAt(night))
-        assertTrue(status(night, all - PrayerButton.SHEMA_AL_HAMITA).active.isEmpty())
+        assertTrue(PrayerButton.ARVIT in activeAt(night))
+        assertTrue(status(night, all - PrayerButton.SHEMA_AL_HAMITA).active.none { it.button == PrayerButton.SHEMA_AL_HAMITA })
         assertTrue(status(night, emptySet()).active.isEmpty())
         assertNotNull(status(night).nextChange)
     }
@@ -107,5 +108,70 @@ class PrayerWindowsTest {
             val refs = Tefillot.refsFor(PrayerButton.BIRCHOT_HASHACHAR, n, null)
             assertTrue("$n includes the Torah blessings", refs.any { it.contains("Torah") })
         }
+    }
+
+    @Test
+    fun servicesUseTheWidestTimes() {
+        val c = cal(at(2026, Calendar.OCTOBER, 21, 12))     // Wednesday
+        val nextDawn = cal(at(2026, Calendar.OCTOBER, 22, 12)).alosHashachar
+        fun on(b: PrayerButton, t: Date) = b in activeAt(t)
+        val min = 60_000L
+        // Shacharit: alot hashachar .. chatzot
+        assertTrue(on(PrayerButton.SHACHARIT, Date(c.alosHashachar.time + min)))
+        assertTrue(on(PrayerButton.SHACHARIT, Date(c.chatzos.time - min)))
+        assertFalse(on(PrayerButton.SHACHARIT, Date(c.chatzos.time + min)))
+        // Mincha: mincha gedola .. tzet
+        assertFalse(on(PrayerButton.MINCHA, Date(c.minchaGedola.time - min)))
+        assertTrue(on(PrayerButton.MINCHA, Date(c.minchaGedola.time + min)))
+        assertFalse(on(PrayerButton.MINCHA, Date(c.tzais.time + min)))
+        // Arvit: plag .. next alot, across midnight
+        assertFalse(on(PrayerButton.ARVIT, Date(c.plagHamincha.time - min)))
+        assertTrue(on(PrayerButton.ARVIT, Date(c.plagHamincha.time + min)))
+        assertTrue(on(PrayerButton.ARVIT, at(2026, Calendar.OCTOBER, 22, 3)))
+        assertFalse(on(PrayerButton.ARVIT, Date(nextDawn.time + min)))
+    }
+
+    @Test
+    fun shabbatPicksTheRightServices() {
+        val friday = cal(at(2026, Calendar.OCTOBER, 23, 12))
+        val saturday = cal(at(2026, Calendar.OCTOBER, 24, 12))
+        val min = 60_000L
+        fun window(b: PrayerButton, t: Date) = status(t).active.first { it.button == b }
+        // Friday after plag: Arvit is the Shabbat service; Friday Mincha is Erev Shabbat.
+        assertEquals(ServiceDay.SHABBAT, window(PrayerButton.ARVIT, Date(friday.plagHamincha.time + min)).serviceDay)
+        assertEquals(ServiceDay.EREV_SHABBAT, window(PrayerButton.MINCHA, Date(friday.plagHamincha.time + min)).serviceDay)
+        // Shabbat day: Shacharit and Mincha are the Shabbat services.
+        assertEquals(ServiceDay.SHABBAT, window(PrayerButton.SHACHARIT, Date(saturday.chatzos.time - 2 * 3_600_000)).serviceDay)
+        assertEquals(ServiceDay.SHABBAT, window(PrayerButton.MINCHA, Date(saturday.plagHamincha.time + min)).serviceDay)
+        // Saturday: no weekday Arvit before nightfall; after it, the weekday service.
+        assertFalse(PrayerButton.ARVIT in activeAt(Date(saturday.plagHamincha.time + min)))
+        assertEquals(ServiceDay.WEEKDAY, window(PrayerButton.ARVIT, Date(saturday.tzais.time + min)).serviceDay)
+    }
+
+    @Test
+    fun serviceRefsComeFromTheChosenSiddur() {
+        for (n in Nusach.values()) for (b in listOf(PrayerButton.SHACHARIT, PrayerButton.MINCHA, PrayerButton.ARVIT))
+            for (d in ServiceDay.values()) {
+                val refs = Tefillot.refsFor(b, n, null, d)
+                assertTrue("$n $b $d", refs.isNotEmpty() && refs.all { it.startsWith(SiddurIndex.ALL_UNDER) })
+            }
+        assertTrue(Tefillot.refsFor(PrayerButton.ARVIT, Nusach.ASHKENAZ, null, ServiceDay.SHABBAT).any { it.contains("Kabbalat Shabbat") })
+        assertTrue(Tefillot.refsFor(PrayerButton.MINCHA, Nusach.SEFARD, null, ServiceDay.EREV_SHABBAT).single().contains("Shabbat Eve Mincha"))
+    }
+
+    @Test
+    fun indexLeavesKeepOrderAndPath() {
+        val json = """{"schema":{"title":"Siddur X","nodes":[
+            {"title":"Weekday","nodes":[
+                {"title":"Shacharit","nodes":[{"title":"Modeh Ani"},{"title":"Amidah","nodes":[{"title":""},{"title":"Kedusha"}]}]},
+                {"title":"Maariv","nodes":[{"title":"Shema"}]}]},
+            {"title":"Shabbat Candle Lighting"}]}}"""
+        assertEquals(
+            listOf("Siddur X, Weekday, Shacharit, Modeh Ani", "Siddur X, Weekday, Shacharit, Amidah",
+                "Siddur X, Weekday, Shacharit, Amidah, Kedusha"),
+            SiddurIndex.leaves(json, "Siddur X, Weekday, Shacharit")
+        )
+        assertEquals(listOf("Siddur X, Shabbat Candle Lighting"), SiddurIndex.leaves(json, "Siddur X, Shabbat Candle Lighting"))
+        assertTrue("prefix must match whole titles", SiddurIndex.leaves(json, "Siddur X, Week").isEmpty())
     }
 }

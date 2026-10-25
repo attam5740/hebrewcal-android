@@ -46,6 +46,30 @@ class SefariaRepository(context: Context) {
     private fun textCacheFile(ref: String) =
         File(cacheDir, ref.replace(Regex("[^A-Za-z0-9._-]"), "_") + "_v3.json")
 
+    /**
+     * Cache first: for siddur sections, which do not change, so a long service opens offline
+     * and without re-downloading dozens of sections every time.
+     */
+    suspend fun fetchTextCacheFirst(ref: String): Result<SefariaText> = withContext(Dispatchers.IO) {
+        val cacheFile = textCacheFile(ref)
+        if (cacheFile.exists()) runCatching { SefariaTextParser.parse(cacheFile.readText()) }
+            .takeIf { it.isSuccess }?.let { return@withContext it }
+        fetchText(ref)
+    }
+
+    /** Readable refs under [path] from the book's Sefaria index (cached on disk). */
+    suspend fun siddurSections(path: String): Result<List<String>> = withContext(Dispatchers.IO) {
+        val book = path.substringBefore(", ")
+        val cacheFile = File(cacheDir, "index_" + book.replace(Regex("[^A-Za-z0-9._-]"), "_") + ".json")
+        runCatching {
+            val json = if (cacheFile.exists()) cacheFile.readText() else {
+                httpGet("https://www.sefaria.org/api/v2/index/" + URLEncoder.encode(book.replace(' ', '_'), "UTF-8"))
+                    .also { cacheFile.writeText(it) }
+            }
+            SiddurIndex.leaves(json, path).ifEmpty { error("no sections under $path") }
+        }
+    }
+
     /** True when [ref]'s text is already on disk under the same key [fetchText] reads. */
     fun isCached(ref: String): Boolean = textCacheFile(ref).exists()
 

@@ -18,6 +18,9 @@ import com.hebrewcal.data.TorahNavigationRepository
 import com.hebrewcal.data.SefariaText
 import com.hebrewcal.data.UserPreferencesRepository
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.sync.withPermit
+import com.hebrewcal.data.SiddurIndex
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -122,8 +125,21 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
      */
     private suspend fun fetchCombined(ref: String): Result<SefariaText> {
         val parts = ref.split(Tefillot.REF_SEPARATOR)
-        if (parts.size == 1) return repo.fetchText(ref)
-        val texts = parts.map { part -> repo.fetchText(part.trim()).getOrElse { return Result.failure(it) } }
+        if (parts.size == 1 && !ref.startsWith(SiddurIndex.ALL_UNDER)) return repo.fetchText(ref)
+        // "@path" stands for a whole service: every section under it in the siddur's index.
+        val refs = parts.map { it.trim() }.flatMap { p ->
+            if (p.startsWith(SiddurIndex.ALL_UNDER)) repo.siddurSections(p.removePrefix(SiddurIndex.ALL_UNDER))
+                .getOrElse { return Result.failure(it) }
+            else listOf(p)
+        }
+        // A service can be ~100 sections; fetch a few at a time, cache first, keep the order.
+        val gate = kotlinx.coroutines.sync.Semaphore(8)
+        val texts = kotlinx.coroutines.coroutineScope {
+            refs.map { r ->
+                async { gate.withPermit { repo.fetchTextCacheFirst(r) } }
+            }.map { it.await().getOrElse { e -> return@coroutineScope Result.failure<List<SefariaText>>(e) } }
+                .let { Result.success(it) }
+        }.getOrElse { return Result.failure(it) }
         var n = 0
         val chapters = texts.flatMap { it.chapters }.map { ch -> n++; com.hebrewcal.data.Chapter(n, ch.verses) }
         return Result.success(SefariaText(texts.first().heRef, chapters))

@@ -40,6 +40,8 @@ data class UserPreferences(
     /** The first-run permissions checklist has been seen and closed. */
     val setupDone: Boolean = false,
     val nusach: Nusach = Nusach.ASHKENAZ,
+    /** Master switch for prayer buttons; the checklist below applies only when on. */
+    val prayerButtonsOn: Boolean = true,
     /** Keys of the [PrayerButton]s to offer in the notification (all by default). */
     val prayerButtons: Set<String> = PrayerButton.ALL_KEYS
 )
@@ -145,7 +147,9 @@ object PreferenceKeys {
     val SHOW_CELESTIAL_ARC = booleanPreferencesKey("show_celestial_arc")
     val SETUP_DONE = booleanPreferencesKey("setup_done")
     val NUSACH = stringPreferencesKey("nusach")
-    val PRAYER_BUTTONS = stringSetPreferencesKey("prayer_buttons")
+    // The buttons turned off, so buttons added later start on.
+    val PRAYER_BUTTONS_OFF = stringSetPreferencesKey("prayer_buttons_off")
+    val PRAYER_BUTTONS_ON = booleanPreferencesKey("prayer_buttons_on")
 }
 
 class UserPreferencesRepository(private val context: Context) {
@@ -191,7 +195,8 @@ class UserPreferencesRepository(private val context: Context) {
             showCelestialArc = prefs[PreferenceKeys.SHOW_CELESTIAL_ARC] ?: true,
             setupDone = prefs[PreferenceKeys.SETUP_DONE] ?: false,
             nusach = Nusach.valueOf(prefs[PreferenceKeys.NUSACH] ?: Nusach.ASHKENAZ.name),
-            prayerButtons = prefs[PreferenceKeys.PRAYER_BUTTONS] ?: PrayerButton.ALL_KEYS
+            prayerButtonsOn = prefs[PreferenceKeys.PRAYER_BUTTONS_ON] ?: true,
+            prayerButtons = PrayerButton.ALL_KEYS - (prefs[PreferenceKeys.PRAYER_BUTTONS_OFF] ?: emptySet())
         )
     }
 
@@ -295,10 +300,14 @@ class UserPreferencesRepository(private val context: Context) {
         context.dataStore.edit { it[PreferenceKeys.SETUP_DONE] = done }
     }
 
+    suspend fun updatePrayerButtonsOn(on: Boolean) {
+        context.dataStore.edit { it[PreferenceKeys.PRAYER_BUTTONS_ON] = on }
+    }
+
     suspend fun updatePrayerButton(key: String, on: Boolean) {
         context.dataStore.edit {
-            val current = it[PreferenceKeys.PRAYER_BUTTONS] ?: PrayerButton.ALL_KEYS
-            it[PreferenceKeys.PRAYER_BUTTONS] = if (on) current + key else current - key
+            val off = it[PreferenceKeys.PRAYER_BUTTONS_OFF] ?: emptySet()
+            it[PreferenceKeys.PRAYER_BUTTONS_OFF] = if (on) off - key else off + key
         }
     }
 

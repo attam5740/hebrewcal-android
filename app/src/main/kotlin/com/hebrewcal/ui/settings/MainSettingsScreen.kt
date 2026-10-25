@@ -3,7 +3,9 @@ package com.hebrewcal.ui.settings
 import android.app.NotificationManager
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -14,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -476,23 +479,46 @@ fun MainSettingsScreen(
 
             Spacer(Modifier.height(24.dp))
             SettingsSectionHeader(icon = Icons.Default.Notifications, title = "Prayer Buttons")
-            Text(
-                "Shown in the notification only during each prayer's time, from your custom's siddur",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            // One switch; when on, a compact checklist of which prayers to offer opens below it.
+            SwitchSettingRow(
+                label    = "Display siddur at prayer times",
+                subtitle = "A notification button opens each prayer from your custom's siddur while its time is open",
+                checked  = prefs.prayerButtonsOn,
+                onCheck  = viewModel::setPrayerButtonsOn
             )
-            listOf(
-                Triple(PrayerButton.BIRCHOT_HASHACHAR, "ברכות השחר · Morning Blessings", "Dawn until the latest time for Shema"),
-                Triple(PrayerButton.CANDLE_LIGHTING, "הדלקת נרות · Candle Lighting", "One hour before to one hour after candle lighting"),
-                Triple(PrayerButton.HAVDALAH, "הבדלה · Havdalah", "Motzei Shabbat, for three hours from Havdalah time"),
-                Triple(PrayerButton.SHEMA_AL_HAMITA, "קריאת שמע על המיטה · Bedtime Shema", "Nightfall until dawn")
-            ).forEach { (button, label, window) ->
-                SwitchSettingRow(
-                    label    = label,
-                    subtitle = window,
-                    checked  = button.key in prefs.prayerButtons,
-                    onCheck  = { on -> viewModel.setPrayerButton(button.key, on) }
-                )
+            AnimatedVisibility(visible = prefs.prayerButtonsOn) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(Modifier.padding(vertical = 4.dp)) {
+                        listOf(
+                            Triple(PrayerButton.BIRCHOT_HASHACHAR, "ברכות השחר · Morning Blessings", "dawn – sof zman Shema"),
+                            Triple(PrayerButton.SHACHARIT, "שחרית · Shacharit", "dawn – midday"),
+                            Triple(PrayerButton.MINCHA, "מנחה · Mincha", "mincha gedola – nightfall"),
+                            Triple(PrayerButton.CANDLE_LIGHTING, "הדלקת נרות · Candle Lighting", "1 h before – 1 h after"),
+                            Triple(PrayerButton.HAVDALAH, "הבדלה · Havdalah", "3 h from Havdalah"),
+                            Triple(PrayerButton.ARVIT, "ערבית · Arvit", "plag – dawn"),
+                            Triple(PrayerButton.SHEMA_AL_HAMITA, "קריאת שמע על המיטה · Bedtime Shema", "nightfall – dawn")
+                        ).forEach { (button, label, window) ->
+                            val checked = button.key in prefs.prayerButtons
+                            Row(
+                                Modifier.fillMaxWidth()
+                                    .toggleable(value = checked, role = Role.Checkbox) { on -> viewModel.setPrayerButton(button.key, on) }
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(checked = checked, onCheckedChange = null)
+                                Spacer(Modifier.width(8.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(label, style = MaterialTheme.typography.bodyMedium)
+                                    Text(window, style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             Spacer(Modifier.height(24.dp))

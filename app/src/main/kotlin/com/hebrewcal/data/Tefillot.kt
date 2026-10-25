@@ -74,7 +74,47 @@ object Tefillot {
         )
     }
 
-    fun refsFor(button: PrayerButton, nusach: Nusach, candleKind: CandleKind?): List<String> = when (button) {
+    /**
+     * A full service: every section of the siddur under these paths ([SiddurIndex.ALL_UNDER]),
+     * in order. Shabbat swaps in the Shabbat services (with Musaf, and Kabbalat Shabbat
+     * before Friday-night Arvit); Nusach Sefard also has its own Friday Mincha.
+     */
+    fun serviceRefs(button: PrayerButton, nusach: Nusach, day: ServiceDay): List<String> {
+        val shabbat = day == ServiceDay.SHABBAT
+        val paths: List<String> = when (nusach) {
+            Nusach.ASHKENAZ -> when (button) {
+                PrayerButton.SHACHARIT -> if (shabbat) listOf("Siddur Ashkenaz, Shabbat, Shacharit", "Siddur Ashkenaz, Shabbat, Musaf LeShabbat")
+                    else listOf("Siddur Ashkenaz, Weekday, Shacharit")
+                PrayerButton.MINCHA -> listOf(if (shabbat) "Siddur Ashkenaz, Shabbat, Minchah" else "Siddur Ashkenaz, Weekday, Minchah")
+                else -> if (shabbat) listOf("Siddur Ashkenaz, Shabbat, Kabbalat Shabbat", "Siddur Ashkenaz, Shabbat, Maariv")
+                    else listOf("Siddur Ashkenaz, Weekday, Maariv")
+            }
+            Nusach.SEFARD -> when (button) {
+                PrayerButton.SHACHARIT -> listOf(if (shabbat) "Siddur Sefard, Shabbat Morning Services" else "Siddur Sefard, Weekday Shacharit")
+                PrayerButton.MINCHA -> listOf(when (day) {
+                    ServiceDay.SHABBAT -> "Siddur Sefard, Shabbat Mincha"
+                    ServiceDay.EREV_SHABBAT -> "Siddur Sefard, Shabbat Eve Mincha"
+                    ServiceDay.WEEKDAY -> "Siddur Sefard, Weekday Mincha"
+                })
+                else -> if (shabbat) listOf("Siddur Sefard, Kabbalat Shabbat", "Siddur Sefard, Shabbat Eve Maariv")
+                    else listOf("Siddur Sefard, Weekday Maariv")
+            }
+            Nusach.EDOT_HAMIZRACH -> when (button) {
+                PrayerButton.SHACHARIT -> if (shabbat) listOf("Siddur Edot HaMizrach, Shabbat Shacharit", "Siddur Edot HaMizrach, Shabbat Mussaf")
+                    else listOf("Siddur Edot HaMizrach, Weekday Shacharit")
+                PrayerButton.MINCHA -> listOf(if (shabbat) "Siddur Edot HaMizrach, Shabbat Mincha" else "Siddur Edot HaMizrach, Weekday Mincha")
+                else -> if (shabbat) listOf("Siddur Edot HaMizrach, Kabbalat Shabbat", "Siddur Edot HaMizrach, Shabbat Arvit")
+                    else listOf("Siddur Edot HaMizrach, Weekday Arvit")
+            }
+        }
+        return paths.map { SiddurIndex.ALL_UNDER + it }
+    }
+
+    fun refsFor(
+        button: PrayerButton, nusach: Nusach, candleKind: CandleKind?, serviceDay: ServiceDay? = null
+    ): List<String> = when (button) {
+        PrayerButton.SHACHARIT, PrayerButton.MINCHA, PrayerButton.ARVIT ->
+            serviceRefs(button, nusach, serviceDay ?: ServiceDay.WEEKDAY)
         PrayerButton.BIRCHOT_HASHACHAR -> birchotHashacharRefs(nusach)
         PrayerButton.CANDLE_LIGHTING -> candleLightingRefs(nusach, candleKind ?: CandleKind.SHABBAT)
         PrayerButton.HAVDALAH -> havdalahRefs(nusach)

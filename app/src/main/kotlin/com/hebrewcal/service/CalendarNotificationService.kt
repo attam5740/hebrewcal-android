@@ -182,13 +182,17 @@ class CalendarNotificationService : Service() {
                     PrayerWindows.status(
                         now, lat, lng, timeZone, isIsrael,
                         prefs.candleLightingOffsetMinutes, prefs.havdalahOpinion,
-                        PrayerButton.values().filter { it.key in prefs.prayerButtons }.toSet()
+                        if (!prefs.prayerButtonsOn) emptySet()
+                        else PrayerButton.values().filter { it.key in prefs.prayerButtons }.toSet()
                     )
                 } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
                 val hebrewUi = prefs.language == CalendarLanguage.HEBREW
                 val prayerActions = prayers?.active.orEmpty().map { w ->
                     val (he, en, icon) = when (w.button) {
                         PrayerButton.BIRCHOT_HASHACHAR -> Triple("ברכות השחר", "Morning Blessings", "🌅")
+                        PrayerButton.SHACHARIT -> Triple("שחרית", "Shacharit", "☀️")
+                        PrayerButton.MINCHA -> Triple("מנחה", "Mincha", "🌇")
+                        PrayerButton.ARVIT -> Triple("ערבית", "Arvit", "🌃")
                         PrayerButton.CANDLE_LIGHTING -> Triple("הדלקת נרות", "Candle Lighting", "🕯️")
                         PrayerButton.HAVDALAH -> Triple("הבדלה", "Havdalah", "🍷")
                         PrayerButton.SHEMA_AL_HAMITA -> Triple("קריאת שמע על המיטה", "Bedtime Shema", "🌙")
@@ -196,7 +200,7 @@ class CalendarNotificationService : Service() {
                     val title = if (hebrewUi) he else en
                     LockscreenNotificationBuilder.PrayerAction(
                         key = w.button.key, label = "$icon $title", title = title,
-                        ref = Tefillot.refsFor(w.button, prefs.nusach, w.candleKind).joinToString(Tefillot.REF_SEPARATOR),
+                        ref = Tefillot.refsFor(w.button, prefs.nusach, w.candleKind, w.serviceDay).joinToString(Tefillot.REF_SEPARATOR),
                         requestCode = LockscreenNotificationBuilder.PRAYER_ACTION_REQUEST_CODE_BASE + w.button.ordinal
                     )
                 }

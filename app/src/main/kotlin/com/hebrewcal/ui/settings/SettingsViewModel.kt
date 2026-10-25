@@ -45,6 +45,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         notifyServiceRefresh()
     }
 
+    fun setPrayerButtonsOn(on: Boolean) = viewModelScope.launch {
+        prefsRepo.updatePrayerButtonsOn(on)
+        notifyServiceRefresh()
+    }
+
     fun setPrayerButton(key: String, on: Boolean) = viewModelScope.launch {
         prefsRepo.updatePrayerButton(key, on)
         notifyServiceRefresh()
