@@ -101,17 +101,26 @@ object ShabbatTimes {
         )
     }
 
+    /** Two candles, as lit for Shabbat and Yom Tov. */
+    const val CANDLES = "🕯️🕯️"
+
+    /**
+     * Wraps a clock time in a left-to-right isolate. Inside Hebrew (right-to-left) text the
+     * bidi algorithm otherwise splits "6:12 PM" into two runs and shows "PM 6:12".
+     */
+    fun ltr(time: String): String = "\u2066$time\u2069"
+
     fun formatCandleLighting(isHebrew: Boolean, timeStr: String): String {
-        return if (isHebrew) "הדלקת נרות: $timeStr" else "Candle Lighting: $timeStr"
+        return if (isHebrew) "הדלקת נרות: ${ltr(timeStr)}" else "Candle Lighting: ${ltr(timeStr)}"
     }
 
     /**
      * Formats Havdalah time string for display (e.g. "Havdalah: 6:52 PM").
      */
     fun formatHavdalah(isHebrew: Boolean, timeStr: String, rtStr: String? = null): String {
-        val base = if (isHebrew) "הבדלה: $timeStr" else "Havdalah: $timeStr"
+        val base = if (isHebrew) "הבדלה: ${ltr(timeStr)}" else "Havdalah: ${ltr(timeStr)}"
         return if (rtStr != null) {
-            if (isHebrew) "$base (ר\"ת: $rtStr)" else "$base (RT: $rtStr)"
+            if (isHebrew) "$base (ר\"ת: ${ltr(rtStr)})" else "$base (RT: ${ltr(rtStr)})"
         } else {
             base
         }

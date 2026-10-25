@@ -137,7 +137,7 @@ fun DaySheet(
                         st.candleLighting?.let { cl ->
                             val clStr = timeFormat.format(cl)
                             Text(
-                                "🕯️ " + ShabbatTimes.formatCandleLighting(hebrew, clStr),
+                                ShabbatTimes.CANDLES + " " + ShabbatTimes.formatCandleLighting(hebrew, clStr),
                                 color = ACTIVE_GOLD,
                                 fontSize = 15.sp,
                                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,

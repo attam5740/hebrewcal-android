@@ -193,7 +193,8 @@ class CalendarNotificationService : Service() {
                     languageName        = prefs.language.name,
                     elulRef             = elulRef,
                     shabbatTimes        = shabbatTimes,
-                    showShabbatBanner   = prefs.showShabbatBanner
+                    showShabbatBanner   = prefs.showShabbatBanner,
+                    timeFormat          = prefs.zmanimTimeFormat
                 )
                 NotificationManagerCompat.from(applicationContext)
                     .notify(LockscreenNotificationBuilder.NOTIFICATION_ID, notification)

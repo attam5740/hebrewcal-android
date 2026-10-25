@@ -58,7 +58,8 @@ object LockscreenNotificationBuilder {
         languageName: String = "ENGLISH",
         elulRef: String? = null,
         shabbatTimes: com.hebrewcal.data.ShabbatTimesResult? = null,
-        showShabbatBanner: Boolean = true
+        showShabbatBanner: Boolean = true,
+        timeFormat: com.hebrewcal.data.ZmanimTimeFormat = com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR
     ): Notification {
         val contentIntent = Intent(context, CalendarActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -77,20 +78,24 @@ object LockscreenNotificationBuilder {
         var shabbatBannerText: String? = null
 
         if (showShabbatBanner && shabbatTimes != null) {
-            val timeFmt = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
+            val timeFmt = java.text.SimpleDateFormat(
+                if (timeFormat == com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm",
+                java.util.Locale.getDefault()
+            )
+            val candles = com.hebrewcal.data.ShabbatTimes.CANDLES
             if (shabbatTimes.isErevShabbat || shabbatTimes.isErevYomTov) {
                 shabbatTimes.candleLighting?.let { cl ->
                     val diffMin = ((cl.time - nowMs) / (1000 * 60)).toInt()
-                    val clStr = timeFmt.format(cl)
+                    val clStr = com.hebrewcal.data.ShabbatTimes.ltr(timeFmt.format(cl))
                     shabbatBannerText = when {
-                        diffMin in 1..180 -> if (isHeb) "🕯️ שבת בעוד $diffMin דק׳ ($clStr)" else "🕯️ Shabbat in ${diffMin}m ($clStr)"
-                        diffMin in -60..0 -> if (isHeb) "🕯️ שבת שלום (הדלקה $clStr)" else "🕯️ Shabbat Shalom (Lit $clStr)"
-                        else -> if (isHeb) "🕯️ הדלקת נרות: $clStr" else "🕯️ Candle Lighting: $clStr"
+                        diffMin in 1..180 -> if (isHeb) "$candles שבת בעוד $diffMin דק׳ ($clStr)" else "$candles Shabbat in ${diffMin}m ($clStr)"
+                        diffMin in -60..0 -> if (isHeb) "$candles שבת שלום (הדלקה $clStr)" else "$candles Shabbat Shalom (Lit $clStr)"
+                        else -> if (isHeb) "$candles הדלקת נרות: $clStr" else "$candles Candle Lighting: $clStr"
                     }
                 }
             } else if (shabbatTimes.isShabbat || shabbatTimes.isYomTov) {
                 val shabbatTitle = if (isHeb) "שַׁבָּת שָׁלוֹם" else "Shabbat Shalom"
-                val havStr = shabbatTimes.havdalah?.let { timeFmt.format(it) }
+                val havStr = shabbatTimes.havdalah?.let { com.hebrewcal.data.ShabbatTimes.ltr(timeFmt.format(it)) }
                 shabbatBannerText = if (havStr != null) {
                     if (isHeb) "$shabbatTitle · הבדלה $havStr" else "$shabbatTitle · Havdalah $havStr"
                 } else {

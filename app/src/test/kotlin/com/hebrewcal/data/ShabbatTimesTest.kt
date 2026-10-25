@@ -97,4 +97,13 @@ class ShabbatTimesTest {
         assertNull(result.candleLighting)
         assertNull(result.havdalah)
     }
+
+    @Test
+    fun timesStayLeftToRightInsideHebrewText() {
+        // "6:12 PM" must be one isolated LTR run, or RTL layout shows "PM 6:12".
+        val line = ShabbatTimes.formatCandleLighting(true, "6:12 PM")
+        org.junit.Assert.assertTrue(line.endsWith("\u20666:12 PM\u2069"))
+        val hav = ShabbatTimes.formatHavdalah(true, "7:05 PM", "7:36 PM")
+        org.junit.Assert.assertTrue(hav.contains("\u20667:05 PM\u2069") && hav.contains("\u20667:36 PM\u2069"))
+    }
 }
