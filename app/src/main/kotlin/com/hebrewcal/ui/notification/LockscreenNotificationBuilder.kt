@@ -213,14 +213,14 @@ object LockscreenNotificationBuilder {
             expandedViews.setViewVisibility(R.id.tv_btn_tehillim, android.view.View.GONE)
             remoteViews.setViewVisibility(R.id.tv_btn_tehillim_c, android.view.View.GONE)
         }
-        if (havdalahRef != null) {
-            // Motzei Shabbat: the Havdalah button stands in for the parsha pill, which keeps
-            // the row within the collapsed notification's width.
-            val label = if (languageName == "HEBREW") "🍷 הבדלה" else "🍷 Havdalah"
+        // Motzei Shabbat: Havdalah is a standard notification action (below the content),
+        // built here and attached at the end, so the reader pills stay as they are.
+        val havdalahAction: NotificationCompat.Action? = havdalahRef?.let { ref ->
+            val hebrewUi = languageName == "HEBREW"
             val intent = Intent(context, TextReaderActivity::class.java).apply {
                 putExtra(TextReaderActivity.EXTRA_MODE, "tefillah")
-                putExtra(TextReaderActivity.EXTRA_REF, havdalahRef)
-                putExtra(TextReaderActivity.EXTRA_TITLE, if (languageName == "HEBREW") "הבדלה" else "Havdalah")
+                putExtra(TextReaderActivity.EXTRA_REF, ref)
+                putExtra(TextReaderActivity.EXTRA_TITLE, if (hebrewUi) "הבדלה" else "Havdalah")
                 putExtra(TextReaderActivity.EXTRA_LANG, languageName)
                 putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
                 putExtra(TextReaderActivity.EXTRA_TEAMIM, false)
@@ -230,18 +230,9 @@ object LockscreenNotificationBuilder {
                 context, HAVDALAH_ACTION_REQUEST_CODE, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            expandedViews.setTextViewText(R.id.tv_btn_parsha, label)
-            expandedViews.setInt(R.id.tv_btn_parsha, "setBackgroundResource", R.drawable.bg_pill_havdalah)
-            expandedViews.setTextColor(R.id.tv_btn_parsha, 0xFFFFD6E0.toInt())
-            expandedViews.setViewVisibility(R.id.tv_btn_parsha, android.view.View.VISIBLE)
-            expandedViews.setOnClickPendingIntent(R.id.tv_btn_parsha, pi)
-            remoteViews.setTextViewText(R.id.tv_btn_parsha_c, label)
-            remoteViews.setInt(R.id.tv_btn_parsha_c, "setBackgroundResource", R.drawable.bg_pill_havdalah)
-            remoteViews.setTextColor(R.id.tv_btn_parsha_c, 0xFFFFD6E0.toInt())
-            remoteViews.setViewVisibility(R.id.tv_btn_parsha_c, android.view.View.VISIBLE)
-            remoteViews.setOnClickPendingIntent(R.id.tv_btn_parsha_c, pi)
-            anyReaderButton = true
-        } else if (parshaActionLabel != null) {
+            NotificationCompat.Action.Builder(0, if (hebrewUi) "🍷 הבדלה" else "🍷 Havdalah", pi).build()
+        }
+        if (parshaActionLabel != null) {
             val intent = Intent(context, TextReaderActivity::class.java).apply {
                 putExtra(TextReaderActivity.EXTRA_MODE, "parsha")
                 putExtra(TextReaderActivity.EXTRA_REF, "")
@@ -304,6 +295,7 @@ object LockscreenNotificationBuilder {
             // Gold accent: OEM skins (incl. OxygenOS) tint action pills / small icon with
             // this color, giving the reader buttons real contrast against the shade.
             .setColor(0xFFD4AF37.toInt())
+            .apply { havdalahAction?.let { addAction(it) } }
             .build()
     }
 }
