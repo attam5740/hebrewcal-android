@@ -134,11 +134,16 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
             }.map { it.await().getOrElse { e -> return@coroutineScope Result.failure<List<SefariaText>>(e) } }
                 .let { Result.success(it) }
         }.getOrElse { return Result.failure(it) }
-        // One chapter per siddur section, so the reader can fold and title each section.
-        val chapters = texts.mapIndexed { i, t ->
-            com.hebrewcal.data.Chapter(i + 1, t.chapters.flatMap { it.verses }.mapIndexed { k, v -> com.hebrewcal.data.Verse(k + 1, v.he, v.en) })
+        // One chapter per part of the service (consecutive siddur sections merged into its main
+        // parts), so the reader can fold and title each one.
+        val parts = com.hebrewcal.data.PrayerSections.group(refs)
+        val chapters = parts.mapIndexed { i, part ->
+            val verses = part.indices.flatMap { k -> texts[k].chapters.flatMap { it.verses } }
+            com.hebrewcal.data.Chapter(i + 1, verses.mapIndexed { k, v -> com.hebrewcal.data.Verse(k + 1, v.he, v.en) })
         }
-        val titles = refs.mapIndexed { i, r -> com.hebrewcal.data.SefariaRefs.sectionTitle(r, texts[i].heRef) }
+        val titles = parts.map { part ->
+            part.title ?: com.hebrewcal.data.SefariaRefs.sectionTitle(refs[part.indices.first], texts[part.indices.first].heRef)
+        }
         return Result.success(SefariaText(texts.first().heRef, chapters, titles))
     }
 

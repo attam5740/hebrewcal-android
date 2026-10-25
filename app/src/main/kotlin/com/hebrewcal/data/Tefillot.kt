@@ -98,7 +98,8 @@ object Tefillot {
                 )
                 PrayerButton.MINCHA -> listOf(all(if (shabbat) "Siddur Ashkenaz, Shabbat, Minchah" else "Siddur Ashkenaz, Weekday, Minchah"))
                 else -> if (shabbat) listOf(all("Siddur Ashkenaz, Shabbat, Kabbalat Shabbat"), all("Siddur Ashkenaz, Shabbat, Maariv"))
-                    else listOf(all("Siddur Ashkenaz, Weekday, Maariv"))
+                    // Its index ends with Birkat HaLevana and Shema al HaMita, which have their own buttons.
+                    else listOf(all("Siddur Ashkenaz, Weekday, Maariv") + SiddurIndex.BEFORE + "Siddur Ashkenaz, Weekday, Maariv, Birkat HaLevana")
             }
             Nusach.SEFARD -> when (button) {
                 PrayerButton.SHACHARIT -> if (shabbat) listOf(all("Siddur Sefard, Shabbat Morning Services")) else listOf(

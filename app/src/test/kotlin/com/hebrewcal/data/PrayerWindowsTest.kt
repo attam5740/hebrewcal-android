@@ -215,4 +215,30 @@ class PrayerWindowsTest {
             SefariaRefs.sectionTitle("Siddur Ashkenaz, Weekday, Shacharit, Preparatory Prayers, Modeh Ani", "סידור אשכנז, ימי חול, תפילת שחרית, הכנה לתפילה, מודה אני"))
         assertEquals(SectionTitle("Havdalah", ""), SefariaRefs.sectionTitle("Siddur Ashkenaz, Shabbat, Havdalah", ""))
     }
+
+    @Test
+    fun ashkenazSectionsMergeIntoTheServiceParts() {
+        val p = "Siddur Ashkenaz, Weekday, Shacharit, Pesukei Dezimra, "
+        val refs = listOf(
+            "Other, Unknown A",                       // outside any part: stays alone
+            p + "Introductory Psalm", p + "Ashrei", p + "Psalm 146", p + "Psalm 150",
+            "Siddur Ashkenaz, Weekday, Shacharit, Blessings of the Shema, Barchu",
+            "Siddur Ashkenaz, Weekday, Shacharit, Blessings of the Shema, Shema"
+        )
+        val parts = PrayerSections.group(refs)
+        assertEquals(listOf(0..0, 1..4, 5..6), parts.map { it.indices })
+        assertEquals(null, parts[0].title)
+        assertEquals("פסוקי דזמרה", parts[1].title?.he)
+        assertEquals("Shema and Its Blessings", parts[2].title?.en)
+        assertTrue(PrayerSections.group(emptyList()).isEmpty())
+    }
+
+    @Test
+    fun specsCanStopBeforeALeaf() {
+        val json = """{"schema":{"title":"S","nodes":[{"title":"M","nodes":[{"title":"A"},{"title":"B"},{"title":"C"}]}]}}"""
+        val s = SiddurIndex.parse("@S, M<<S, M, B")
+        assertEquals(SiddurIndex.Spec("S, M", null, "S, M, B"), s)
+        assertEquals(listOf("S, M, A"), SiddurIndex.leaves(json, s.path, s.after, s.before))
+        assertTrue(Tefillot.refsFor(PrayerButton.ARVIT, Nusach.ASHKENAZ, null, ServiceDay.WEEKDAY).single().endsWith("Birkat HaLevana"))
+    }
 }

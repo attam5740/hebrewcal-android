@@ -16,14 +16,22 @@ object SiddurIndex {
     const val ALL_UNDER = "@"
     /** "@path>>leaf": only the sections after [leaf] (the earlier ones belong to another button). */
     const val AFTER = ">>"
+    /** "@path<<leaf": stop before [leaf] (the rest belongs to another button). */
+    const val BEFORE = "<<"
 
-    fun parseSpec(spec: String): Pair<String, String?> {
-        val body = spec.removePrefix(ALL_UNDER)
+    fun parseSpec(spec: String): Pair<String, String?> = parse(spec).let { it.path to it.after }
+
+    data class Spec(val path: String, val after: String?, val before: String?)
+
+    fun parse(spec: String): Spec {
+        var body = spec.removePrefix(ALL_UNDER)
+        var before: String? = null
+        body.indexOf(BEFORE).takeIf { it >= 0 }?.let { before = body.substring(it + BEFORE.length); body = body.substring(0, it) }
         val i = body.indexOf(AFTER)
-        return if (i < 0) body to null else body.substring(0, i) to body.substring(i + AFTER.length)
+        return if (i < 0) Spec(body, null, before) else Spec(body.substring(0, i), body.substring(i + AFTER.length), before)
     }
 
-    fun leaves(indexJson: String, path: String, after: String? = null): List<String> {
+    fun leaves(indexJson: String, path: String, after: String? = null, before: String? = null): List<String> {
         val schema = Json.parseToJsonElement(indexJson).jsonObject["schema"] as? JsonObject ?: return emptyList()
         val out = mutableListOf<String>()
         fun walk(node: JsonObject, prefix: String) {
@@ -37,6 +45,8 @@ object SiddurIndex {
         walk(schema, "")
         val under = out.filter { it == path || it.startsWith("$path, ") }
         val skip = after?.let { under.indexOf(it) } ?: -1
-        return if (skip >= 0) under.drop(skip + 1) else under
+        val from = if (skip >= 0) under.drop(skip + 1) else under
+        val stop = before?.let { from.indexOf(it) } ?: -1
+        return if (stop >= 0) from.take(stop) else from
     }
 }
