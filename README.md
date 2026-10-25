@@ -26,6 +26,12 @@ See the [changelog](CHANGELOG.md) for what is new.
 - **Sun, moon, and direction** — a sun arc for today that shows where the sun is heading, with
   sunrise, sunset, the time left until sunset and the current sha'ah zmanit; the moon drawn in
   its current phase; the Birkat HaLevana window; and a compass pointing to Jerusalem from true north
+- **Siddur at prayer times** — while a prayer's time is open, the notification offers a button
+  that opens it from your custom's siddur (Ashkenaz, Sefard, or Edot HaMizrach) on Sefaria:
+  Birchot HaShachar, Shacharit, Mincha, candle lighting, Havdalah, Arvit, and Kriat Shema al
+  HaMita, each chosen in Settings
+- **Date navigator** — tap the month heading to jump to any month and year, Hebrew or Gregorian
+- **Settings backup** — save every setting to a file and restore it later
 - **First-run setup** — a new install asks for notifications and location in one short
   checklist, and saves the nearest city as soon as location is allowed
 - **Calendar screen** — the app launches into a full month grid (Hebrew or Gregorian),
@@ -250,10 +256,10 @@ only reaches F-Droid if all of these hold:
    that tag, signed with the release key.
 
 ```bash
-git worktree add /tmp/hebrewcal-release v1.18 && cd /tmp/hebrewcal-release
+git worktree add /tmp/hebrewcal-release v1.19 && cd /tmp/hebrewcal-release
 ./gradlew assembleRelease
-scripts/release.sh app/build/outputs/apk/release/app-release-unsigned.apk 1.18
-gh release create v1.18 dist/Hebrew-Calendar-v1.18.apk --title v1.18
+scripts/release.sh app/build/outputs/apk/release/app-release-unsigned.apk 1.19
+gh release create v1.19 dist/Hebrew-Calendar-v1.19.apk --title v1.19
 ```
 
 `scripts/release.sh` refuses debug builds and checks the signing certificate against the one

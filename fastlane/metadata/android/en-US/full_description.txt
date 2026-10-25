@@ -14,6 +14,7 @@ Hebrew Calendar displays the current Hebrew date as a persistent lockscreen noti
 • Both the Hebrew and Gregorian date shown in every day cell
 • Tap a day for its details: holidays, fast start/end times, and zmanim for that date
 • Links from the day sheet open the parsha, haftarah, and daily Tehillim directly in the reader
+• Tap the month heading to jump to any month and year
 
 <b>Shabbat &amp; Yom Tov</b>
 • Candle-lighting time with a live countdown on Friday and Erev Yom Tov (18, 20, 30, or 40 minutes before sunset)
@@ -45,11 +46,15 @@ Hebrew Calendar displays the current Hebrew date as a persistent lockscreen noti
 • Navigation dial to jump to any chapter or parsha
 • Offline downloads of upcoming readings on Wi‑Fi (mobile data optional)
 
+<b>Siddur at prayer times</b>
+• While a prayer's time is open, the notification offers it from your siddur (Ashkenaz, Sefard, or Edot HaMizrach): Birchot HaShachar, Shacharit, Mincha, candle lighting, Havdalah, Arvit, Kriat Shema al HaMita
+
 <b>Display</b>
 • Persistent lockscreen notification — always visible without unlocking
 • Home screen widget with adjustable background transparency
 • Gregorian date shown alongside the Hebrew date
 • Survives Do Not Disturb and Bedtime mode with optional DND bypass permission
+• Save and restore all settings to a file
 
 <b>Privacy</b>
 • No analytics or tracking

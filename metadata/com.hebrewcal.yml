@@ -55,9 +55,16 @@ Builds:
     gradle:
       - yes
 
+  - versionName: '1.19'
+    versionCode: 26
+    commit: v1.19
+    subdir: app
+    gradle:
+      - yes
+
 AllowedAPKSigningKeys: ee18a6f0bf933b57909c998112e3729684bddab36d856246045e3fcf27323a60
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: '1.18'
-CurrentVersionCode: 25
+CurrentVersion: '1.19'
+CurrentVersionCode: 26

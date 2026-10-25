@@ -4,6 +4,25 @@ All notable changes to Hebrew Calendar are listed here, newest first.
 Version codes match `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`,
 which is what F-Droid shows.
 
+## 1.19 (version code 26)
+
+### Added
+- **Siddur at prayer times.** While a prayer's time is open, the notification shows a button
+  that opens it from the chosen custom's siddur on Sefaria: Birchot HaShachar (dawn to sof zman
+  Shema), Shacharit (dawn to chatzot), Mincha (mincha gedola to nightfall), candle lighting (an
+  hour either side), Havdalah (three hours from Havdalah on Motzei Shabbat), Arvit (plag to
+  dawn; Shabbat services on Shabbat) and Kriat Shema al HaMita (nightfall to dawn). One setting
+  turns them on, with a checklist of which to show.
+
+### Changed
+- **Candle lighting** shows two candles, and the notification's candle-lighting and Havdalah
+  times follow the 12/24-hour setting.
+- **Settings** option pills no longer wrap into uneven heights; a few labels are shorter.
+
+### Fixed
+- In Hebrew, a time such as "6:12 PM" no longer displays as "PM 6:12".
+- Siddur texts whose Sefaria title does not start with "Siddur" now load with their Hebrew.
+
 ## 1.18 (version code 25)
 
 ### Added

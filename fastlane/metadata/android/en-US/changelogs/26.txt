@@ -1,0 +1,3 @@
+New: the siddur at prayer times. While a prayer's time is open, the notification offers it from your custom's siddur: Birchot HaShachar, Shacharit, Mincha, candle lighting, Havdalah, Arvit, Kriat Shema al HaMita. Choose which in Settings.
+Changed: two candles for candle lighting; notification times follow your 12/24-hour setting.
+Fixed: Hebrew times like 6:12 PM no longer show as PM 6:12.
