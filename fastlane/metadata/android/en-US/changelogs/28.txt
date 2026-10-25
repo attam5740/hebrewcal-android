@@ -1,0 +1,3 @@
+New: Chabad custom, following Siddur Torah Or (Shabbat-day prayers, Havdalah and candle lighting use Nusach Sefard). Its long sections are split like the other customs.
+New: an About section in Settings, and first-run setup offers Do Not Disturb access.
+Prayers now show one paragraph per line.

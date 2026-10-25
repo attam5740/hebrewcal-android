@@ -27,7 +27,7 @@ See the [changelog](CHANGELOG.md) for what is new.
   sunrise, sunset, the time left until sunset and the current sha'ah zmanit; the moon drawn in
   its current phase; the Birkat HaLevana window; and a compass pointing to Jerusalem from true north
 - **Siddur at prayer times** — while a prayer's time is open, the notification offers a button
-  that opens it from your custom's siddur (Ashkenaz, Sefard, or Edot HaMizrach) on Sefaria:
+  that opens it from your custom's siddur (Ashkenaz, Sefard, Edot HaMizrach, or Chabad) on Sefaria:
   Birchot HaShachar, Shacharit, Mincha, candle lighting, Havdalah, Arvit, and Kriat Shema al
   HaMita, each chosen in Settings
 - **Date navigator** — tap the month heading to jump to any month and year, Hebrew or Gregorian
@@ -256,10 +256,10 @@ only reaches F-Droid if all of these hold:
    that tag, signed with the release key.
 
 ```bash
-git worktree add /tmp/hebrewcal-release v1.20 && cd /tmp/hebrewcal-release
+git worktree add /tmp/hebrewcal-release v1.21 && cd /tmp/hebrewcal-release
 ./gradlew assembleRelease
-scripts/release.sh app/build/outputs/apk/release/app-release-unsigned.apk 1.20
-gh release create v1.20 dist/Hebrew-Calendar-v1.20.apk --title v1.20
+scripts/release.sh app/build/outputs/apk/release/app-release-unsigned.apk 1.21
+gh release create v1.21 dist/Hebrew-Calendar-v1.21.apk --title v1.21
 ```
 
 `scripts/release.sh` refuses debug builds and checks the signing certificate against the one

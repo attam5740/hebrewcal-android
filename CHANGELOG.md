@@ -4,6 +4,23 @@ All notable changes to Hebrew Calendar are listed here, newest first.
 Version codes match `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`,
 which is what F-Droid shows.
 
+## 1.21 (version code 28)
+
+### Added
+- **Chabad custom.** Chabad (Nusach Ari) is now offered alongside Ashkenaz, Sefard and Edot
+  HaMizrach, following Siddur Torah Or: the weekday services, Kiddush Levana and Bedtime Shema
+  from Sefaria, and Friday Mincha, Kabbalat Shabbat and Shabbat Maariv from Hebrew Wikisource.
+  Shabbat-day services, Havdalah and candle lighting use Nusach Sefard, as Torah Or online has
+  none. Its long sections are split into the same parts as the other customs.
+- **About** section at the bottom of Settings: the version, what's new in it, and links to the
+  source code and full changelog.
+- The first-run setup also offers **Do Not Disturb** access, so the date and zmanim stay visible
+  in Do Not Disturb and Bedtime mode.
+
+### Changed
+- Prayers show one paragraph per line instead of running together.
+- The custom setting is a short list, since four choices no longer fit in one row.
+
 ## 1.20 (version code 27)
 
 ### Changed

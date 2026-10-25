@@ -47,7 +47,7 @@ Hebrew Calendar displays the current Hebrew date as a persistent lockscreen noti
 • Offline downloads of upcoming readings on Wi‑Fi (mobile data optional)
 
 <b>Siddur at prayer times</b>
-• While a prayer's time is open, the notification offers it from your siddur (Ashkenaz, Sefard, or Edot HaMizrach): Birchot HaShachar, Shacharit, Mincha, candle lighting, Havdalah, Arvit, Kriat Shema al HaMita
+• While a prayer's time is open, the notification offers it from your siddur (Ashkenaz, Sefard, Edot HaMizrach, or Chabad): Birchot HaShachar, Shacharit, Mincha, candle lighting, Havdalah, Arvit, Kriat Shema al HaMita
 
 <b>Display</b>
 • Persistent lockscreen notification — always visible without unlocking
