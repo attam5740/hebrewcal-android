@@ -611,6 +611,9 @@ fun SegmentedSettingRow(
                         shape    = SegmentedButtonDefaults.itemShape(index = idx, count = options.size),
                         onClick  = { onSelect(idx) },
                         selected = selected == idx,
+                        // No check mark: the fill already shows the choice, and the icon took
+                        // enough width to wrap longer labels into a taller segment.
+                        icon     = {},
                         label    = { Text(option) }
                     )
                 }
