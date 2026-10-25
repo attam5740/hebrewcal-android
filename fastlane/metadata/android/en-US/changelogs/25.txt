@@ -1,0 +1,2 @@
+New: tap the calendar's month heading to jump to any month and year (Hebrew or Gregorian); a nusach setting (Ashkenaz, Sefard, Edot HaMizrach); Birkat HaLevana now continues through Aleinu; save and restore all settings to a file; tap any verse in the reader to flip it between Hebrew and English.
+Fixed: toggling Hebrew/Gregorian now stays on the month you are viewing.

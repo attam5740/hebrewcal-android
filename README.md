@@ -250,10 +250,10 @@ only reaches F-Droid if all of these hold:
    that tag, signed with the release key.
 
 ```bash
-git worktree add /tmp/hebrewcal-release v1.17 && cd /tmp/hebrewcal-release
+git worktree add /tmp/hebrewcal-release v1.18 && cd /tmp/hebrewcal-release
 ./gradlew assembleRelease
-scripts/release.sh app/build/outputs/apk/release/app-release-unsigned.apk 1.17
-gh release create v1.17 dist/Hebrew-Calendar-v1.17.apk --title v1.17
+scripts/release.sh app/build/outputs/apk/release/app-release-unsigned.apk 1.18
+gh release create v1.18 dist/Hebrew-Calendar-v1.18.apk --title v1.18
 ```
 
 `scripts/release.sh` refuses debug builds and checks the signing certificate against the one

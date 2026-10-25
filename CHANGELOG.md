@@ -4,6 +4,29 @@ All notable changes to Hebrew Calendar are listed here, newest first.
 Version codes match `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`,
 which is what F-Droid shows.
 
+## 1.18 (version code 25)
+
+### Added
+- **Date navigator.** Tap the month/year heading in the calendar to jump anywhere: a
+  Hebrew/Gregorian toggle, a year that steps, scrubs while held, or can be typed, and a
+  tappable month grid (Adar I/II in leap years). A Today shortcut returns home.
+- **Custom (Nusach) setting.** Ashkenaz, Sefard, or Edot HaMizrach; the app's prayer texts
+  come from that custom's siddur on Sefaria.
+- **Aleinu.** The Birkat HaLevana reader now continues through Aleinu (per the chosen
+  custom) instead of ending with an instruction to say it.
+- **Settings backup.** A Backup section in Settings saves every setting to a JSON file and
+  restores from one; each value keeps its exact type and foreign files are rejected.
+- **Tap a verse to translate.** In the reader, tapping a verse flips just that verse between
+  Hebrew and English; tapping again flips it back.
+
+### Fixed
+- **Hebrew/Gregorian toggle.** Toggling the calendar now lands on the month being viewed
+  (or the day just tapped), not wherever the other calendar last was.
+
+### Internal
+- Swallowed errors in the notification service are now logged; dead code removed; the
+  calendar month-anchor conversion is unit-tested.
+
 ## 1.17 (version code 24)
 
 ### Added
