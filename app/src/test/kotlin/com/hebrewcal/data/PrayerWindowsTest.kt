@@ -102,5 +102,10 @@ class PrayerWindowsTest {
         }
         assertTrue(Tefillot.refsFor(PrayerButton.HAVDALAH, Nusach.SEFARD, null).all { it.startsWith("Siddur Sefard") })
         assertTrue(Tefillot.refsFor(PrayerButton.SHEMA_AL_HAMITA, Nusach.EDOT_HAMIZRACH, null).all { it.startsWith("Siddur Edot HaMizrach") })
+        // Morning blessings must include Birchot HaTorah in every custom.
+        for (n in Nusach.values()) {
+            val refs = Tefillot.refsFor(PrayerButton.BIRCHOT_HASHACHAR, n, null)
+            assertTrue("$n includes the Torah blessings", refs.any { it.contains("Torah") })
+        }
     }
 }

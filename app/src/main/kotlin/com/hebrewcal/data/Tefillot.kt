@@ -31,14 +31,26 @@ object Tefillot {
         Nusach.EDOT_HAMIZRACH -> listOf("Siddur Edot HaMizrach, Havdalah, Havdala")
     }
 
-    /** Birchot HaShachar. Sefard's 15 morning blessings sit in its "Blessings on Torah" node. */
+    /**
+     * Birchot HaShachar with Birchot HaTorah (asher bachar banu) and the Birkat Kohanim verses,
+     * in each siddur's own order. Sefaria splits them across sections: Ashkenaz keeps the
+     * Torah blessings and the Birkat Kohanim verses in two sections before the morning
+     * blessings; Sefard's "Blessings on Torah" also holds its 15 morning blessings.
+     */
     fun birchotHashacharRefs(nusach: Nusach): List<String> = when (nusach) {
-        Nusach.ASHKENAZ -> listOf("Siddur Ashkenaz, Weekday, Shacharit, Preparatory Prayers, Morning Blessings")
+        Nusach.ASHKENAZ -> listOf(
+            "Siddur Ashkenaz, Weekday, Shacharit, Preparatory Prayers, Torah Blessings",
+            "Siddur Ashkenaz, Weekday, Shacharit, Preparatory Prayers, Torah Study",
+            "Siddur Ashkenaz, Weekday, Shacharit, Preparatory Prayers, Morning Blessings"
+        )
         Nusach.SEFARD -> listOf(
             "Siddur Sefard, Weekday Shacharit, Morning Blessings",
             "Siddur Sefard, Weekday Shacharit, Blessings on Torah"
         )
-        Nusach.EDOT_HAMIZRACH -> listOf("Siddur Edot HaMizrach, Preparatory Prayers, Morning Blessings")
+        Nusach.EDOT_HAMIZRACH -> listOf(
+            "Siddur Edot HaMizrach, Preparatory Prayers, Morning Blessings",
+            "Siddur Edot HaMizrach, Preparatory Prayers, Torah Blessings"
+        )
     }
 
     fun shemaAlHamitaRefs(nusach: Nusach): List<String> = when (nusach) {
