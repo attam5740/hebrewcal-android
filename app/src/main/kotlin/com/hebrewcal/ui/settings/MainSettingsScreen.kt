@@ -178,7 +178,7 @@ fun MainSettingsScreen(
             val nusachOptions = listOf(
                 Nusach.ASHKENAZ to "Ashkenaz",
                 Nusach.SEFARD to "Sefard",
-                Nusach.EDOT_HAMIZRACH to "Edot Mizrach"
+                Nusach.EDOT_HAMIZRACH to "Mizrachi"
             )
             SegmentedSettingRow(
                 label    = "Custom (Nusach)",
@@ -251,8 +251,8 @@ fun MainSettingsScreen(
             val networks = listOf(PrefetchNetwork.OFF, PrefetchNetwork.WIFI, PrefetchNetwork.ANY)
             SegmentedSettingRow(
                 label    = "Download texts ahead",
-                subtitle = "Fetch upcoming Tehillim and parsha in the background so they open offline",
-                options  = listOf("Off", "Wi-Fi only", "Any network"),
+                subtitle = "Fetch upcoming Tehillim and parsha in the background so they open offline (Any = Wi-Fi or mobile data)",
+                options  = listOf("Off", "Wi-Fi only", "Any"),
                 selected = networks.indexOf(prefs.prefetchNetwork).coerceAtLeast(0),
                 onSelect = { viewModel.setPrefetchNetwork(networks[it]) }
             )
@@ -454,7 +454,7 @@ fun MainSettingsScreen(
             )
 
             val havdalahOptions = listOf(
-                HavdalahOpinion.STANDARD_8_5 to "8.5° (Std)",
+                HavdalahOpinion.STANDARD_8_5 to "8.5°",
                 HavdalahOpinion.MINUTES_42 to "42 min",
                 HavdalahOpinion.MINUTES_50 to "50 min",
                 HavdalahOpinion.MINUTES_72_RT to "72m RT"
