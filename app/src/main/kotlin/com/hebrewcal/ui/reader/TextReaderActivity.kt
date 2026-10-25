@@ -755,6 +755,13 @@ private fun ReaderBody(
         main + extra
     }
 
+    // A prayer with several sections opens with every section folded; tapping a heading
+    // unfolds it, so the reader can jump between parts of the service.
+    val foldable = mode == "tefillah" && sections.size > 1
+    var folded by remember(text, mode, sections.size) {
+        mutableStateOf(if (foldable) sections.indices.toSet() else emptySet())
+    }
+
     // Authentic scroll layout: tikkun mode on a Torah reading with layout data.
     if (tikkun && tikkunLines != null) {
         TikkunScrollBody(
@@ -808,12 +815,30 @@ private fun ReaderBody(
                             textAlign = TextAlign.Start
                         )
                     }
+                    val isFolded = foldable && index in folded
                     if (section.title.isBlank()) Spacer(Modifier.height(12.dp))
+                    else if (foldable) Row(
+                        Modifier.fillMaxWidth()
+                            .clickable { folded = if (isFolded) folded - index else folded + index }
+                            .padding(top = 12.dp, bottom = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            if (!isFolded) "▾" else if (hebrew) "◂" else "▸",
+                            color = accent, fontSize = (sizeSp * 0.9f).sp
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            section.title, color = accent, fontSize = (sizeSp + 2).sp,
+                            modifier = Modifier.weight(1f), textAlign = TextAlign.Start
+                        )
+                    }
                     else Text(
                         section.title, color = if (section.extra) SKY else accent, fontSize = (sizeSp + 2).sp,
                         modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp),
                         textAlign = TextAlign.Start
                     )
+                    if (!isFolded) {
                     val paragraph = buildAnnotatedString {
                         var lastChapter = -1
                         section.verses.forEach { tv ->
@@ -866,6 +891,7 @@ private fun ReaderBody(
                                 }
                         }
                     )
+                    }
                 }
                 item { Text(if (hebrew) "מקור: ספריא" else "Source: Sefaria", color = Color(0xFFAA9977), fontSize = 11.sp, modifier = Modifier.padding(16.dp)) }
                 if (extendingDown) item { EdgeLoading() }
@@ -1123,9 +1149,12 @@ private fun chapterSections(
     hebrew: Boolean,
     gematria: HebrewDateFormatter
 ): List<ReaderSection> = if (mode == "tefillah") {
-    // A prayer has paragraphs, not chapters and verses: one untitled section each.
-    text.chapters.flatMap { ch ->
-        ch.verses.map { ReaderSection("", listOf(AliyotPartitioner.TaggedVerse(ch.number, it)), markChapters = false) }
+    // A prayer: one section per siddur section, titled in the reader's language, with
+    // paragraphs instead of numbered verses.
+    text.chapters.mapIndexed { i, ch ->
+        val t = text.sectionTitles?.getOrNull(i)
+        val title = if (t == null) "" else if (hebrew) t.he.ifBlank { t.en } else t.en
+        ReaderSection(title, ch.verses.map { AliyotPartitioner.TaggedVerse(ch.number, it) }, markChapters = false)
     }
 } else text.chapters.map { ch ->
     val header = when {

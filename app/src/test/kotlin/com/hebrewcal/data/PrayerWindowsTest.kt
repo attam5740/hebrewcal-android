@@ -103,10 +103,12 @@ class PrayerWindowsTest {
         }
         assertTrue(Tefillot.refsFor(PrayerButton.HAVDALAH, Nusach.SEFARD, null).all { it.startsWith("Siddur Sefard") })
         assertTrue(Tefillot.refsFor(PrayerButton.SHEMA_AL_HAMITA, Nusach.EDOT_HAMIZRACH, null).all { it.startsWith("Siddur Edot HaMizrach") })
-        // Morning blessings must include Birchot HaTorah in every custom.
+        // Morning blessings must reach Birchot HaTorah in every custom (Edot HaMizrach's whole
+        // "Preparatory Prayers" group ends with its Torah Blessings section).
         for (n in Nusach.values()) {
             val refs = Tefillot.refsFor(PrayerButton.BIRCHOT_HASHACHAR, n, null)
-            assertTrue("$n includes the Torah blessings", refs.any { it.contains("Torah") })
+            assertTrue("$n includes the Torah blessings",
+                refs.any { it.contains("Torah") } || refs.last() == SiddurIndex.ALL_UNDER + "Siddur Edot HaMizrach, Preparatory Prayers")
         }
     }
 
@@ -153,7 +155,8 @@ class PrayerWindowsTest {
         for (n in Nusach.values()) for (b in listOf(PrayerButton.SHACHARIT, PrayerButton.MINCHA, PrayerButton.ARVIT))
             for (d in ServiceDay.values()) {
                 val refs = Tefillot.refsFor(b, n, null, d)
-                assertTrue("$n $b $d", refs.isNotEmpty() && refs.all { it.startsWith(SiddurIndex.ALL_UNDER) })
+                // Each part is a whole-service spec or a plain (possibly partial) section ref.
+                assertTrue("$n $b $d", refs.isNotEmpty() && refs.all { it.startsWith(SiddurIndex.ALL_UNDER) || it.startsWith("Siddur ") })
             }
         assertTrue(Tefillot.refsFor(PrayerButton.ARVIT, Nusach.ASHKENAZ, null, ServiceDay.SHABBAT).any { it.contains("Kabbalat Shabbat") })
         assertTrue(Tefillot.refsFor(PrayerButton.MINCHA, Nusach.SEFARD, null, ServiceDay.EREV_SHABBAT).single().contains("Shabbat Eve Mincha"))
@@ -173,5 +176,43 @@ class PrayerWindowsTest {
         )
         assertEquals(listOf("Siddur X, Shabbat Candle Lighting"), SiddurIndex.leaves(json, "Siddur X, Shabbat Candle Lighting"))
         assertTrue("prefix must match whole titles", SiddurIndex.leaves(json, "Siddur X, Week").isEmpty())
+    }
+
+    @Test
+    fun morningBlessingsRunFromModehAniThroughBirkatKohanim() {
+        val ash = Tefillot.refsFor(PrayerButton.BIRCHOT_HASHACHAR, Nusach.ASHKENAZ, null)
+        assertTrue(ash.first().endsWith("Modeh Ani"))
+        assertEquals("Siddur Ashkenaz, Weekday, Shacharit, Preparatory Prayers, Torah Study 1", ash.last())
+        // Shacharit picks up exactly where that left off: Eilu Devarim, then the rest of the service.
+        val sh = Tefillot.refsFor(PrayerButton.SHACHARIT, Nusach.ASHKENAZ, null, ServiceDay.WEEKDAY)
+        assertEquals("Siddur Ashkenaz, Weekday, Shacharit, Preparatory Prayers, Torah Study 2-3", sh.first())
+        assertTrue(sh[1].startsWith(SiddurIndex.ALL_UNDER) && sh[1].contains(SiddurIndex.AFTER + "Siddur Ashkenaz, Weekday, Shacharit, Preparatory Prayers, Torah Study"))
+        val sef = Tefillot.refsFor(PrayerButton.BIRCHOT_HASHACHAR, Nusach.SEFARD, null)
+        assertTrue(sef.first().contains("Upon Arising") && sef.last().endsWith("Blessings on Torah 1-6"))
+        assertEquals("Siddur Sefard, Weekday Shacharit, Blessings on Torah 7-26",
+            Tefillot.refsFor(PrayerButton.SHACHARIT, Nusach.SEFARD, null, ServiceDay.WEEKDAY).first())
+        for (n in Nusach.values()) {
+            val specs = Tefillot.allPrayerSpecs(n)
+            assertTrue("$n has prefetch specs", specs.size >= 10)
+            assertEquals("no duplicates", specs.size, specs.distinct().size)
+        }
+    }
+
+    @Test
+    fun specsSelectSectionsAfterALeaf() {
+        val json = """{"schema":{"title":"S","nodes":[{"title":"Weekday","nodes":[{"title":"A"},{"title":"B"},{"title":"C"}]}]}}"""
+        assertEquals(listOf("S, Weekday, C"), SiddurIndex.leaves(json, "S, Weekday", after = "S, Weekday, B"))
+        assertEquals(listOf("S, Weekday, A", "S, Weekday, B", "S, Weekday, C"), SiddurIndex.leaves(json, "S, Weekday", after = "S, Weekday, Nope"))
+        assertEquals("S, Weekday" to "S, Weekday, B", SiddurIndex.parseSpec("@S, Weekday>>S, Weekday, B"))
+        assertEquals("S, Weekday" to null, SiddurIndex.parseSpec("@S, Weekday"))
+    }
+
+    @Test
+    fun sectionTitlesDropParagraphRanges() {
+        assertEquals(SectionTitle("Torah Study", "לימוד תורה"),
+            SefariaRefs.sectionTitle("Siddur Ashkenaz, Weekday, Shacharit, Preparatory Prayers, Torah Study 2-3", "סידור אשכנז, ימי חול, תפילת שחרית, הכנה לתפילה, לימוד תורה ב׳-ג׳"))
+        assertEquals(SectionTitle("Modeh Ani", "מודה אני"),
+            SefariaRefs.sectionTitle("Siddur Ashkenaz, Weekday, Shacharit, Preparatory Prayers, Modeh Ani", "סידור אשכנז, ימי חול, תפילת שחרית, הכנה לתפילה, מודה אני"))
+        assertEquals(SectionTitle("Havdalah", ""), SefariaRefs.sectionTitle("Siddur Ashkenaz, Shabbat, Havdalah", ""))
     }
 }

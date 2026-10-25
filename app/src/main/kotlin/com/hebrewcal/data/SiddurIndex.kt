@@ -14,8 +14,16 @@ import kotlinx.serialization.json.jsonObject
 object SiddurIndex {
     /** Refs written with this prefix in [Tefillot] stand for every section under that path. */
     const val ALL_UNDER = "@"
+    /** "@path>>leaf": only the sections after [leaf] (the earlier ones belong to another button). */
+    const val AFTER = ">>"
 
-    fun leaves(indexJson: String, path: String): List<String> {
+    fun parseSpec(spec: String): Pair<String, String?> {
+        val body = spec.removePrefix(ALL_UNDER)
+        val i = body.indexOf(AFTER)
+        return if (i < 0) body to null else body.substring(0, i) to body.substring(i + AFTER.length)
+    }
+
+    fun leaves(indexJson: String, path: String, after: String? = null): List<String> {
         val schema = Json.parseToJsonElement(indexJson).jsonObject["schema"] as? JsonObject ?: return emptyList()
         val out = mutableListOf<String>()
         fun walk(node: JsonObject, prefix: String) {
@@ -27,6 +35,8 @@ object SiddurIndex {
             else children.forEach { c -> (c as? JsonObject)?.let { walk(it, full) } }
         }
         walk(schema, "")
-        return out.filter { it == path || it.startsWith("$path, ") }
+        val under = out.filter { it == path || it.startsWith("$path, ") }
+        val skip = after?.let { under.indexOf(it) } ?: -1
+        return if (skip >= 0) under.drop(skip + 1) else under
     }
 }

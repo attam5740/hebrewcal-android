@@ -58,7 +58,17 @@ class SefariaRepository(context: Context) {
     }
 
     /** Readable refs under [path] from the book's Sefaria index (cached on disk). */
-    suspend fun siddurSections(path: String): Result<List<String>> = withContext(Dispatchers.IO) {
+    /** Every ref a reader spec stands for: parts joined by "||", each a ref or "@path[>>leaf]". */
+    suspend fun expandRefs(spec: String): Result<List<String>> = runCatching {
+        spec.split(Tefillot.REF_SEPARATOR).map { it.trim() }.filter { it.isNotEmpty() }.flatMap { p ->
+            if (p.startsWith(SiddurIndex.ALL_UNDER)) {
+                val (path, after) = SiddurIndex.parseSpec(p)
+                siddurSections(path, after).getOrThrow()
+            } else listOf(p)
+        }
+    }
+
+    suspend fun siddurSections(path: String, after: String? = null): Result<List<String>> = withContext(Dispatchers.IO) {
         val book = path.substringBefore(", ")
         val cacheFile = File(cacheDir, "index_" + book.replace(Regex("[^A-Za-z0-9._-]"), "_") + ".json")
         runCatching {
@@ -66,7 +76,7 @@ class SefariaRepository(context: Context) {
                 httpGet("https://www.sefaria.org/api/v2/index/" + URLEncoder.encode(book.replace(' ', '_'), "UTF-8"))
                     .also { cacheFile.writeText(it) }
             }
-            SiddurIndex.leaves(json, path).ifEmpty { error("no sections under $path") }
+            SiddurIndex.leaves(json, path, after).ifEmpty { error("no sections under $path") }
         }
     }
 

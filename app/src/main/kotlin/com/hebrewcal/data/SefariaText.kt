@@ -4,7 +4,26 @@ import kotlinx.serialization.json.*
 
 data class Verse(val num: Int, val he: String, val en: String)
 data class Chapter(val number: Int, val verses: List<Verse>)
-data class SefariaText(val heRef: String, val chapters: List<Chapter>)
+/** A siddur section's name in both languages, for the reader's headings. */
+data class SectionTitle(val en: String, val he: String)
+data class SefariaText(
+    val heRef: String,
+    val chapters: List<Chapter>,
+    /** For a prayer built from several siddur sections: one title per chapter, in order. */
+    val sectionTitles: List<SectionTitle>? = null
+)
+
+object SefariaRefs {
+    private val RANGE = Regex(" \\d+(-\\d+)?$")
+
+    /** The section name at the end of a ref, minus a paragraph range ("Torah Study 2-3"). */
+    fun sectionTitle(ref: String, heRef: String): SectionTitle {
+        val en = ref.substringAfterLast(", ").trim()
+        val he = heRef.substringAfterLast(", ").trim()
+        return if (RANGE.containsMatchIn(en)) SectionTitle(RANGE.replace(en, ""), he.substringBeforeLast(' ', he))
+        else SectionTitle(en, he)
+    }
+}
 
 object SefariaTextParser {
     private val BR = Regex("<br ?/?>")
@@ -41,8 +60,14 @@ object SefariaTextParser {
         val startChapter = sections.getOrNull(0)?.toIntOrNull() ?: 1
         val startVerse = sections.getOrNull(1)?.toIntOrNull() ?: 1
 
-        val he = (obj["he"] as? JsonArray) ?: JsonArray(emptyList())
-        val en = (obj["text"] as? JsonArray) ?: JsonArray(emptyList())
+        // A ref to one paragraph ("Torah Study 1") comes back as a bare string, not an array.
+        fun segments(e: JsonElement?): JsonArray = when (e) {
+            is JsonArray -> e
+            is JsonPrimitive -> JsonArray(listOf(e))
+            else -> JsonArray(emptyList())
+        }
+        val he = segments(obj["he"])
+        val en = segments(obj["text"])
         val nested = he.firstOrNull() is JsonArray
 
         val chapters = mutableListOf<Chapter>()

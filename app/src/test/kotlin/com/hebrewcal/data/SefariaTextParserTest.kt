@@ -71,4 +71,13 @@ class SefariaTextParserTest {
         assertEquals("", t.chapters[0].verses[0].he)   // he missing -> empty
         assertEquals("v1", t.chapters[0].verses[0].en)
     }
+
+    @Test
+    fun singleParagraphRefComesAsAString() {
+        // "Torah Study 1" returns he/text as bare strings rather than one-element arrays.
+        val t = SefariaTextParser.parse("""{"heRef":"x","sections":[1],"he":"יְבָרֶכְךָ","text":"May He bless you"}""")
+        assertEquals(1, t.chapters.size)
+        assertEquals(1, t.chapters[0].verses.size)
+        assertEquals("May He bless you", t.chapters[0].verses[0].en)
+    }
 }

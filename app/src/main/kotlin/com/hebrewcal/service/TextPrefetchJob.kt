@@ -61,7 +61,15 @@ object TextPrefetch {
             runCatching { TikkunLayout.parseTorahRef(parsha.sefariaRef)?.let { tikkun.linesFor(it) } }
         }
 
-        Log.i(TAG, "done: ${tehillim.size} tehillim refs, ${prefs.prefetchParshaWeeks} weeks of parsha, $failures failures")
+        // The prayer texts for the chosen custom, so the notification buttons work offline.
+        var prayerRefs = 0
+        if (prefs.prayerButtonsOn) for (spec in com.hebrewcal.data.Tefillot.allPrayerSpecs(prefs.nusach)) {
+            val refs = repo.expandRefs(spec).getOrNull()
+            if (refs == null) { failures++; continue }
+            for (ref in refs) { prayerRefs++; if (!repo.prefetchText(ref)) failures++ }
+        }
+
+        Log.i(TAG, "done: ${tehillim.size} tehillim refs, ${prefs.prefetchParshaWeeks} weeks of parsha, $prayerRefs prayer refs, $failures failures")
         return failures == 0
     }
 
