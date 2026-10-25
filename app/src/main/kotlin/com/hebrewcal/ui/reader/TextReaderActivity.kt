@@ -819,8 +819,11 @@ private fun ReaderBody(
                         section.verses.forEach { tv ->
                             val verseKey = "${if (section.extra) "e" else "m"}:${tv.chapter}:${tv.verse.num}"
                             // If the other language has no text for this verse, keep the original.
-                            val body = verseBody(tv.verse.he, tv.verse.en, verseKey in flippedVerses)
-                                .ifBlank { verseBody(tv.verse.he, tv.verse.en) }
+                            // A verse with no text in the shown language (e.g. Sefard's Hebrew-only
+                            // siddur in English mode) falls back to the other language.
+                            val flipped = verseKey in flippedVerses
+                            val body = verseBody(tv.verse.he, tv.verse.en, flipped)
+                                .ifBlank { verseBody(tv.verse.he, tv.verse.en, !flipped) }
                             if (body.isBlank()) return@forEach
                             if (section.markChapters && tv.chapter != lastChapter) {
                                 if (lastChapter != -1) {

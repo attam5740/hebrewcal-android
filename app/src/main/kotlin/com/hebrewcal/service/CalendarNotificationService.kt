@@ -178,6 +178,10 @@ class CalendarNotificationService : Service() {
                     } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
                 } else null
 
+                val havdalah = try {
+                    HavdalahWindow.status(now, lat, lng, timeZone, isIsrael, prefs.havdalahOpinion)
+                } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
+
                 val notification = LockscreenNotificationBuilder.build(
                     context             = applicationContext,
                     dateInfo            = dateInfo,
@@ -194,7 +198,9 @@ class CalendarNotificationService : Service() {
                     elulRef             = elulRef,
                     shabbatTimes        = shabbatTimes,
                     showShabbatBanner   = prefs.showShabbatBanner,
-                    timeFormat          = prefs.zmanimTimeFormat
+                    timeFormat          = prefs.zmanimTimeFormat,
+                    havdalahRef         = if (havdalah?.active == true)
+                        Tefillot.havdalahRefs(prefs.nusach).joinToString(Tefillot.REF_SEPARATOR) else null
                 )
                 NotificationManagerCompat.from(applicationContext)
                     .notify(LockscreenNotificationBuilder.NOTIFICATION_ID, notification)
@@ -211,6 +217,10 @@ class CalendarNotificationService : Service() {
                 }
                 try { scheduleMidnightAlarm() } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
                 try { scheduleWidgetTzetAlarm(lat, lng, timeZone, now, tzetToday) } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
+                // Show or hide the Havdalah button exactly when its window opens or closes.
+                havdalah?.nextChange?.let { at ->
+                    try { scheduleRefreshAt(at, HAVDALAH_ALARM_REQUEST_CODE) } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
+                }
             } catch (e: Exception) {
                 // Outer guard — service stays alive even if everything above fails
                 Log.e(TAG, "refresh failed; notification left stale", e)
@@ -311,6 +321,23 @@ class CalendarNotificationService : Service() {
      * (no location set), the alarm is skipped — the scheduleMidnightAlarm() above
      * already provides a daily civil-midnight refresh as a fallback.
      */
+    private fun scheduleRefreshAt(at: Date, requestCode: Int) {
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(applicationContext, ZmanAlarmReceiver::class.java).apply {
+            action = ZmanAlarmReceiver.ACTION_WIDGET_REFRESH
+        }
+        val pi = PendingIntent.getBroadcast(
+            applicationContext, requestCode, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        // Same fallback chain as the other refreshes: exact if allowed, else inexact.
+        try {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at.time, pi)
+        } catch (e: SecurityException) {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at.time, pi)
+        }
+    }
+
     private fun scheduleWidgetTzetAlarm(
         lat: Double,
         lng: Double,
@@ -353,6 +380,7 @@ class CalendarNotificationService : Service() {
         const val MIDNIGHT_ALARM_REQUEST_CODE = 2100
         const val RESTART_REQUEST_CODE = 2200
         const val WIDGET_TZET_ALARM_REQUEST_CODE = 2300
+        const val HAVDALAH_ALARM_REQUEST_CODE = 2400
         const val RESTART_DELAY_MS = 5_000L
 
         fun start(context: Context) {

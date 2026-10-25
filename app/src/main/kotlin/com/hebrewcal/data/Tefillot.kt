@@ -23,6 +23,14 @@ object Tefillot {
         )
     }
 
+    /** The Motzei Shabbat Havdalah service. Verified against Sefaria 2026-10 (the Sefard
+     *  title really has a space before its comma; Sefard's text is Hebrew-only). */
+    fun havdalahRefs(nusach: Nusach): List<String> = when (nusach) {
+        Nusach.ASHKENAZ -> listOf("Siddur Ashkenaz, Shabbat, Havdalah")
+        Nusach.SEFARD -> listOf("Siddur Sefard, Motzaei Shabbat , Havdala")
+        Nusach.EDOT_HAMIZRACH -> listOf("Siddur Edot HaMizrach, Havdalah, Havdala")
+    }
+
     /** Several refs joined for one reader screen; [ReaderViewModel] splits on this. */
     const val REF_SEPARATOR = "||"
 }

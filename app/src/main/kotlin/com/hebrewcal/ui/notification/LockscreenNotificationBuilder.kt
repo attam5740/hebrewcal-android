@@ -25,6 +25,7 @@ object LockscreenNotificationBuilder {
     const val NOTIFICATION_ID = 1001
     const val TEHILLIM_ACTION_REQUEST_CODE = 3001
     const val PARSHA_ACTION_REQUEST_CODE = 3002
+    const val HAVDALAH_ACTION_REQUEST_CODE = 3003
 
     fun createNotificationChannel(context: Context) {
         val channel = NotificationChannel(
@@ -59,7 +60,9 @@ object LockscreenNotificationBuilder {
         elulRef: String? = null,
         shabbatTimes: com.hebrewcal.data.ShabbatTimesResult? = null,
         showShabbatBanner: Boolean = true,
-        timeFormat: com.hebrewcal.data.ZmanimTimeFormat = com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR
+        timeFormat: com.hebrewcal.data.ZmanimTimeFormat = com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR,
+        /** Set only on Motzei Shabbat, for 3 hours from Havdalah time (see HavdalahWindow). */
+        havdalahRef: String? = null
     ): Notification {
         val contentIntent = Intent(context, CalendarActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -210,7 +213,35 @@ object LockscreenNotificationBuilder {
             expandedViews.setViewVisibility(R.id.tv_btn_tehillim, android.view.View.GONE)
             remoteViews.setViewVisibility(R.id.tv_btn_tehillim_c, android.view.View.GONE)
         }
-        if (parshaActionLabel != null) {
+        if (havdalahRef != null) {
+            // Motzei Shabbat: the Havdalah button stands in for the parsha pill, which keeps
+            // the row within the collapsed notification's width.
+            val label = if (languageName == "HEBREW") "🍷 הבדלה" else "🍷 Havdalah"
+            val intent = Intent(context, TextReaderActivity::class.java).apply {
+                putExtra(TextReaderActivity.EXTRA_MODE, "tefillah")
+                putExtra(TextReaderActivity.EXTRA_REF, havdalahRef)
+                putExtra(TextReaderActivity.EXTRA_TITLE, if (languageName == "HEBREW") "הבדלה" else "Havdalah")
+                putExtra(TextReaderActivity.EXTRA_LANG, languageName)
+                putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
+                putExtra(TextReaderActivity.EXTRA_TEAMIM, false)
+                data = android.net.Uri.parse("hebrewcal://reader/havdalah")
+            }
+            val pi = PendingIntent.getActivity(
+                context, HAVDALAH_ACTION_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            expandedViews.setTextViewText(R.id.tv_btn_parsha, label)
+            expandedViews.setInt(R.id.tv_btn_parsha, "setBackgroundResource", R.drawable.bg_pill_havdalah)
+            expandedViews.setTextColor(R.id.tv_btn_parsha, 0xFFFFD6E0.toInt())
+            expandedViews.setViewVisibility(R.id.tv_btn_parsha, android.view.View.VISIBLE)
+            expandedViews.setOnClickPendingIntent(R.id.tv_btn_parsha, pi)
+            remoteViews.setTextViewText(R.id.tv_btn_parsha_c, label)
+            remoteViews.setInt(R.id.tv_btn_parsha_c, "setBackgroundResource", R.drawable.bg_pill_havdalah)
+            remoteViews.setTextColor(R.id.tv_btn_parsha_c, 0xFFFFD6E0.toInt())
+            remoteViews.setViewVisibility(R.id.tv_btn_parsha_c, android.view.View.VISIBLE)
+            remoteViews.setOnClickPendingIntent(R.id.tv_btn_parsha_c, pi)
+            anyReaderButton = true
+        } else if (parshaActionLabel != null) {
             val intent = Intent(context, TextReaderActivity::class.java).apply {
                 putExtra(TextReaderActivity.EXTRA_MODE, "parsha")
                 putExtra(TextReaderActivity.EXTRA_REF, "")
