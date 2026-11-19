@@ -63,7 +63,9 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         val prependedSections: Int = 0,
         /** Chitas only: one parsed text per leg (null = not fetched), and the legs' en/he headings. */
         val legs: List<SefariaText?>? = null,
-        val legTitles: List<SectionTitle>? = null
+        val legTitles: List<SectionTitle>? = null,
+        /** Chitas only: per leg, true when the day genuinely has no portion (blank ref, not a failed fetch). */
+        val legBlank: List<Boolean>? = null
     )
     data class WeekInfo(val parsha: ParshaRef? = null)
     private data class Position(val ref: String, val title: String, val aliyot: List<String>)
@@ -119,6 +121,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
             var resolvedTitle = title
             var aliyot: List<String> = presetAliyot
             var chitasTitles: List<SectionTitle>? = null
+            var tanyaFetchFailed = false
             if (mode == "parsha" && ref.isBlank()) {
                 val p = repo.currentParsha(diaspora).getOrNull()
                 if (p == null) { _state.value = UiState(loading = false, error = OFFLINE, title = title, mode = mode); return@launch }
@@ -129,6 +132,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                 val weekly = repo.parshaFor(ChitasSchedule.parshaDateFor(advanced), diaspora).getOrNull()
                 val daily = repo.parshaFor(advanced, diaspora).getOrNull()
                 // Without the day's own response the Tanya leg is blanked (the Shabbat's Tanya would be the wrong day's).
+                tanyaFetchFailed = weekly != null && daily == null
                 val p = weekly?.let { w ->
                     daily?.let { ChitasSchedule.withDailyTanya(w, it) } ?: w.copy(tanyaRef = "", tanyaLabel = "", tanyaLabelHe = "")
                 }
@@ -156,7 +160,10 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                 } else {
                     window = null // three separate texts, not one range to keep reading through
                     _state.value = UiState(false, null, resolvedTitle, SefariaText(resolvedTitle, emptyList()), mode,
-                        legs = legs, legTitles = chitasTitles)
+                        legs = legs, legTitles = chitasTitles,
+                        legBlank = ChitasSections.splitRefs(resolvedRef).mapIndexed { i, r ->
+                            r.isEmpty() && !(i == 2 && tanyaFetchFailed)
+                        })
                 }
                 return@launch
             }

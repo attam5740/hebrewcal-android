@@ -87,6 +87,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setChitasButtonOn(on: Boolean) = viewModelScope.launch {
         prefsRepo.updateChitasButtonOn(on)
         notifyServiceRefresh()
+        reschedulePrefetch()
     }
 
     fun setShowParshaButton(show: Boolean) = viewModelScope.launch {

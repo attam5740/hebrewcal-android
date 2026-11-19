@@ -56,6 +56,13 @@ class ChitasScheduleTest {
         assertEquals("", p.chumashRef)
     }
 
+    @Test fun anAliyotListShorterThanSevenYieldsABlankChumashRefOnLaterDays() {
+        // Wednesday is index 4; a 2-entry list has nothing there.
+        val p = ChitasSchedule.portionFor(LocalDate.of(2026, 11, 18), 8, 30, vayetzei.copy(aliyot = vayetzei.aliyot.take(2)))
+        assertEquals(4, p.aliyahIndex)
+        assertEquals("", p.chumashRef)
+    }
+
     @Test fun tehillimAndTanyaComeThrough() {
         val p = ChitasSchedule.portionFor(LocalDate.of(2026, 11, 18), 8, 30, vayetzei)
         assertEquals(TehillimSchedule.portionFor(8, 30).sefariaRef, p.tehillimRef)

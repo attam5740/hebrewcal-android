@@ -232,7 +232,7 @@ class TextReaderActivity : ComponentActivity() {
                             sizeSp = textSize, mode = state.mode, bookNameEn = state.bookNameEn,
                             aliyot = if (byAliyot) state.aliyot else emptyList(),
                             elulText = state.elulText,
-                            legs = state.legs, legTitles = state.legTitles,
+                            legs = state.legs, legTitles = state.legTitles, legBlank = state.legBlank,
                             tikkunLines = state.tikkunLines,
                             extendingUp = state.extendingUp,
                             extendingDown = state.extendingDown,
@@ -525,6 +525,7 @@ private fun ReaderBody(
     elulText: SefariaText? = null,
     legs: List<SefariaText?>? = null,
     legTitles: List<SectionTitle>? = null,
+    legBlank: List<Boolean>? = null,
     tikkunLines: List<TikkunLayout.Line>? = null,
     extendingUp: Boolean = false,
     extendingDown: Boolean = false,
@@ -569,7 +570,7 @@ private fun ReaderBody(
     var flippedVerses by remember(text, textMode) { mutableStateOf(setOf<String>()) }
 
     // Section list: one per aliyah when partitioning, else one per chapter.
-    val sections = remember(text, mode, bookNameEn, aliyot, hebrew, elulText, legs, legTitles) {
+    val sections = remember(text, mode, bookNameEn, aliyot, hebrew, elulText, legs, legTitles, legBlank) {
         // `chapterSections` for the whole window: the shape used whenever the reading is
         // not partitioned by aliyah, and the fallback when partitioning cannot be mapped
         // onto the window. Kept as a function so the aliyot path does not build it.
@@ -583,7 +584,9 @@ private fun ReaderBody(
                 legTitles?.getOrNull(i)?.let { t -> if (hebrew) t.he.ifBlank { t.en } else t.en } ?: ""
             }
             ChitasSections.build(texts, titles)
-                .map { (t, v) -> ReaderSection(t, v, markChapters = true) }
+                .mapIndexed { i, (t, v) ->
+                    ReaderSection(t, v, markChapters = true, blankRef = legBlank?.getOrNull(i) == true)
+                }
         } else null
         val split = if (chitasLegs != null || aliyot.isEmpty()) null else AliyotPartitioner.layout(text.chapters, aliyot)
         val main: List<ReaderSection> = if (chitasLegs != null) chitasLegs else if (split == null) plainSections() else {
@@ -675,7 +678,8 @@ private fun ReaderBody(
                     )
                     if (!isFolded && mode == "chitas" && section.verses.isEmpty()) {
                         Text(
-                            if (hebrew) "נדרש חיבור לאינטרנט" else "Needs a connection to load",
+                            if (section.blankRef) { if (hebrew) "אין חלק להיום" else "Not available for this day" }
+                            else if (hebrew) "נדרש חיבור לאינטרנט" else "Needs a connection to load",
                             color = Color.White.copy(alpha = 0.6f), fontSize = sizeSp.sp,
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                             textAlign = TextAlign.Start
@@ -918,7 +922,9 @@ private data class ReaderSection(
     val title: String,
     val verses: List<AliyotPartitioner.TaggedVerse>,
     val markChapters: Boolean,
-    val extra: Boolean = false
+    val extra: Boolean = false,
+    /** Chitas leg whose ref is blank for this day (nothing to fetch), as opposed to a failed fetch. */
+    val blankRef: Boolean = false
 )
 
 @Composable
