@@ -27,6 +27,7 @@ data class UserPreferences(
     val readerTextSizeSp: Float = 18f,
     val showTehillimButton: Boolean = true,
     val showParshaButton: Boolean = true,
+    val chitasButtonOn: Boolean = false,
     val showElulTehillim: Boolean = true,
     val prefetchNetwork: PrefetchNetwork = PrefetchNetwork.WIFI,
     val prefetchTehillimDays: Int = 7,
@@ -183,6 +184,7 @@ object PreferenceKeys {
     val READER_TEXT_SIZE = floatPreferencesKey("reader_text_size")
     val SHOW_TEHILLIM_BUTTON = booleanPreferencesKey("show_tehillim_button")
     val SHOW_PARSHA_BUTTON = booleanPreferencesKey("show_parsha_button")
+    val CHITAS_BUTTON_ON = booleanPreferencesKey("chitas_button_on")
     val SHOW_ELUL_TEHILLIM = booleanPreferencesKey("show_elul_tehillim")
     val PREFETCH_NETWORK = stringPreferencesKey("prefetch_network")
     val PREFETCH_TEHILLIM_DAYS = intPreferencesKey("prefetch_tehillim_days")
@@ -225,6 +227,7 @@ class UserPreferencesRepository(private val context: Context) {
             readerTextSizeSp = prefs[PreferenceKeys.READER_TEXT_SIZE] ?: 18f,
             showTehillimButton = prefs[PreferenceKeys.SHOW_TEHILLIM_BUTTON] ?: true,
             showParshaButton = prefs[PreferenceKeys.SHOW_PARSHA_BUTTON] ?: true,
+            chitasButtonOn = prefs[PreferenceKeys.CHITAS_BUTTON_ON] ?: false,
             showElulTehillim = prefs[PreferenceKeys.SHOW_ELUL_TEHILLIM] ?: true,
             prefetchNetwork = enumOr(prefs[PreferenceKeys.PREFETCH_NETWORK], PrefetchNetwork.WIFI),
             prefetchTehillimDays = prefs[PreferenceKeys.PREFETCH_TEHILLIM_DAYS] ?: 7,
@@ -297,6 +300,10 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateShowTehillimButton(show: Boolean) {
         context.dataStore.edit { it[PreferenceKeys.SHOW_TEHILLIM_BUTTON] = show }
+    }
+
+    suspend fun updateChitasButtonOn(on: Boolean) {
+        context.dataStore.edit { it[PreferenceKeys.CHITAS_BUTTON_ON] = on }
     }
 
     suspend fun updateShowParshaButton(show: Boolean) {

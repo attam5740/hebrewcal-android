@@ -260,6 +260,13 @@ fun MainSettingsScreen(
             )
 
             SwitchSettingRow(
+                label    = "חת״ת · Chitas button",
+                subtitle = "Button on the widget and notification, opens today's Chumash, Tehillim and Tanya",
+                checked  = prefs.chitasButtonOn,
+                onCheck  = viewModel::setChitasButtonOn
+            )
+
+            SwitchSettingRow(
                 label    = "תהילים לאלול · Elul Tehillim",
                 subtitle = "Three additional daily chapters from Rosh Chodesh Elul through Yom Kippur, shown in the daily Tehillim reader",
                 checked  = prefs.showElulTehillim,
