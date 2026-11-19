@@ -82,4 +82,14 @@ class ChitasScheduleTest {
         val p = ChitasSchedule.portionFor(LocalDate.of(2026, 11, 18), 8, 30, vayetzei.copy(tanyaLabelHe = ""))
         assertEquals("תניא — 8 Kislev", ChitasSchedule.legTitles(p, hebrew = true)[2])
     }
+
+    @Test fun dailyTanyaReplacesTheShabbatsButKeepsItsAliyot() {
+        val daily = ParshaRef("", "", "", "", tanyaRef = "Tanya, X 1", tanyaLabel = "L", tanyaLabelHe = "ל")
+        val merged = ChitasSchedule.withDailyTanya(vayetzei, daily)
+        assertEquals("Tanya, X 1", merged.tanyaRef)
+        assertEquals("L", merged.tanyaLabel)
+        assertEquals("ל", merged.tanyaLabelHe)
+        assertEquals(vayetzei.aliyot, merged.aliyot)
+        assertEquals("Vayetzei", merged.nameEn)
+    }
 }

@@ -70,18 +70,22 @@ object TextPrefetch {
             for (ref in refs) { prayerRefs++; if (!repo.prefetchText(ref)) failures++ }
         }
 
-        // Daily Chitas: each day's calendars response (cached per date) carries that day's
-        // Tanya ref. Chumash and Tehillim texts are already covered by the loops above.
-        var chitasDays = 0
+        // Daily Chitas. The aliyot come from the Shabbat's calendars response, the Tanya ref
+        // from the Chitas day's own response; the reader fetches single-aliyah ranges, which
+        // the whole-parsha prefetch above does not cover, so all seven are fetched here.
+        var chitasDays = 0; var tanyaTexts = 0; var tanyaBlank = 0
         if (prefs.chitasButtonOn) for (offset in 0..prefs.prefetchTehillimDays) {
             val day = LocalDate.now().plusDays(offset.toLong())
-            val portion = repo.parshaFor(ChitasSchedule.parshaDateFor(day), diaspora).getOrNull()
-            if (portion == null) { failures++; continue }
+            val weekly = repo.parshaFor(ChitasSchedule.parshaDateFor(day), diaspora).getOrNull()
+            val daily = repo.parshaFor(day, diaspora).getOrNull()
+            if (weekly == null || daily == null) { failures++; continue }
             chitasDays++
-            if (portion.tanyaRef.isNotBlank() && !repo.prefetchText(portion.tanyaRef)) failures++
+            for (aliyah in weekly.aliyot.take(7)) if (aliyah.isNotBlank() && !repo.prefetchText(aliyah)) failures++
+            if (daily.tanyaRef.isBlank()) { tanyaBlank++; continue }
+            if (repo.prefetchText(daily.tanyaRef)) tanyaTexts++ else failures++
         }
 
-        Log.i(TAG, "done: ${tehillim.size} tehillim refs, ${prefs.prefetchParshaWeeks} weeks of parsha, $prayerRefs prayer refs, $chitasDays chitas days, $failures failures")
+        Log.i(TAG, "done: ${tehillim.size} tehillim refs, ${prefs.prefetchParshaWeeks} weeks of parsha, $prayerRefs prayer refs, $chitasDays chitas days, $tanyaTexts tanya texts ($tanyaBlank days without a tanya ref), $failures failures")
         return failures == 0
     }
 

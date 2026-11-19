@@ -33,6 +33,14 @@ object ChitasSchedule {
     fun parshaDateFor(advanced: LocalDate): LocalDate =
         advanced.with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY))
 
+    /**
+     * Tanya Yomi is a per-day calendar item, while the aliyot belong to the Shabbat's
+     * response. Takes the aliyot/parsha from [weekly] and the Tanya fields from [daily]
+     * (the response for the Chitas day itself).
+     */
+    fun withDailyTanya(weekly: ParshaRef, daily: ParshaRef): ParshaRef =
+        weekly.copy(tanyaRef = daily.tanyaRef, tanyaLabel = daily.tanyaLabel, tanyaLabelHe = daily.tanyaLabelHe)
+
     fun portionFor(advanced: LocalDate, hebrewDay: Int, daysInMonth: Int, parsha: ParshaRef): ChitasPortion {
         // Sunday = 1 .. Saturday = 7; maftir (8th entry) is never used.
         val index = advanced.dayOfWeek.value % 7 + 1

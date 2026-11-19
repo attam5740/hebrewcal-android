@@ -126,7 +126,9 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                 if (resolvedTitle.isBlank()) resolvedTitle = p.heRef
             } else if (mode == "chitas") {
                 val advanced = runCatching { java.time.LocalDate.parse(advancedDate) }.getOrElse { java.time.LocalDate.now() }
-                val p = repo.parshaFor(ChitasSchedule.parshaDateFor(advanced), diaspora).getOrNull()
+                val weekly = repo.parshaFor(ChitasSchedule.parshaDateFor(advanced), diaspora).getOrNull()
+                val daily = repo.parshaFor(advanced, diaspora).getOrNull()
+                val p = if (weekly != null && daily != null) ChitasSchedule.withDailyTanya(weekly, daily) else null
                 if (p == null && ref.isBlank()) { _state.value = UiState(loading = false, error = OFFLINE, title = title, mode = mode); return@launch }
                 val portion = p?.let {
                     val jd = com.kosherjava.zmanim.hebrewcalendar.JewishDate(advanced)
