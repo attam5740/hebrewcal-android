@@ -18,7 +18,7 @@ class SettingsActivity : ComponentActivity() {
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* Permission result handled in UI flow */ }
+    ) { granted -> if (granted) viewModel.detectNearestCity() }
 
     private val exportSettingsLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")

@@ -23,7 +23,9 @@ data class ShabbatTimesResult(
     val havdalah: Date?,
     val havdalahRt: Date?,
     val parshaName: String?,
-    val yomTovName: String?
+    val yomTovName: String?,
+    /** Candles lit on Yom Tov for Shabbat, from an existing flame (Yom Tov on Friday). */
+    val fromExistingFlame: Boolean = false
 )
 
 object ShabbatTimes {
@@ -61,28 +63,31 @@ object ShabbatTimes {
         val isErevYomTov = jcal.isErevYomTov || (jcal.hasCandleLighting() && !isFriday)
         val isYomTov = jcal.isYomTovAssurBemelacha
 
-        // Candle lighting: applicable on Friday or Erev Yom Tov
-        val candleLighting: Date? = if (isFriday || isErevYomTov) {
-            cal.candleLightingOffset = candleLightingOffsetMinutes.toDouble()
-            cal.candleLighting
-        } else {
-            null
+        val nightfall: Date? = when (havdalahOpinion) {
+            HavdalahOpinion.STANDARD_8_5 -> cal.tzaisGeonim8Point5Degrees ?: cal.tzais
+            HavdalahOpinion.MINUTES_42   -> cal.sunset?.let { Date(it.time + 42L * 60 * 1000) }
+            HavdalahOpinion.MINUTES_50   -> cal.tzais50 ?: cal.sunset?.let { Date(it.time + 50L * 60 * 1000) }
+            HavdalahOpinion.MINUTES_72_RT -> cal.tzais72 ?: cal.sunset?.let { Date(it.time + 72L * 60 * 1000) }
+        }
+        val holyToday = isShabbat || isYomTov
+        val endsTonight = holyToday && !jcal.isTomorrowShabbosOrYomTov
+
+        // Candle lighting: applicable on Friday or Erev Yom Tov. When today is itself
+        // Shabbat or Yom Tov (and not Friday), lighting waits until nightfall.
+        val candleLighting: Date? = when {
+            !isFriday && !isErevYomTov -> null
+            holyToday && !isFriday -> nightfall
+            else -> {
+                cal.candleLightingOffset = candleLightingOffsetMinutes.toDouble()
+                cal.candleLighting
+            }
         }
 
-        // Havdalah: applicable on Saturday evening or Motzei Yom Tov
-        val havdalah: Date? = if (isShabbat || (isYomTov && !jcal.isTomorrowShabbosOrYomTov)) {
-            when (havdalahOpinion) {
-                HavdalahOpinion.STANDARD_8_5 -> cal.tzaisGeonim8Point5Degrees ?: cal.tzais
-                HavdalahOpinion.MINUTES_42   -> cal.sunset?.let { Date(it.time + 42L * 60 * 1000) }
-                HavdalahOpinion.MINUTES_50   -> cal.tzais50 ?: cal.sunset?.let { Date(it.time + 50L * 60 * 1000) }
-                HavdalahOpinion.MINUTES_72_RT -> cal.tzais72 ?: cal.sunset?.let { Date(it.time + 72L * 60 * 1000) }
-            }
-        } else {
-            null
-        }
+        // Havdalah: Motzei Shabbat or Motzei Yom Tov; none when Shabbat or Yom Tov follows
+        val havdalah: Date? = if (endsTonight) nightfall else null
 
         // Rabbeinu Tam havdalah (always calculated for reference if Shabbat/Yom Tov)
-        val havdalahRt: Date? = if (isShabbat || (isYomTov && !jcal.isTomorrowShabbosOrYomTov)) {
+        val havdalahRt: Date? = if (endsTonight) {
             cal.tzais72 ?: cal.sunset?.let { Date(it.time + 72L * 60 * 1000) }
         } else {
             null
@@ -97,12 +102,20 @@ object ShabbatTimes {
             havdalah        = havdalah,
             havdalahRt      = havdalahRt,
             parshaName      = null,
-            yomTovName      = null
+            yomTovName      = null,
+            fromExistingFlame = isFriday && isYomTov
         )
     }
 
     /** Two candles, as lit for Shabbat and Yom Tov. */
     const val CANDLES = "🕯️🕯️"
+
+    /** [CANDLES], or with an arrow (in reading direction) when lit from an existing flame. */
+    fun candles(hebrew: Boolean, fromExistingFlame: Boolean): String = when {
+        !fromExistingFlame -> CANDLES
+        hebrew -> "🕯️←🕯️"
+        else -> "🕯️→🕯️"
+    }
 
     /**
      * Wraps a clock time in a left-to-right isolate. Inside Hebrew (right-to-left) text the

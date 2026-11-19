@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hebrewcal.data.*
-import com.hebrewcal.service.CalendarNotificationService
 import com.kosherjava.zmanim.hebrewcalendar.JewishDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -51,10 +50,7 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
     fun detectCity() = viewModelScope.launch {
         cityDetect.value = CityDetect.WORKING
         try {
-            val loc = LocationHelper(getApplication()).getCurrentLocation()
-            val nearest = CityDatabase.findNearest(loc.latitude, loc.longitude)
-            prefsRepo.updateZmanimManualLocation(nearest.name, nearest.latitude, nearest.longitude)
-            CalendarNotificationService.refresh(getApplication())
+            detectAndSaveNearestCity(getApplication())
             cityDetect.value = CityDetect.IDLE
         } catch (e: Exception) {
             cityDetect.value = CityDetect.FAILED
@@ -78,10 +74,9 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
     )
     val view: StateFlow<View> = _view
 
-    fun grid(p: UserPreferences, v: View): MonthGrid {
+    fun grid(p: UserPreferences, v: View, today: LocalDate = LocalDate.now()): MonthGrid {
         val israel = p.location == CalendarLocation.ISRAEL
         val he = p.language == CalendarLanguage.HEBREW
-        val today = LocalDate.now()
         return if (v.hebrewMode) CalendarMonths.hebrewMonth(v.hYear, v.hMonth, israel, he, today)
         else CalendarMonths.gregorianMonth(v.gYear, v.gMonth, israel, he, today)
     }

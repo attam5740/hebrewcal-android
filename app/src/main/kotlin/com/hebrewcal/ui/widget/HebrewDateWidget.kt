@@ -78,7 +78,6 @@ class HebrewDateWidget : GlanceAppWidget(errorUiLayout = R.layout.widget_error) 
             )
 
             val zmanimData = if (prefs.showZmanim &&
-                prefs.zmanimLocationSource == ZmanimLocationSource.MANUAL &&
                 prefs.zmanimManualLat != 0.0 && prefs.zmanimManualLng != 0.0
             ) {
                 zmanimRepo.getZmanim(
@@ -236,7 +235,7 @@ fun HebrewDateWidgetContent(
                 Spacer(GlanceModifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalAlignment = Alignment.End) {
                     Text(
-                        text  = "▶ ${nextZman.displayName}",
+                        text  = if (prefs.language == CalendarLanguage.HEBREW) "◀ ${ZmanimKeys.hebrewName(nextZman.key)}" else "▶ ${nextZman.displayName}",
                         style = TextStyle(textAlign = TextAlign.End, 
                             color    = blueColor,
                             fontSize = TextUnit(12f, TextUnitType.Sp)

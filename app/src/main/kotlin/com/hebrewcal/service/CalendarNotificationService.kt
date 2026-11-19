@@ -25,6 +25,7 @@ class CalendarNotificationService : Service() {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob() + exceptionHandler)
     private val calRepo = HebrewCalendarRepository()
     private val zmanimRepo = ZmanimRepository()
+    private var job: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -50,9 +51,7 @@ class CalendarNotificationService : Service() {
         } catch (e: Exception) {
             Log.w(TAG, "startForeground failed", e)
             stopSelf()
-            return
         }
-        refreshAndSchedule()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -92,7 +91,9 @@ class CalendarNotificationService : Service() {
     }
 
     private fun refreshAndSchedule() {
-        scope.launch {
+        // A newer refresh replaces an older one still running, so stale data never wins.
+        job?.cancel()
+        job = scope.launch {
             try {
                 val prefsRepo = UserPreferencesRepository(applicationContext)
                 val prefs = prefsRepo.preferences.first()
@@ -130,11 +131,11 @@ class CalendarNotificationService : Service() {
                 val isIsrael = prefs.location == CalendarLocation.ISRAEL
                 val shabbatTimes = if (lat != 0.0 && lng != 0.0) {
                     try {
-                        zmanimRepo.getShabbatTimes(
+                        ShabbatTimes.calculate(
+                            date                        = now,
                             latitude                    = lat,
                             longitude                   = lng,
                             timeZone                    = timeZone,
-                            date                        = now,
                             israel                      = isIsrael,
                             candleLightingOffsetMinutes = prefs.candleLightingOffsetMinutes,
                             havdalahOpinion             = prefs.havdalahOpinion
@@ -236,6 +237,8 @@ class CalendarNotificationService : Service() {
 
                 if (prefs.showZmanim && lat != 0.0 && lng != 0.0) {
                     try { scheduleZmanAlarms(lat, lng, prefs) } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
+                } else {
+                    try { cancelZmanAlarms(getSystemService(Context.ALARM_SERVICE) as AlarmManager) } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
                 }
                 try { scheduleMidnightAlarm() } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
                 try { scheduleWidgetTzetAlarm(lat, lng, timeZone, now, tzetToday) } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
@@ -243,6 +246,11 @@ class CalendarNotificationService : Service() {
                 prayers?.nextChange?.let { at ->
                     try { scheduleRefreshAt(at, PRAYER_ALARM_REQUEST_CODE) } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
                 }
+                // Flip the Shabbat banner at candle lighting and at Havdalah.
+                listOfNotNull(shabbatTimes?.candleLighting, shabbatTimes?.havdalah)
+                    .filter { it.after(now) }.minOrNull()?.let { at ->
+                        try { scheduleRefreshAt(at, SHABBAT_ALARM_REQUEST_CODE) } catch (e: Exception) { Log.w(TAG, "non-fatal", e) }
+                    }
             } catch (e: Exception) {
                 // Outer guard — service stays alive even if everything above fails
                 Log.e(TAG, "refresh failed; notification left stale", e)
@@ -292,7 +300,7 @@ class CalendarNotificationService : Service() {
                 )
             } catch (e: SecurityException) {
                 // SCHEDULE_EXACT_ALARM not granted — fall back to inexact
-                alarmManager.set(AlarmManager.RTC_WAKEUP, time.time, pi)
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, time.time, pi)
             }
         }
     }
@@ -333,16 +341,10 @@ class CalendarNotificationService : Service() {
         try {
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, midnight.timeInMillis, pi)
         } catch (e: SecurityException) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, midnight.timeInMillis, pi)
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, midnight.timeInMillis, pi)
         }
     }
 
-    /**
-     * Schedules the next widget refresh at tzet hakochavim (nightfall). Today's tzet
-     * is used if still in the future; otherwise tomorrow's. When [tzetToday] is null
-     * (no location set), the alarm is skipped — the scheduleMidnightAlarm() above
-     * already provides a daily civil-midnight refresh as a fallback.
-     */
     private fun scheduleRefreshAt(at: Date, requestCode: Int) {
         val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(applicationContext, ZmanAlarmReceiver::class.java).apply {
@@ -360,6 +362,12 @@ class CalendarNotificationService : Service() {
         }
     }
 
+    /**
+     * Schedules the next widget refresh at tzet hakochavim (nightfall). Today's tzet
+     * is used if still in the future; otherwise tomorrow's. When [tzetToday] is null
+     * (no location set), the alarm is skipped — the scheduleMidnightAlarm() above
+     * already provides a daily civil-midnight refresh as a fallback.
+     */
     private fun scheduleWidgetTzetAlarm(
         lat: Double,
         lng: Double,
@@ -392,7 +400,7 @@ class CalendarNotificationService : Service() {
         try {
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger.time, pi)
         } catch (e: SecurityException) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, trigger.time, pi)
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger.time, pi)
         }
     }
 
@@ -403,12 +411,8 @@ class CalendarNotificationService : Service() {
         const val RESTART_REQUEST_CODE = 2200
         const val WIDGET_TZET_ALARM_REQUEST_CODE = 2300
         const val PRAYER_ALARM_REQUEST_CODE = 2400
+        const val SHABBAT_ALARM_REQUEST_CODE = 2500
         const val RESTART_DELAY_MS = 5_000L
-
-        fun start(context: Context) {
-            val intent = Intent(context, CalendarNotificationService::class.java)
-            context.startForegroundService(intent)
-        }
 
         fun refresh(context: Context) {
             val intent = Intent(context, CalendarNotificationService::class.java)

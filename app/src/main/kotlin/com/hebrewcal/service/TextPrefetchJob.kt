@@ -76,11 +76,12 @@ object TextPrefetch {
     internal const val JOB_PERIODIC = 7101
     private const val JOB_NOW = 7102
 
+    private fun networkType(network: PrefetchNetwork) =
+        if (network == PrefetchNetwork.ANY) JobInfo.NETWORK_TYPE_ANY else JobInfo.NETWORK_TYPE_UNMETERED
+
     private fun builder(context: Context, id: Int, network: PrefetchNetwork) =
         JobInfo.Builder(id, ComponentName(context, TextPrefetchJobService::class.java))
-            .setRequiredNetworkType(
-                if (network == PrefetchNetwork.ANY) JobInfo.NETWORK_TYPE_ANY else JobInfo.NETWORK_TYPE_UNMETERED
-            )
+            .setRequiredNetworkType(networkType(network))
             .setRequiresBatteryNotLow(true)
 
     /** (Re)schedules the periodic job for [network]; cancels everything when OFF. */
@@ -91,7 +92,9 @@ object TextPrefetch {
             js.cancel(JOB_NOW)
             return
         }
-        js.schedule(
+        val pending = js.getPendingJob(JOB_PERIODIC)
+        // Re-scheduling an unchanged job would stop it if it is running right now.
+        if (pending == null || pending.networkType != networkType(network)) js.schedule(
             builder(context, JOB_PERIODIC, network)
                 .setPeriodic(TimeUnit.HOURS.toMillis(12))
                 .setPersisted(true)
@@ -113,6 +116,7 @@ object TextPrefetch {
                 WorkManager.getInstance(context).apply {
                     cancelUniqueWork("text_prefetch_periodic")
                     cancelUniqueWork("text_prefetch_now")
+                    cancelUniqueWork("midnight_hebrew_cal_update")
                 }
                 val prefs = UserPreferencesRepository(context).preferences.first()
                 schedule(context, prefs.prefetchNetwork, runNow = false)

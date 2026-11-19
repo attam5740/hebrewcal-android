@@ -294,13 +294,34 @@ fun MainSettingsScreen(
                 )
             }
 
-            // Widget appearance
-            OpacitySettingRow(
-                label    = "Widget background opacity",
-                subtitle = "How much of the wallpaper shows through the home-screen widget",
-                percent  = prefs.widgetOpacity,
-                onChange = viewModel::setWidgetOpacity
+            // Background opacity: one slider for both, or one each
+            SwitchSettingRow(
+                label    = "Same opacity for widget and reader",
+                subtitle = "Off: set the widget and the reader separately",
+                checked  = prefs.opacityLinked,
+                onCheck  = viewModel::setOpacityLinked
             )
+            if (prefs.opacityLinked) {
+                OpacitySettingRow(
+                    label    = "Widget & reader background opacity",
+                    subtitle = "How much shows through the home-screen widget and behind reader text",
+                    percent  = prefs.widgetOpacity,
+                    onChange = viewModel::setWidgetOpacity
+                )
+            } else {
+                OpacitySettingRow(
+                    label    = "Widget background opacity",
+                    subtitle = "How much of the wallpaper shows through the home-screen widget",
+                    percent  = prefs.widgetOpacity,
+                    onChange = viewModel::setWidgetOpacity
+                )
+                OpacitySettingRow(
+                    label    = "Reader background opacity",
+                    subtitle = "How much shows through behind Tehillim, Torah and prayer text",
+                    percent  = prefs.readerOpacity,
+                    onChange = viewModel::setReaderOpacity
+                )
+            }
 
             Spacer(Modifier.height(8.dp))
 

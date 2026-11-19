@@ -1,5 +1,8 @@
 package com.hebrewcal.data
 
+import com.kosherjava.zmanim.ComplexZmanimCalendar
+import com.kosherjava.zmanim.hebrewcalendar.JewishCalendar
+import com.kosherjava.zmanim.util.GeoLocation
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.Calendar
@@ -96,6 +99,33 @@ class ShabbatTimesTest {
         assertFalse(result.isShabbat)
         assertNull(result.candleLighting)
         assertNull(result.havdalah)
+    }
+
+    @Test
+    fun candleLightingOnShabbatBeforeYomTovWaitsForNightfall() {
+        // Sat Sep 12, 2026: Shabbat and Rosh Hashana day 1; day 2 follows.
+        val day = Calendar.getInstance(nycTz).apply { clear(); set(2026, Calendar.SEPTEMBER, 12, 12, 0) }.time
+        val result = ShabbatTimes.calculate(date = day, latitude = nycLat, longitude = nycLng, timeZone = nycTz)
+        val cal = ComplexZmanimCalendar(GeoLocation("t", nycLat, nycLng, 0.0, nycTz)).apply { calendar.time = day }
+
+        assertEquals(cal.tzaisGeonim8Point5Degrees, result.candleLighting)
+        assertNull("No Havdalah when Yom Tov follows Shabbat", result.havdalah)
+        assertFalse(result.fromExistingFlame)
+    }
+
+    @Test
+    fun candleLightingOnYomTovFridayIsFromExistingFlame() {
+        // Fri Apr 23, 2027: second day of Pesach outside Israel.
+        val day = Calendar.getInstance(nycTz).apply { clear(); set(2027, Calendar.APRIL, 23, 12, 0) }.time
+        assertTrue(JewishCalendar(day).apply { inIsrael = false }.isYomTovAssurBemelacha)
+        val result = ShabbatTimes.calculate(date = day, latitude = nycLat, longitude = nycLng, timeZone = nycTz)
+        val cal = ComplexZmanimCalendar(GeoLocation("t", nycLat, nycLng, 0.0, nycTz)).apply { calendar.time = day }
+
+        assertEquals((cal.sunset.time - 18 * 60_000L).toDouble(), result.candleLighting!!.time.toDouble(), 1000.0)
+        assertTrue(result.fromExistingFlame)
+        assertEquals("🕯️←🕯️", ShabbatTimes.candles(true, result.fromExistingFlame))
+        assertEquals("🕯️→🕯️", ShabbatTimes.candles(false, result.fromExistingFlame))
+        assertEquals(ShabbatTimes.CANDLES, ShabbatTimes.candles(true, false))
     }
 
     @Test

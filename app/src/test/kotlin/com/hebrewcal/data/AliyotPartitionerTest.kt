@@ -46,4 +46,22 @@ class AliyotPartitionerTest {
         assertEquals("מפטיר", AliyotPartitioner.aliyahName(7, 8, hebrew = true))
         assertEquals("Maftir", AliyotPartitioner.aliyahName(7, 8, hebrew = false))
     }
+
+    @Test fun layoutKeepsTheUncoveredRestOfARefetchedEdgeChapter() {
+        // Bereishit is Genesis 1:1-6:8; scrolling down refetches chapter 6 whole (22 verses).
+        val sizes = listOf(31, 25, 24, 26, 32, 22)
+        val chapters = sizes.mapIndexed { i, n -> Chapter(i + 1, (1..n).map { Verse(it, "he", "en") }) }
+        val aliyot = listOf("Genesis 1:1-2:3", "Genesis 2:4-19", "Genesis 2:20-3:21", "Genesis 3:22-4:18",
+            "Genesis 4:19-22", "Genesis 4:23-5:24", "Genesis 5:25-6:8")
+        val layout = AliyotPartitioner.layout(chapters, aliyot)!!
+        assertEquals(emptyList<Chapter>(), layout.leading)
+        assertEquals(7, layout.sections.size)
+        assertEquals(1, layout.trailing.size)
+        assertEquals(6, layout.trailing[0].number)
+        assertEquals((9..22).toList(), layout.trailing[0].verses.map { it.num })
+        // No verse is dropped or shown twice.
+        val shown = layout.leading.sumOf { it.verses.size } + layout.sections.sumOf { it.verses.size } +
+            layout.trailing.sumOf { it.verses.size }
+        assertEquals(sizes.sum(), shown)
+    }
 }

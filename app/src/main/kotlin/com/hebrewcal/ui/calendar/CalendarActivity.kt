@@ -53,6 +53,7 @@ import com.hebrewcal.data.CalendarLanguage
 import com.hebrewcal.ui.settings.SettingsActivity
 import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter
 import com.kosherjava.zmanim.hebrewcalendar.JewishCalendar
+import java.time.LocalDate
 
 /** Translucent month grid: both dates per cell, tap a day for the detail sheet. */
 class CalendarActivity : ComponentActivity() {
@@ -104,7 +105,9 @@ class CalendarActivity : ComponentActivity() {
             val view by vm.view.collectAsState()
             val detail by vm.detail.collectAsState()
             val hebrew = prefs.language == CalendarLanguage.HEBREW
-            val grid = remember(prefs, view) { vm.grid(prefs, view) }
+            // Re-read on each resume so the "today" ring moves past midnight.
+            val today = remember(permTick.intValue) { LocalDate.now() }
+            val grid = remember(prefs, view, today) { vm.grid(prefs, view, today) }
             val gematria = remember { HebrewDateFormatter().apply { isUseGershGershayim = true } }
             fun hNum(n: Int) = if (hebrew) gematria.formatHebrewNumber(n) else n.toString()
 

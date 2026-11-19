@@ -32,8 +32,10 @@ enum class ServiceDay { WEEKDAY, EREV_SHABBAT, SHABBAT }
 /**
  * When each prayer button is offered, using the same zmanim the app shows:
  * - Birchot HaShachar: alot hashachar until sof zman shema (GRA)
- * - Candle lighting: one hour either side of candle-lighting time (Friday, Erev Yom Tov)
- * - Havdalah: Motzei Shabbat, for three hours from Havdalah time; not when Yom Tov follows
+ * - Candle lighting: one hour either side of candle-lighting time (Friday, Erev Yom Tov);
+ *   when the eve is itself Shabbat or Yom Tov, from nightfall until an hour after
+ * - Havdalah: Motzei Shabbat, from 10 minutes before tzet hakochavim until three hours after
+ *   Havdalah time; not when Yom Tov follows
  *   (then Havdalah is said inside Kiddush with a different text)
  * - Kriat Shema al HaMita: tzet hakochavim until the next alot hashachar
  * The three services use the widest times halacha allows, after the fact included:
@@ -45,6 +47,8 @@ enum class ServiceDay { WEEKDAY, EREV_SHABBAT, SHABBAT }
  */
 object PrayerWindows {
     const val HAVDALAH_LENGTH_MS = 3 * 60 * 60 * 1000L
+    /** The Havdalah button appears this long before tzet hakochavim. */
+    const val HAVDALAH_LEAD_MS = 10 * 60 * 1000L
     const val CANDLE_MARGIN_MS = 60 * 60 * 1000L
 
     data class Window(
@@ -118,15 +122,17 @@ object PrayerWindows {
                 friday -> CandleKind.SHABBAT
                 else -> CandleKind.YOM_TOV
             }
-            out += Window(
-                PrayerButton.CANDLE_LIGHTING,
-                Date(cl.time - CANDLE_MARGIN_MS), Date(cl.time + CANDLE_MARGIN_MS), kind
-            )
+            // On Shabbat or Yom Tov (not Friday) lighting waits for nightfall, so no earlier.
+            val delayed = !friday && (saturday || shabbat.isYomTov)
+            val opens = if (delayed) cl.time else cl.time - CANDLE_MARGIN_MS
+            out += Window(PrayerButton.CANDLE_LIGHTING, Date(opens), Date(cl.time + CANDLE_MARGIN_MS), kind)
         }
 
         if (saturday && !jcal.isTomorrowShabbosOrYomTov) {
             shabbat.havdalah?.let { h ->
-                out += Window(PrayerButton.HAVDALAH, h, Date(h.time + HAVDALAH_LENGTH_MS))
+                // Opens a little before nightfall (or before Havdalah time, if that is earlier).
+                val opens = minOf(today.tzais?.time ?: h.time, h.time) - HAVDALAH_LEAD_MS
+                out += Window(PrayerButton.HAVDALAH, Date(opens), Date(h.time + HAVDALAH_LENGTH_MS))
             }
         }
 

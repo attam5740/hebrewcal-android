@@ -36,22 +36,6 @@ class ZmanimRepository {
     ): ZmanimData {
         if (latitude == 0.0 && longitude == 0.0) return ZmanimData(emptyList(), null, null)
 
-        val geoLocation = GeoLocation("User Location", latitude, longitude, elevation, timeZone)
-        val cal = ComplexZmanimCalendar(geoLocation).apply {
-            calendar.time = date
-        }
-
-        val shabbatTimes = ShabbatTimes.calculate(
-            date = date,
-            latitude = latitude,
-            longitude = longitude,
-            elevation = elevation,
-            timeZone = timeZone,
-            israel = israel,
-            candleLightingOffsetMinutes = candleLightingOffsetMinutes,
-            havdalahOpinion = havdalahOpinion
-        )
-
         val now = Date()
         val formatter = if (timeFormat == ZmanimTimeFormat.TWELVE_HOUR) {
             SimpleDateFormat("h:mm a", Locale.getDefault())
@@ -59,26 +43,8 @@ class ZmanimRepository {
             SimpleDateFormat("HH:mm", Locale.getDefault())
         }
 
-        // Build all times in chronological order
-        val allTimes: Map<String, Date?> = mapOf(
-            ZmanimKeys.ALOT_HASHACHAR     to cal.alosHashachar,
-            ZmanimKeys.MISHEYAKIR         to cal.misheyakir11Point5Degrees,
-            ZmanimKeys.HANETZ             to cal.sunrise,
-            ZmanimKeys.SOF_ZMAN_SHEMA_GRA to cal.sofZmanShmaGRA,
-            ZmanimKeys.SOF_ZMAN_SHEMA_MGA to cal.sofZmanShmaMGA,
-            ZmanimKeys.SOF_ZMAN_TEFILLA_GRA to cal.sofZmanTfilaGRA,
-            ZmanimKeys.SOF_ZMAN_TEFILLA_MGA to cal.sofZmanTfilaMGA,
-            ZmanimKeys.CHATZOT            to cal.chatzos,
-            ZmanimKeys.MINCHA_GEDOLA      to cal.minchaGedola,
-            ZmanimKeys.MINCHA_KETANA      to cal.minchaKetana,
-            ZmanimKeys.PLAG_HAMINCHA      to cal.plagHamincha,
-            ZmanimKeys.CANDLE_LIGHTING    to shabbatTimes.candleLighting,
-            ZmanimKeys.SHKIAH             to cal.sunset,
-            ZmanimKeys.TZET_HAKOCHAVIM    to cal.tzais,
-            ZmanimKeys.HAVDALAH          to shabbatTimes.havdalah,
-            ZmanimKeys.TZET_RABBEINU_TAM  to cal.tzais72,
-            ZmanimKeys.HAVDALAH_RT       to shabbatTimes.havdalahRt
-        )
+        val allTimes = allTimes(latitude, longitude, elevation, timeZone, date, israel,
+                                candleLightingOffsetMinutes, havdalahOpinion)
 
         // Filter to only selected, sort chronologically
         val selected = allTimes
@@ -151,26 +117,6 @@ class ZmanimRepository {
     fun formatTime(d: Date, format: ZmanimTimeFormat): String =
         SimpleDateFormat(if (format == ZmanimTimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm", Locale.getDefault()).format(d)
 
-    fun getShabbatTimes(
-        latitude: Double,
-        longitude: Double,
-        elevation: Double = 0.0,
-        timeZone: TimeZone = TimeZone.getDefault(),
-        date: Date = Date(),
-        israel: Boolean = false,
-        candleLightingOffsetMinutes: Int = 18,
-        havdalahOpinion: HavdalahOpinion = HavdalahOpinion.STANDARD_8_5
-    ): ShabbatTimesResult = ShabbatTimes.calculate(
-        date = date,
-        latitude = latitude,
-        longitude = longitude,
-        elevation = elevation,
-        timeZone = timeZone,
-        israel = israel,
-        candleLightingOffsetMinutes = candleLightingOffsetMinutes,
-        havdalahOpinion = havdalahOpinion
-    )
-
     /**
      * Returns list of (key, time) for all selected zmanim in the future,
      * used for scheduling AlarmManager transitions.
@@ -187,7 +133,25 @@ class ZmanimRepository {
         havdalahOpinion: HavdalahOpinion = HavdalahOpinion.STANDARD_8_5
     ): List<Pair<String, Date>> {
         if (latitude == 0.0 && longitude == 0.0) return emptyList()
+        val now = Date()
+        return allTimes(latitude, longitude, elevation, timeZone, date, israel,
+                        candleLightingOffsetMinutes, havdalahOpinion)
+            .filter { (key, time) -> key in selectedZmanim && time != null && time.after(now) }
+            .map { (key, time) -> Pair(key, time!!) }
+            .sortedBy { it.second }
+    }
 
+    /** Every zman this app knows for the civil day of [date], keyed by [ZmanimKeys]. */
+    private fun allTimes(
+        latitude: Double,
+        longitude: Double,
+        elevation: Double,
+        timeZone: TimeZone,
+        date: Date,
+        israel: Boolean,
+        candleLightingOffsetMinutes: Int,
+        havdalahOpinion: HavdalahOpinion
+    ): Map<String, Date?> {
         val geoLocation = GeoLocation("User Location", latitude, longitude, elevation, timeZone)
         val cal = ComplexZmanimCalendar(geoLocation).apply {
             calendar.time = date
@@ -202,7 +166,6 @@ class ZmanimRepository {
             candleLightingOffsetMinutes = candleLightingOffsetMinutes,
             havdalahOpinion = havdalahOpinion
         )
-        val now = Date()
 
         return mapOf(
             ZmanimKeys.ALOT_HASHACHAR     to cal.alosHashachar,
@@ -223,8 +186,5 @@ class ZmanimRepository {
             ZmanimKeys.TZET_RABBEINU_TAM  to cal.tzais72,
             ZmanimKeys.HAVDALAH_RT       to shabbatTimes.havdalahRt
         )
-            .filter { (key, time) -> key in selectedZmanim && time != null && time.after(now) }
-            .map { (key, time) -> Pair(key, time!!) }
-            .sortedBy { it.second }
     }
 }

@@ -1,40 +1,46 @@
 package com.hebrewcal.ui.reader
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.ui.semantics.semantics
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
-import com.hebrewcal.data.TorahNavigation
-import kotlin.math.PI
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.text.ClickableText
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -48,25 +54,21 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -77,40 +79,18 @@ import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material3.Icon
-import androidx.compose.runtime.State
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import com.hebrewcal.R
 import com.hebrewcal.data.AliyotPartitioner
+import com.hebrewcal.data.Instructions
 import com.hebrewcal.data.CalendarLanguage
-import com.hebrewcal.data.Chapter
 import com.hebrewcal.data.HebrewVocalization
 import com.hebrewcal.data.ParshaRef
 import com.hebrewcal.data.Reading
@@ -118,9 +98,7 @@ import com.hebrewcal.data.SefariaText
 import com.hebrewcal.data.TikkunLayout
 import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.launch
 
 /** Text rendering modes: English, Hebrew, or Tikkun (unvocalized STaM sofer script). */
 private const val MODE_EN = "EN"
@@ -141,11 +119,12 @@ class TextReaderActivity : ComponentActivity() {
         val teamim0 = intent.getBooleanExtra(EXTRA_TEAMIM, false)
         val elulRef = intent.getStringExtra(EXTRA_ELUL_REF) ?: ""
         val aliyot = intent.getStringArrayListExtra(EXTRA_ALIYOT)?.toList() ?: emptyList()
-        vm.load(mode, ref, title, diaspora, elulRef, presetAliyot = aliyot)
+        vm.start(mode, ref, title, diaspora, elulRef, presetAliyot = aliyot)
 
         setContent {
             val state by vm.state.collectAsState()
             val persistedSize by vm.textSize.collectAsState()
+            val opacity by vm.opacity.collectAsState()
             var textMode by rememberSaveable { mutableStateOf(textMode0) }
             var nikkud by rememberSaveable { mutableStateOf(nikkud0) }
             var teamim by rememberSaveable { mutableStateOf(teamim0) }
@@ -201,7 +180,7 @@ class TextReaderActivity : ComponentActivity() {
 
             Box(
                 Modifier.fillMaxSize()
-                    .background(Color(0xFF2E2E2E).copy(alpha = 0.5f))
+                    .background(Color(0xFF2E2E2E).copy(alpha = opacity / 100f))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -297,12 +276,13 @@ class TextReaderActivity : ComponentActivity() {
     }
 }
 
-private val ACTIVE_GOLD = Color(0xFFFFD255)   // vivid warm amber
+internal val ACTIVE_GOLD = Color(0xFFFFD255)   // vivid warm amber
 private val ACTIVE_BG = Color(0x47FFC94D)     // stronger amber pill behind active toggles
-private val INACTIVE = Color(0xE6FFFFFF)      // near-white, clearly legible
+internal val INACTIVE = Color(0xE6FFFFFF)      // near-white, clearly legible
 private val DISABLED = Color(0x66FFFFFF)
 private val MINT = Color(0xFF6EE7B7)         // haftarah accent (matches the banner's haftarah ref)
 private val SKY = Color(0xFF7EC8E3)          // Elul supplement accent (app secondary)
+private val INSTRUCTION = Color(0xFFB4B4B4)  // light grey: siddur instructions and notes
 
 @Composable
 private fun BarToggle(label: String, active: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
@@ -317,94 +297,6 @@ private fun BarToggle(label: String, active: Boolean, enabled: Boolean = true, o
             .clickable(enabled = enabled) { onClick() }
             .padding(horizontal = 10.dp, vertical = 6.dp)
     )
-}
-
-/** Ember palette for the animated flame chips: deep red → orange → gold and back. */
-private val FLAME = listOf(
-    Color(0xFFB3160B), Color(0xFFFF4D00), Color(0xFFFFA000), Color(0xFFFFE066),
-    Color(0xFFFFA000), Color(0xFFFF4D00), Color(0xFFB3160B)
-)
-private val FLAME_INK = Color(0xFF1A0A00)
-
-/** Shared flame animation: a linear sweep phase (0→1) and a breathing glow (0.5↔1). */
-@Composable
-private fun rememberFlame(): Pair<State<Float>, State<Float>> {
-    val transition = rememberInfiniteTransition(label = "flame")
-    val phase = transition.animateFloat(
-        0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing)), label = "flamePhase"
-    )
-    val breath = transition.animateFloat(
-        0.5f, 1f, infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "flameBreath"
-    )
-    return phase to breath
-}
-
-/** Soft ember halo drawn in expanding translucent layers around the whole bounds. */
-private fun DrawScope.emberGlow(breath: Float, cornerPx: Float) {
-    for (i in 1..5) {
-        val grow = i * 4.dp.toPx()
-        drawRoundRect(
-            color = Color(0xFFFF6A00).copy(alpha = 0.14f * breath * (6 - i) / 5f),
-            topLeft = Offset(-grow, -grow),
-            size = Size(size.width + 2 * grow, size.height + 2 * grow),
-            cornerRadius = CornerRadius(cornerPx + grow)
-        )
-    }
-}
-
-/** Navigation chip: quiet when inactive; the active one burns with a sweeping gradient and breathing glow. */
-@Composable
-private fun FlameToggle(label: String, active: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(14.dp)
-    if (!active) {
-        Text(
-            label, color = INACTIVE, fontSize = 15.sp,
-            modifier = modifier.padding(horizontal = 3.dp).clip(shape).clickable { onClick() }
-                .padding(horizontal = 12.dp, vertical = 7.dp)
-        )
-        return
-    }
-    val (phase, breath) = rememberFlame()
-    Text(
-        label, color = FLAME_INK, fontSize = 15.sp, fontWeight = FontWeight.Bold,
-        modifier = modifier.padding(horizontal = 3.dp)
-            .drawBehind { emberGlow(breath.value, 14.dp.toPx()) }
-            .clip(shape)
-            .drawBehind {
-                val w = size.width
-                val shift = 2 * w * phase.value   // mirror tiling makes a 2w shift loop seamlessly
-                drawRect(
-                    Brush.linearGradient(
-                        FLAME, start = Offset(-w + shift, 0f), end = Offset(shift, size.height), tileMode = TileMode.Mirror
-                    )
-                )
-            }
-            .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 7.dp)
-    )
-}
-
-/** The dial's "go" control: a 46dp ring of spinning fire with a bold ↵ so it reads as a button. */
-@Composable
-private fun FlameGoButton(onGo: () -> Unit) {
-    val (phase, breath) = rememberFlame()
-    Box(
-        Modifier.padding(horizontal = 12.dp).size(46.dp)
-            .drawBehind {
-                val r = size.minDimension / 2f
-                for (i in 1..5) drawCircle(
-                    Color(0xFFFF6A00).copy(alpha = 0.14f * breath.value * (6 - i) / 5f),
-                    radius = r + i * 4.dp.toPx()
-                )
-                rotate(phase.value * 360f) { drawCircle(Brush.sweepGradient(FLAME), radius = r) }
-                drawCircle(Color(0xFFFFB300), radius = r - 5.dp.toPx())
-            }
-            .clip(CircleShape)
-            .clickable { onGo() },
-        contentAlignment = Alignment.Center
-    ) {
-        Text("↵", color = FLAME_INK, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-    }
 }
 
 /**
@@ -648,10 +540,21 @@ private fun ReaderBody(
         t.replace("{פ}", "").replace("{ס}", "").replace("\n", " ").trim()
 
     // flip: this verse was tapped, so show it in the other language.
+    // Instruction markers are only meaningful in prayers; everywhere else they are dropped.
+    // Letter-size markers stay for [appendSized] to draw.
     fun verseBody(heRaw: String, en: String, flip: Boolean = false): String = when {
-        tikkun -> HebrewVocalization.strip(layout(heRaw), showNikkud = false, showTeamim = false)
-        hebrew != flip -> HebrewVocalization.strip(layout(heRaw), nikkud, teamim)
-        else -> layout(en)
+        tikkun -> HebrewVocalization.strip(layout(dropInstructionMarks(heRaw)), showNikkud = false, showTeamim = false)
+        hebrew != flip -> HebrewVocalization.strip(layout(dropInstructionMarks(heRaw)), nikkud, teamim)
+        else -> layout(dropInstructionMarks(en))
+    }
+
+    /** A prayer paragraph as display segments: instruction or prayer, vowels as the user chose. */
+    fun prayerSegments(heRaw: String, en: String, flip: Boolean, vocalized: Boolean): List<Instructions.Segment> {
+        val inHebrew = hebrew != flip
+        val raw = layout(if (inHebrew) heRaw else en)
+        return Instructions.segments(raw, hebrewVocalized = inHebrew && vocalized).map { s ->
+            if (inHebrew) s.copy(text = HebrewVocalization.strip(s.text, nikkud && !tikkun, teamim && !tikkun)) else s
+        }
     }
 
     // Verses tapped into the other language; cleared when the text or the language mode changes.
@@ -665,89 +568,21 @@ private fun ReaderBody(
         fun plainSections(): List<ReaderSection> =
             chapterSections(text, mode, bookNameEn, hebrew, gematria)
 
-        val parts = if (aliyot.isEmpty()) emptyList()
-            else AliyotPartitioner.partition(text.chapters, aliyot)
-
-        val main: List<ReaderSection> = if (parts.isEmpty()) plainSections() else {
-            // Verses pulled in by scroll extension fall outside every aliyah; keep them
-            // as plain chapter sections on the side of the window they came from. The
-            // split is on the *verse* boundary, not the chapter boundary: refetching a
-            // partial edge chapter whole (Bereishit's Genesis.1.1-6.8 -> all 22 verses of
-            // chapter 6) leaves that chapter partly covered, and a chapter-granular split
-            // would drop its uncovered remainder (6:9-22) from every bucket.
-            //
-            // Coverage is keyed by the chapter's index in the window, not its number, so
-            // a cross-book window with repeated chapter numbers cannot collide
-            // (ReaderSection carries no book identity). The aliyah verses are an ordered
-            // subsequence of the window's flattened verses, so one merge walk assigns
-            // each covered verse to the window slot it actually came from.
-            val flatCovered = parts.flatMap { it.verses }.distinctBy { it.chapter to it.verse.num }
-            val coveredByIndex = HashMap<Int, MutableSet<Int>>()
-            var cursor = 0
-            var done = false
-            for ((i, ch) in text.chapters.withIndex()) {
-                if (done) break
-                for (v in ch.verses) {
-                    if (cursor >= flatCovered.size) {
-                        done = true
-                        break
-                    }
-                    val want = flatCovered[cursor]
-                    if (want.chapter == ch.number && want.verse.num == v.num) {
-                        val slot = coveredByIndex.getOrPut(i) { HashSet<Int>() }
-                        slot.add(v.num)
-                        cursor++
-                    }
-                }
+        // Verses outside every aliyah (scroll extension) stay as chapter sections on their side.
+        val split = if (aliyot.isEmpty()) null else AliyotPartitioner.layout(text.chapters, aliyot)
+        val main: List<ReaderSection> = if (split == null) plainSections() else {
+            val leadingSections: List<ReaderSection> =
+                chapterSections(SefariaText(text.heRef, split.leading), mode, bookNameEn, hebrew, gematria)
+            val aliyahSections: List<ReaderSection> = split.sections.map { sec ->
+                ReaderSection(
+                    AliyotPartitioner.aliyahName(sec.index, aliyot.size, hebrew),
+                    sec.verses,
+                    markChapters = true
+                )
             }
-
-            val touched = text.chapters.indices.filter { coveredByIndex[it]?.isNotEmpty() == true }
-            val firstTouched = touched.firstOrNull()
-            val lastTouched = touched.lastOrNull()
-            // Real aliyot cover one contiguous run of chapters. If they somehow do not,
-            // the before/aliyot/after shape cannot represent the gap, so fall back to a
-            // plain chapter view rather than dropping the chapters in between.
-            val contiguous = firstTouched != null && lastTouched != null &&
-                lastTouched - firstTouched == touched.size - 1
-
-            if (firstTouched == null || lastTouched == null || !contiguous) plainSections()
-            else {
-                // Wholly uncovered chapters outside the aliyah span.
-                val before: List<Chapter> = text.chapters.subList(0, firstTouched).toList()
-                val after: List<Chapter> = text.chapters.subList(lastTouched + 1, text.chapters.size).toList()
-
-                // Uncovered verse prefix of the first touched chapter (e.g. Noach's
-                // Genesis.6.9-11.32 refetching chapter 6 whole -> 6:1-8 shown above).
-                val head = text.chapters[firstTouched]
-                val headCovered = coveredByIndex.getValue(firstTouched)
-                val headCut = head.verses.indexOfFirst { it.num in headCovered }
-                val headPrefix: Chapter? = if (headCut > 0) {
-                    Chapter(head.number, head.verses.subList(0, headCut).toList())
-                } else null
-
-                // Uncovered verse suffix of the last touched chapter (Bereishit: 6:9-22).
-                val tail = text.chapters[lastTouched]
-                val tailCovered = coveredByIndex.getValue(lastTouched)
-                val tailCut = tail.verses.indexOfLast { it.num in tailCovered }
-                val tailSuffix: Chapter? = if (tailCut >= 0 && tailCut < tail.verses.lastIndex) {
-                    Chapter(tail.number, tail.verses.subList(tailCut + 1, tail.verses.size).toList())
-                } else null
-
-                val leading: List<Chapter> = before + listOfNotNull(headPrefix)
-                val trailing: List<Chapter> = listOfNotNull(tailSuffix) + after
-                val leadingSections: List<ReaderSection> =
-                    chapterSections(SefariaText(text.heRef, leading), mode, bookNameEn, hebrew, gematria)
-                val aliyahSections: List<ReaderSection> = parts.map { sec ->
-                    ReaderSection(
-                        AliyotPartitioner.aliyahName(sec.index, aliyot.size, hebrew),
-                        sec.verses,
-                        markChapters = true
-                    )
-                }
-                val trailingSections: List<ReaderSection> =
-                    chapterSections(SefariaText(text.heRef, trailing), mode, bookNameEn, hebrew, gematria)
-                leadingSections + aliyahSections + trailingSections
-            }
+            val trailingSections: List<ReaderSection> =
+                chapterSections(SefariaText(text.heRef, split.trailing), mode, bookNameEn, hebrew, gematria)
+            leadingSections + aliyahSections + trailingSections
         }
         val extra = elulText?.let { et ->
             chapterSections(et, mode, bookNameEn, hebrew, gematria).map { it.copy(extra = true) }
@@ -777,24 +612,7 @@ private fun ReaderBody(
         listState, sections.size, prependedSections, onExtendUp, onExtendDown, onPrependConsumed
     )
     val direction = if (hebrew) LayoutDirection.Rtl else LayoutDirection.Ltr
-    // Pinch-to-zoom that wins over list scrolling: watch the pointer stream in the
-    // Initial pass (before the LazyColumn sees it); with two fingers down, apply the
-    // zoom and consume the events so scroll never claims the gesture. One finger
-    // passes through untouched.
-    val zoomModifier = Modifier.pointerInput(Unit) {
-        awaitEachGesture {
-            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            do {
-                val event = awaitPointerEvent(PointerEventPass.Initial)
-                if (event.changes.count { it.pressed } >= 2) {
-                    val zoom = event.calculateZoom()
-                    if (zoom != 1f) onZoom(zoom)
-                    event.changes.forEach { it.consume() }
-                }
-            } while (event.changes.any { it.pressed })
-        }
-    }
-    Box(Modifier.fillMaxSize().then(zoomModifier)) {
+    Box(Modifier.fillMaxSize().pinchZoom(onZoom)) {
         CompositionLocalProvider(LocalLayoutDirection provides direction) {
             LazyColumn(
                 state = listState,
@@ -839,8 +657,25 @@ private fun ReaderBody(
                         textAlign = TextAlign.Start
                     )
                     if (!isFolded) {
+                    // Prayers: instructions smaller and grey, each on its own line with a half-line
+                    // gap from the prayer; mid-paragraph ones stay inline. Decided per section from
+                    // whether its Hebrew is vocalized (unvowelled words then mark instructions).
+                    val vocalized = mode == "tefillah" &&
+                        Instructions.vocalizedShare(section.verses.map { it.verse.he }) >= 0.5f
                     val paragraph = buildAnnotatedString {
                         var lastChapter = -1
+                        var lastKind: Boolean? = null   // was the last line an instruction?
+                        val instructionSize = (sizeSp - 2f).coerceAtLeast(10f)
+                        fun spacer() = withStyle(ParagraphStyle(lineHeight = (sizeSp * 0.5f).sp)) {
+                            withStyle(SpanStyle(fontSize = (sizeSp * 0.4f).sp)) { append("\u200B") }
+                        }
+                        fun line(instruction: Boolean, content: AnnotatedString.Builder.() -> Unit) {
+                            if (lastKind != null && lastKind != instruction) spacer()
+                            val style = if (instruction) ParagraphStyle(lineHeight = (instructionSize * 1.5f).sp)
+                                else ParagraphStyle(lineHeight = (sizeSp * 1.75f).sp)
+                            withStyle(style) { content() }
+                            lastKind = instruction
+                        }
                         section.verses.forEach { tv ->
                             val verseKey = "${if (section.extra) "e" else "m"}:${tv.chapter}:${tv.verse.num}"
                             // If the other language has no text for this verse, keep the original.
@@ -850,6 +685,33 @@ private fun ReaderBody(
                             val body = verseBody(tv.verse.he, tv.verse.en, flipped)
                                 .ifBlank { verseBody(tv.verse.he, tv.verse.en, !flipped) }
                             if (body.isBlank()) return@forEach
+                            if (mode == "tefillah") {
+                                val useFlip = if (verseBody(tv.verse.he, tv.verse.en, flipped).isBlank()) !flipped else flipped
+                                val segs = prayerSegments(tv.verse.he, tv.verse.en, useFlip, vocalized)
+                                pushStringAnnotation("verse", verseKey)
+                                // Leading and trailing instructions get their own lines; the rest is one line.
+                                val first = segs.indexOfFirst { !it.instruction }
+                                val last = segs.indexOfLast { !it.instruction }
+                                if (first < 0) {
+                                    line(true) { withStyle(SpanStyle(color = INSTRUCTION, fontSize = instructionSize.sp)) { appendSized(segs.joinToString(" ") { it.text }, instructionSize) } }
+                                } else {
+                                    if (first > 0) line(true) {
+                                        withStyle(SpanStyle(color = INSTRUCTION, fontSize = instructionSize.sp)) { appendSized(segs.subList(0, first).joinToString(" ") { it.text }, instructionSize) }
+                                    }
+                                    line(false) {
+                                        segs.subList(first, last + 1).forEachIndexed { k, s ->
+                                            if (k > 0) append(" ")
+                                            if (s.instruction) withStyle(SpanStyle(color = INSTRUCTION, fontSize = instructionSize.sp)) { appendSized(s.text, instructionSize) }
+                                            else appendSized(s.text, sizeSp)
+                                        }
+                                    }
+                                    if (last < segs.lastIndex) line(true) {
+                                        withStyle(SpanStyle(color = INSTRUCTION, fontSize = instructionSize.sp)) { appendSized(segs.subList(last + 1, segs.size).joinToString(" ") { it.text }, instructionSize) }
+                                    }
+                                }
+                                pop()
+                                return@forEach
+                            }
                             if (section.markChapters && tv.chapter != lastChapter) {
                                 if (lastChapter != -1) {
                                     withStyle(SpanStyle(color = if (section.extra) SKY else accent, fontSize = (sizeSp * 0.7f).sp)) {
@@ -859,15 +721,12 @@ private fun ReaderBody(
                                 lastChapter = tv.chapter
                             }
                             pushStringAnnotation("verse", verseKey)
-                            if (mode != "tefillah") {
-                                withStyle(SpanStyle(color = if (section.extra) SKY else accent, fontSize = (sizeSp * 0.62f).sp)) {
-                                    append(if (hebrew) gematria.formatHebrewNumber(tv.verse.num) else tv.verse.num.toString())
-                                }
-                                append(" ")
+                            withStyle(SpanStyle(color = if (section.extra) SKY else accent, fontSize = (sizeSp * 0.62f).sp)) {
+                                append(if (hebrew) gematria.formatHebrewNumber(tv.verse.num) else tv.verse.num.toString())
                             }
-                            append(body)
-                            // A prayer reads paragraph by paragraph; verses of Tanakh flow on.
-                            append(if (mode == "tefillah") "\n" else "  ")
+                            append(" ")
+                            appendSized(body, sizeSp)
+                            append("  ")
                             pop()
                         }
                     }
@@ -929,20 +788,7 @@ private fun TikkunScrollBody(
     val edgeScroll = rememberEdgeExtension(
         listState, lines.size, prependedSections, onExtendUp, onExtendDown, onPrependConsumed
     )
-    val zoomModifier = Modifier.pointerInput(Unit) {
-        awaitEachGesture {
-            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            do {
-                val event = awaitPointerEvent(PointerEventPass.Initial)
-                if (event.changes.count { it.pressed } >= 2) {
-                    val zoom = event.calculateZoom()
-                    if (zoom != 1f) onZoom(zoom)
-                    event.changes.forEach { it.consume() }
-                }
-            } while (event.changes.any { it.pressed })
-        }
-    }
-    Box(Modifier.fillMaxSize().then(zoomModifier)) {
+    Box(Modifier.fillMaxSize().pinchZoom(onZoom)) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             LazyColumn(
                 state = listState,
@@ -985,162 +831,39 @@ private fun TikkunScrollBody(
 }
 
 /**
- * Semi-transparent navigation overlay. Tehillim: a rotary dial over chapters
- * 1-150. Torah: pick a book, then dial a chapter or choose a parsha.
+ * Pinch-to-zoom that wins over list scrolling: watch the pointer stream in the Initial pass
+ * (before the LazyColumn sees it); with two fingers down, apply the zoom and consume the
+ * events so scroll never claims the gesture. One finger passes through untouched.
  */
-@Composable
-@OptIn(ExperimentalFoundationApi::class)
-private fun NavDialOverlay(
-    mode: String,
-    hebrew: Boolean,
-    parshiyot: Map<String, List<TorahNavigation.Parsha>>,
-    ensureParshiyot: (String) -> Unit,
-    onPick: (mode: String, ref: String, title: String, aliyot: List<String>) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val gematria = remember { HebrewDateFormatter() }
-    fun num(n: Int) = if (hebrew) gematria.formatHebrewNumber(n) else n.toString()
-    val torah = mode == "parsha"
-    var bookIdx by rememberSaveable { mutableStateOf(4) }
-    var byParsha by rememberSaveable { mutableStateOf(true) }
-    val book = TorahNavigation.BOOKS[bookIdx]
-    if (torah && byParsha) LaunchedEffect(book.en) { ensureParshiyot(book.en) }
-
-    Box(
-        Modifier.fillMaxSize().background(Color(0xB3000000))
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onDismiss() },
-        contentAlignment = Alignment.Center
-    ) {
-        CompositionLocalProvider(LocalLayoutDirection provides if (hebrew) LayoutDirection.Rtl else LayoutDirection.Ltr) { Column(
-            Modifier.fillMaxWidth(0.9f)
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (torah) {
-                // The five books overflow narrow screens; keep the active one in view.
-                val activeBook = remember { BringIntoViewRequester() }
-                LaunchedEffect(bookIdx) { activeBook.bringIntoView() }
-                Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
-                    TorahNavigation.BOOKS.forEachIndexed { i, b ->
-                        FlameToggle(
-                            if (hebrew) b.he else b.en, active = i == bookIdx,
-                            modifier = if (i == bookIdx) Modifier.bringIntoViewRequester(activeBook) else Modifier
-                        ) { bookIdx = i }
-                    }
-                }
-                Row(Modifier.padding(top = 6.dp)) {
-                    FlameToggle(if (hebrew) "פרשה" else "Parsha", active = byParsha) { byParsha = true }
-                    FlameToggle(if (hebrew) "פרק" else "Chapter", active = !byParsha) { byParsha = false }
-                }
-                Spacer(Modifier.height(10.dp))
-                if (byParsha) {
-                    val list = parshiyot[book.en]
-                    if (list == null) {
-                        CircularProgressIndicator(color = ACTIVE_GOLD, modifier = Modifier.padding(24.dp))
-                    } else {
-                        LazyColumn(Modifier.fillMaxHeight(0.55f).fillMaxWidth()) {
-                            items(list) { pr ->
-                                Text(
-                                    if (hebrew) pr.he else pr.en,
-                                    color = INACTIVE, fontSize = 17.sp,
-                                    textAlign = TextAlign.Start, // layout direction already follows the language
-                                    modifier = Modifier.fillMaxWidth()
-                                        .clickable { onPick("parsha", pr.dottedRef, if (hebrew) "פרשת ${pr.he}" else "Parashat ${pr.en}", pr.aliyot) }
-                                        .padding(vertical = 9.dp, horizontal = 12.dp)
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    RotaryDial(min = 1, max = book.chapters, label = { num(it) }) { ch ->
-                        onPick("parsha", "${book.en}.$ch", if (hebrew) "${book.he} פרק ${num(ch)}" else "${book.en} $ch", emptyList())
-                    }
-                }
-            } else {
-                Text(if (hebrew) "תהילים" else "Tehillim", color = ACTIVE_GOLD, fontSize = 14.sp, modifier = Modifier.padding(bottom = 6.dp))
-                RotaryDial(min = 1, max = TorahNavigation.TEHILLIM_CHAPTERS, label = { num(it) }) { ch ->
-                    onPick("tehillim", "Psalms.$ch", if (hebrew) "תהילים פרק ${num(ch)}" else "Psalm $ch", emptyList())
-                }
+private fun Modifier.pinchZoom(onZoom: (Float) -> Unit): Modifier = pointerInput(Unit) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        do {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            if (event.changes.count { it.pressed } >= 2) {
+                val zoom = event.calculateZoom()
+                if (zoom != 1f) onZoom(zoom)
+                event.changes.forEach { it.consume() }
             }
-        } }
+        } while (event.changes.any { it.pressed })
     }
 }
 
-/**
- * A rotary dial: drag around the ring to turn (steps per turn scale with the range), tap
- * the center to jump. Tiny ± nudges for precision.
- */
-@Composable
-private fun RotaryDial(min: Int, max: Int, label: (Int) -> String, onGo: (Int) -> Unit) {
-    var value by rememberSaveable { mutableStateOf(min) }
-    var acc by remember { mutableStateOf(0f) }
-    var lastAngle by remember { mutableStateOf<Float?>(null) }
-    val stepsPerTurn = TorahNavigation.dialStepsPerTurn(max - min + 1).toFloat()
-    val ringColor = Color.White.copy(alpha = 0.35f)
+/** The text without siddur instruction markers; letter-size markers stay. */
+private fun dropInstructionMarks(t: String): String =
+    t.filter { it != Instructions.OPEN && it != Instructions.CLOSE }
 
-    Box(Modifier.size(230.dp), contentAlignment = Alignment.Center) {
-        Canvas(
-            Modifier.fillMaxSize().pointerInput(min, max) {
-                detectDragGestures(
-                    onDragStart = { lastAngle = null },
-                    onDragEnd = { lastAngle = null }
-                ) { change, _ ->
-                    val cx = size.width / 2f; val cy = size.height / 2f
-                    val a = atan2(change.position.y - cy, change.position.x - cx)
-                    lastAngle?.let { prev ->
-                        var d = a - prev
-                        if (d > PI) d -= (2 * PI).toFloat()
-                        if (d < -PI) d += (2 * PI).toFloat()
-                        acc += d
-                        val steps = (acc / (2 * PI).toFloat() * stepsPerTurn).toInt()
-                        if (steps != 0) {
-                            value = (value + steps).coerceIn(min, max)
-                            acc -= steps / stepsPerTurn * (2 * PI).toFloat()
-                        }
-                    }
-                    lastAngle = a
-                    change.consume()
-                }
-            }
-        ) {
-            val r = size.minDimension / 2f - 14.dp.toPx()
-            val c = Offset(size.width / 2f, size.height / 2f)
-            drawCircle(ringColor, radius = r, center = c, style = Stroke(width = 10.dp.toPx()))
-            // progress arc through the range
-            val sweep = 360f * (value - min).toFloat() / (max - min).coerceAtLeast(1)
-            drawArc(
-                ACTIVE_GOLD, startAngle = -90f, sweepAngle = sweep, useCenter = false,
-                topLeft = Offset(c.x - r, c.y - r), size = Size(r * 2, r * 2),
-                style = Stroke(width = 10.dp.toPx())
-            )
-            // ticks
-            for (i in 0 until 24) {
-                val ang = (i / 24f) * 2f * PI.toFloat()
-                val inner = r - 16.dp.toPx(); val outer = r - 9.dp.toPx()
-                drawLine(
-                    Color.White.copy(alpha = 0.25f),
-                    Offset(c.x + inner * cos(ang), c.y + inner * sin(ang)),
-                    Offset(c.x + outer * cos(ang), c.y + outer * sin(ang)),
-                    strokeWidth = 2.dp.toPx()
-                )
-            }
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                label(value), color = Color.White, fontSize = 40.sp,
-                modifier = Modifier.clickable(
-                    interactionSource = remember { MutableInteractionSource() }, indication = null
-                ) { onGo(value) }
-            )
-            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                    Text("−", color = INACTIVE, fontSize = 26.sp, modifier = Modifier.clickable { value = (value - 1).coerceIn(min, max) }.padding(horizontal = 14.dp))
-                    FlameGoButton { onGo(value) }
-                    Text("+", color = INACTIVE, fontSize = 26.sp, modifier = Modifier.clickable { value = (value + 1).coerceIn(min, max) }.padding(horizontal = 14.dp))
-                }
-            }
-        }
+/** Appends [text], drawing marked small / large letters 5sp smaller / larger than [sizeSp]. */
+private fun AnnotatedString.Builder.appendSized(text: String, sizeSp: Float) {
+    var depth = 0
+    for (c in text) when (c) {
+        Instructions.SMALL_OPEN -> { pushStyle(SpanStyle(fontSize = (sizeSp - 5f).coerceAtLeast(1f).sp)); depth++ }
+        Instructions.BIG_OPEN -> { pushStyle(SpanStyle(fontSize = (sizeSp + 5f).sp)); depth++ }
+        Instructions.SMALL_CLOSE, Instructions.BIG_CLOSE -> if (depth > 0) { pop(); depth-- }
+        Instructions.OPEN, Instructions.CLOSE -> {}
+        else -> append(c)
     }
+    while (depth > 0) { pop(); depth-- }
 }
 
 private fun chapterSections(

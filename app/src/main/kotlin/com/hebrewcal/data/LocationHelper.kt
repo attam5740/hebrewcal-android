@@ -6,6 +6,7 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Looper
+import com.hebrewcal.service.CalendarNotificationService
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -66,4 +67,18 @@ class LocationHelper(private val context: Context) {
 
         cont.invokeOnCancellation { lm.removeUpdates(listener) }
     }
+}
+
+/**
+ * Gets the current location, saves the nearest city as the manual zmanim location and
+ * refreshes the notification. Shared by Settings' "Detect" and the calendar's
+ * permission-granted flow. Throws if no location fix is available.
+ */
+suspend fun detectAndSaveNearestCity(context: Context): CityData {
+    val loc = LocationHelper(context).getCurrentLocation()
+    val nearest = CityDatabase.findNearest(loc.latitude, loc.longitude)
+    UserPreferencesRepository(context)
+        .updateZmanimManualLocation(nearest.name, nearest.latitude, nearest.longitude)
+    CalendarNotificationService.refresh(context)
+    return nearest
 }

@@ -137,7 +137,7 @@ fun DaySheet(
                         st.candleLighting?.let { cl ->
                             val clStr = timeFormat.format(cl)
                             Text(
-                                ShabbatTimes.CANDLES + " " + ShabbatTimes.formatCandleLighting(hebrew, clStr),
+                                ShabbatTimes.candles(hebrew, st.fromExistingFlame) + " " + ShabbatTimes.formatCandleLighting(hebrew, clStr),
                                 color = ACTIVE_GOLD,
                                 fontSize = 15.sp,
                                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
@@ -238,7 +238,7 @@ fun DaySheet(
                 // Plain rows: no past/next highlighting, since this day may not be today.
                 d.zmanim.forEach { z ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                        Text(z.displayName, color = INACTIVE, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                        Text(if (hebrew) com.hebrewcal.data.ZmanimKeys.hebrewName(z.key) else z.displayName, color = INACTIVE, fontSize = 13.sp, modifier = Modifier.weight(1f))
                         Text(z.timeString, color = Color.White, fontSize = 13.sp)
                     }
                 }

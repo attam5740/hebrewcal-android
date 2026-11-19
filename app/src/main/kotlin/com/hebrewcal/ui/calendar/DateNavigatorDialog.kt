@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
@@ -186,16 +187,19 @@ fun DateNavigatorDialog(
 /** Round −/+ button that fires once on tap and repeats while held. */
 @Composable
 private fun YearArrow(glyph: String, onStep: () -> Unit) {
+    // onStep captures the year, so it changes after every step; keying pointerInput on it
+    // would cancel the held gesture after the first repeat.
+    val step by rememberUpdatedState(onStep)
     Box(
         Modifier.size(40.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.08f))
-            .pointerInput(onStep) {
+            .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown()
-                    onStep()
+                    step()
                     var delayMs = 400L
                     while (true) {
                         val event = withTimeoutOrNull(delayMs) { awaitPointerEvent() }
-                        if (event == null) { onStep(); delayMs = 80L }
+                        if (event == null) { step(); delayMs = 80L }
                         else if (event.changes.all { !it.pressed }) break
                     }
                 }

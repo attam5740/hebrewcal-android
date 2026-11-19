@@ -70,6 +70,7 @@ fun MizrachCompassDialog(
 
         if (rotationSensor == null) {
             hasSensor = false
+            onDispose { }
         } else {
             val listener = object : SensorEventListener {
                 private val rotationMatrix = FloatArray(9)
@@ -108,8 +109,6 @@ fun MizrachCompassDialog(
                 sensorManager.unregisterListener(listener)
             }
         }
-
-        onDispose { }
     }
 
     val mizrachResult = remember(latitude, longitude, deviceHeading, isHebrew) {
@@ -187,6 +186,14 @@ fun MizrachCompassDialog(
                             tint = Color.White.copy(alpha = 0.7f)
                         )
                     }
+                }
+
+                if (!hasSensor) {
+                    Text(
+                        text = if (isHebrew) "אין חיישן מצפן במכשיר — המחוג לא יסתובב" else "No compass sensor on this device — the needle can't turn",
+                        color = Color(0xFFEF5350),
+                        fontSize = 13.sp
+                    )
                 }
 
                 // Compass Dial Canvas

@@ -89,25 +89,22 @@ object LockscreenNotificationBuilder {
                 if (timeFormat == com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm",
                 java.util.Locale.getDefault()
             )
-            val candles = com.hebrewcal.data.ShabbatTimes.CANDLES
-            if (shabbatTimes.isErevShabbat || shabbatTimes.isErevYomTov) {
-                shabbatTimes.candleLighting?.let { cl ->
-                    val diffMin = ((cl.time - nowMs) / (1000 * 60)).toInt()
-                    val clStr = com.hebrewcal.data.ShabbatTimes.ltr(timeFmt.format(cl))
-                    shabbatBannerText = when {
-                        diffMin in 1..180 -> if (isHeb) "$candles שבת בעוד $diffMin דק׳ ($clStr)" else "$candles Shabbat in ${diffMin}m ($clStr)"
-                        diffMin in -60..0 -> if (isHeb) "$candles שבת שלום (הדלקה $clStr)" else "$candles Shabbat Shalom (Lit $clStr)"
-                        else -> if (isHeb) "$candles הדלקת נרות: $clStr" else "$candles Candle Lighting: $clStr"
-                    }
+            val st = shabbatTimes
+            val cl = st.candleLighting
+            val hav = st.havdalah
+            // Fixed times: candle lighting until it is lit, then Shabbat Shalom until Havdalah.
+            shabbatBannerText = when {
+                cl != null && nowMs < cl.time ->
+                    com.hebrewcal.data.ShabbatTimes.candles(isHeb, st.fromExistingFlame) + " " +
+                        com.hebrewcal.data.ShabbatTimes.formatCandleLighting(isHeb, timeFmt.format(cl))
+                hav != null && nowMs >= hav.time -> null
+                cl != null || st.isShabbat || st.isYomTov -> {
+                    val shabbatTitle = if (isHeb) "שַׁבָּת שָׁלוֹם" else "Shabbat Shalom"
+                    val havStr = hav?.let { com.hebrewcal.data.ShabbatTimes.ltr(timeFmt.format(it)) }
+                    if (havStr == null) shabbatTitle
+                    else if (isHeb) "$shabbatTitle · הבדלה $havStr" else "$shabbatTitle · Havdalah $havStr"
                 }
-            } else if (shabbatTimes.isShabbat || shabbatTimes.isYomTov) {
-                val shabbatTitle = if (isHeb) "שַׁבָּת שָׁלוֹם" else "Shabbat Shalom"
-                val havStr = shabbatTimes.havdalah?.let { com.hebrewcal.data.ShabbatTimes.ltr(timeFmt.format(it)) }
-                shabbatBannerText = if (havStr != null) {
-                    if (isHeb) "$shabbatTitle · הבדלה $havStr" else "$shabbatTitle · Havdalah $havStr"
-                } else {
-                    shabbatTitle
-                }
+                else -> null
             }
         }
 
@@ -129,7 +126,12 @@ object LockscreenNotificationBuilder {
         // Highlight next zman in collapsed view
         val nextZman = zmanimData?.entries?.firstOrNull { it.isNext }
         if (showZmanim && nextZman != null) {
-            remoteViews.setTextViewText(R.id.tv_next_zman, "▶ ${nextZman.displayName}  ${nextZman.timeString}")
+            val nextLine = if (isHeb) {
+                "◀ ${com.hebrewcal.data.ZmanimKeys.hebrewName(nextZman.key)}  ${com.hebrewcal.data.ShabbatTimes.ltr(nextZman.timeString)}"
+            } else {
+                "▶ ${nextZman.displayName}  ${nextZman.timeString}"
+            }
+            remoteViews.setTextViewText(R.id.tv_next_zman, nextLine)
             remoteViews.setViewVisibility(R.id.tv_next_zman, android.view.View.VISIBLE)
         } else {
             remoteViews.setViewVisibility(R.id.tv_next_zman, android.view.View.GONE)
@@ -165,8 +167,9 @@ object LockscreenNotificationBuilder {
             expandedViews.removeAllViews(R.id.ll_zmanim_col0)
             expandedViews.removeAllViews(R.id.ll_zmanim_col1)
             zmanimData.entries.forEachIndexed { index, entry ->
-                val rowView = RemoteViews(context.packageName, R.layout.item_zman_row)
-                rowView.setTextViewText(R.id.tv_zman_name, entry.displayName)
+                val rowView = RemoteViews(context.packageName, if (isHeb) R.layout.item_zman_row_rtl else R.layout.item_zman_row)
+                val name = com.hebrewcal.data.ZmanimKeys.shortName(entry.key, isHeb)
+                rowView.setTextViewText(R.id.tv_zman_name, name)
                 rowView.setTextViewText(R.id.tv_zman_time, entry.timeString)
 
                 // setAlpha via setFloat is blocked by OxygenOS RemoteViews policy;
@@ -180,9 +183,11 @@ object LockscreenNotificationBuilder {
                 rowView.setInt(R.id.tv_zman_time, "setTextColor", textColor)
 
                 if (entry.isNext) {
-                    rowView.setTextViewText(R.id.tv_zman_name, "▶ ${entry.displayName}")
+                    rowView.setTextViewText(R.id.tv_zman_name, if (isHeb) "◀ $name" else "▶ $name")
                 }
-                expandedViews.addView(if (index % 2 == 0) R.id.ll_zmanim_col0 else R.id.ll_zmanim_col1, rowView)
+                // Hebrew reads right to left, so the first zman goes in the right-hand column.
+                val firstCol = (index % 2 == 0) != isHeb
+                expandedViews.addView(if (firstCol) R.id.ll_zmanim_col0 else R.id.ll_zmanim_col1, rowView)
             }
         } else {
             expandedViews.setViewVisibility(R.id.ll_zmanim_container, android.view.View.GONE)

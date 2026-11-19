@@ -33,6 +33,10 @@ data class UserPreferences(
     val prefetchParshaWeeks: Int = 3,
     /** Home-screen widget background opacity, 10..100 percent. */
     val widgetOpacity: Int = 60,
+    /** Reader background opacity, 10..100 percent. */
+    val readerOpacity: Int = 50,
+    /** One opacity for both widget and reader; the slider then sets both values. */
+    val opacityLinked: Boolean = false,
     val candleLightingOffsetMinutes: Int = 18,
     val havdalahOpinion: HavdalahOpinion = HavdalahOpinion.STANDARD_8_5,
     val showShabbatBanner: Boolean = true,
@@ -85,6 +89,49 @@ object ZmanimKeys {
         PLAG_HAMINCHA, SHKIAH, TZET_HAKOCHAVIM, TZET_RABBEINU_TAM,
         CANDLE_LIGHTING, HAVDALAH, HAVDALAH_RT
     )
+
+    /** Short names for the notification's narrow two-column list, so each zman fits one line. */
+    fun shortName(key: String, hebrew: Boolean = false): String = if (hebrew) hebrewName(key) else when (key) {
+        ALOT_HASHACHAR    -> "Alot HaShachar"
+        MISHEYAKIR        -> "Misheyakir"
+        HANETZ            -> "HaNetz"
+        SOF_ZMAN_SHEMA_GRA -> "Shema · GRA"
+        SOF_ZMAN_SHEMA_MGA -> "Shema · MGA"
+        SOF_ZMAN_TEFILLA_GRA -> "Tefilla · GRA"
+        SOF_ZMAN_TEFILLA_MGA -> "Tefilla · MGA"
+        CHATZOT           -> "Chatzot"
+        MINCHA_GEDOLA     -> "Mincha Gedola"
+        MINCHA_KETANA     -> "Mincha Ketana"
+        PLAG_HAMINCHA     -> "Plag HaMincha"
+        SHKIAH            -> "Shkiah"
+        TZET_HAKOCHAVIM   -> "Tzet HaKochavim"
+        TZET_RABBEINU_TAM -> "Tzet · R. Tam"
+        CANDLE_LIGHTING   -> "Candle Lighting"
+        HAVDALAH          -> "Havdalah"
+        HAVDALAH_RT       -> "Havdalah · R. Tam"
+        else              -> key
+    }
+
+    fun hebrewName(key: String): String = when (key) {
+        ALOT_HASHACHAR    -> "עלות השחר"
+        MISHEYAKIR        -> "משיכיר"
+        HANETZ            -> "הנץ החמה"
+        SOF_ZMAN_SHEMA_GRA -> "סוף ק״ש · גר״א"
+        SOF_ZMAN_SHEMA_MGA -> "סוף ק״ש · מג״א"
+        SOF_ZMAN_TEFILLA_GRA -> "סוף תפילה · גר״א"
+        SOF_ZMAN_TEFILLA_MGA -> "סוף תפילה · מג״א"
+        CHATZOT           -> "חצות"
+        MINCHA_GEDOLA     -> "מנחה גדולה"
+        MINCHA_KETANA     -> "מנחה קטנה"
+        PLAG_HAMINCHA     -> "פלג המנחה"
+        SHKIAH            -> "שקיעה"
+        TZET_HAKOCHAVIM   -> "צאת הכוכבים"
+        TZET_RABBEINU_TAM -> "צאת · ר״ת"
+        CANDLE_LIGHTING   -> "הדלקת נרות"
+        HAVDALAH          -> "הבדלה"
+        HAVDALAH_RT       -> "הבדלה · ר״ת"
+        else              -> key
+    }
 
     fun displayName(key: String): String = when (key) {
         ALOT_HASHACHAR    -> "Alot HaShachar (Dawn)"
@@ -141,6 +188,8 @@ object PreferenceKeys {
     val PREFETCH_TEHILLIM_DAYS = intPreferencesKey("prefetch_tehillim_days")
     val PREFETCH_PARSHA_WEEKS = intPreferencesKey("prefetch_parsha_weeks")
     val WIDGET_OPACITY = intPreferencesKey("widget_opacity")
+    val READER_OPACITY = intPreferencesKey("reader_opacity")
+    val OPACITY_LINKED = booleanPreferencesKey("opacity_linked")
     val CANDLE_LIGHTING_OFFSET = intPreferencesKey("candle_lighting_offset")
     val HAVDALAH_OPINION = stringPreferencesKey("havdalah_opinion")
     val SHOW_SHABBAT_BANNER = booleanPreferencesKey("show_shabbat_banner")
@@ -152,27 +201,23 @@ object PreferenceKeys {
     val PRAYER_BUTTONS_ON = booleanPreferencesKey("prayer_buttons_on")
 }
 
+/** The enum constant named [name], or [default] if it is missing or unknown (e.g. a garbled backup). */
+inline fun <reified E : Enum<E>> enumOr(name: String?, default: E): E =
+    enumValues<E>().firstOrNull { it.name == name } ?: default
+
 class UserPreferencesRepository(private val context: Context) {
 
     val preferences: Flow<UserPreferences> = context.dataStore.data.map { prefs ->
         UserPreferences(
-            language = CalendarLanguage.valueOf(
-                prefs[PreferenceKeys.LANGUAGE] ?: CalendarLanguage.ENGLISH.name
-            ),
-            location = CalendarLocation.valueOf(
-                prefs[PreferenceKeys.LOCATION] ?: CalendarLocation.DIASPORA.name
-            ),
+            language = enumOr(prefs[PreferenceKeys.LANGUAGE], CalendarLanguage.ENGLISH),
+            location = enumOr(prefs[PreferenceKeys.LOCATION], CalendarLocation.DIASPORA),
             showParsha = prefs[PreferenceKeys.SHOW_PARSHA] ?: true,
             showParshaOnWeekdays = prefs[PreferenceKeys.SHOW_PARSHA_WEEKDAYS] ?: false,
             showOmer = prefs[PreferenceKeys.SHOW_OMER] ?: true,
             showGregorianDate = prefs[PreferenceKeys.SHOW_GREGORIAN] ?: true,
             showZmanim = prefs[PreferenceKeys.SHOW_ZMANIM] ?: false,
-            zmanimTimeFormat = ZmanimTimeFormat.valueOf(
-                prefs[PreferenceKeys.ZMANIM_TIME_FORMAT] ?: ZmanimTimeFormat.TWELVE_HOUR.name
-            ),
-            zmanimLocationSource = ZmanimLocationSource.valueOf(
-                prefs[PreferenceKeys.ZMANIM_LOCATION_SOURCE] ?: ZmanimLocationSource.GPS.name
-            ),
+            zmanimTimeFormat = enumOr(prefs[PreferenceKeys.ZMANIM_TIME_FORMAT], ZmanimTimeFormat.TWELVE_HOUR),
+            zmanimLocationSource = enumOr(prefs[PreferenceKeys.ZMANIM_LOCATION_SOURCE], ZmanimLocationSource.GPS),
             zmanimManualCity = prefs[PreferenceKeys.ZMANIM_MANUAL_CITY] ?: "",
             zmanimManualLat = prefs[PreferenceKeys.ZMANIM_MANUAL_LAT] ?: 0.0,
             zmanimManualLng = prefs[PreferenceKeys.ZMANIM_MANUAL_LNG] ?: 0.0,
@@ -181,20 +226,18 @@ class UserPreferencesRepository(private val context: Context) {
             showTehillimButton = prefs[PreferenceKeys.SHOW_TEHILLIM_BUTTON] ?: true,
             showParshaButton = prefs[PreferenceKeys.SHOW_PARSHA_BUTTON] ?: true,
             showElulTehillim = prefs[PreferenceKeys.SHOW_ELUL_TEHILLIM] ?: true,
-            prefetchNetwork = PrefetchNetwork.valueOf(
-                prefs[PreferenceKeys.PREFETCH_NETWORK] ?: PrefetchNetwork.WIFI.name
-            ),
+            prefetchNetwork = enumOr(prefs[PreferenceKeys.PREFETCH_NETWORK], PrefetchNetwork.WIFI),
             prefetchTehillimDays = prefs[PreferenceKeys.PREFETCH_TEHILLIM_DAYS] ?: 7,
             prefetchParshaWeeks = prefs[PreferenceKeys.PREFETCH_PARSHA_WEEKS] ?: 3,
             widgetOpacity = prefs[PreferenceKeys.WIDGET_OPACITY] ?: 60,
+            readerOpacity = prefs[PreferenceKeys.READER_OPACITY] ?: 50,
+            opacityLinked = prefs[PreferenceKeys.OPACITY_LINKED] ?: false,
             candleLightingOffsetMinutes = prefs[PreferenceKeys.CANDLE_LIGHTING_OFFSET] ?: 18,
-            havdalahOpinion = HavdalahOpinion.valueOf(
-                prefs[PreferenceKeys.HAVDALAH_OPINION] ?: HavdalahOpinion.STANDARD_8_5.name
-            ),
+            havdalahOpinion = enumOr(prefs[PreferenceKeys.HAVDALAH_OPINION], HavdalahOpinion.STANDARD_8_5),
             showShabbatBanner = prefs[PreferenceKeys.SHOW_SHABBAT_BANNER] ?: true,
             showCelestialArc = prefs[PreferenceKeys.SHOW_CELESTIAL_ARC] ?: true,
             setupDone = prefs[PreferenceKeys.SETUP_DONE] ?: false,
-            nusach = Nusach.valueOf(prefs[PreferenceKeys.NUSACH] ?: Nusach.ASHKENAZ.name),
+            nusach = enumOr(prefs[PreferenceKeys.NUSACH], Nusach.ASHKENAZ),
             prayerButtonsOn = prefs[PreferenceKeys.PRAYER_BUTTONS_ON] ?: true,
             prayerButtons = PrayerButton.ALL_KEYS - (prefs[PreferenceKeys.PRAYER_BUTTONS_OFF] ?: emptySet())
         )
@@ -278,6 +321,18 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun updateWidgetOpacity(percent: Int) {
         context.dataStore.edit { it[PreferenceKeys.WIDGET_OPACITY] = percent.coerceIn(10, 100) }
+    }
+
+    suspend fun updateReaderOpacity(percent: Int) {
+        context.dataStore.edit { it[PreferenceKeys.READER_OPACITY] = percent.coerceIn(10, 100) }
+    }
+
+    /** Linking copies the widget's opacity to the reader so both start out equal. */
+    suspend fun updateOpacityLinked(linked: Boolean) {
+        context.dataStore.edit {
+            it[PreferenceKeys.OPACITY_LINKED] = linked
+            if (linked) it[PreferenceKeys.READER_OPACITY] = it[PreferenceKeys.WIDGET_OPACITY] ?: 60
+        }
     }
 
     suspend fun updateCandleLightingOffset(offsetMinutes: Int) {

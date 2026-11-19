@@ -69,6 +69,8 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
 
     val textSize = prefsRepo.preferences.map { it.readerTextSizeSp }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 18f)
+    val opacity = prefsRepo.preferences.map { it.readerOpacity }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 50)
 
     private var window: ReaderWindow? = null
     private var loadedKey: String? = null
@@ -77,7 +79,20 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
     private var lastTehillim: Position? = null
     private var lastTorah: Position? = null
     private var extendJob: Job? = null
+    private var loadJob: Job? = null
     private var generation = 0
+    private var started = false
+
+    /**
+     * The activity's opening load, once per ViewModel: after a rotation the reader keeps
+     * whatever it has navigated or scrolled to instead of reloading the intent's ref.
+     */
+    fun start(mode: String, ref: String, title: String, diaspora: Boolean, elulRef: String = "",
+              presetAliyot: List<String> = emptyList()) {
+        if (started) return
+        started = true
+        load(mode, ref, title, diaspora, elulRef, presetAliyot)
+    }
 
     fun load(mode: String, ref: String, title: String, diaspora: Boolean, elulRef: String = "",
              presetAliyot: List<String> = emptyList()) {
@@ -91,7 +106,9 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         window = null
         _state.value = UiState(loading = true, title = title, mode = mode)
         ensureWeek()
-        viewModelScope.launch {
+        // A newer load supersedes one still in flight, so a slow earlier fetch cannot land last.
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             val resolvedRef: String
             var resolvedTitle = title
             var aliyot: List<String> = presetAliyot

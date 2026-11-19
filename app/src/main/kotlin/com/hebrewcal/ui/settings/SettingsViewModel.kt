@@ -3,6 +3,7 @@ package com.hebrewcal.ui.settings
 import android.app.Application
 import android.content.pm.PackageManager
 import android.net.Uri
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,13 +18,16 @@ import kotlinx.coroutines.withContext
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     private val prefsRepo = UserPreferencesRepository(app)
-    private val locationHelper by lazy { LocationHelper(getApplication()) }
 
     val preferences: StateFlow<UserPreferences> = prefsRepo.preferences
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserPreferences())
 
+    // Read by [hasLocationPermission] and bumped by [detectNearestCity], so the screen
+    // recomposes (and drops the "Grant" card) once the permission dialog is accepted.
+    private val permissionTick = mutableIntStateOf(0)
+
     val hasLocationPermission: Boolean
-        get() = ContextCompat.checkSelfPermission(
+        get() = permissionTick.intValue >= 0 && ContextCompat.checkSelfPermission(
             getApplication(), android.Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
@@ -107,8 +111,13 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setWidgetOpacity(percent: Int) = viewModelScope.launch {
         prefsRepo.updateWidgetOpacity(percent)
+        if (preferences.value.opacityLinked) prefsRepo.updateReaderOpacity(percent)
         notifyServiceRefresh()   // the service refresh also redraws the widget
     }
+
+    fun setReaderOpacity(percent: Int) = viewModelScope.launch { prefsRepo.updateReaderOpacity(percent) }
+
+    fun setOpacityLinked(linked: Boolean) = viewModelScope.launch { prefsRepo.updateOpacityLinked(linked) }
 
     private suspend fun reschedulePrefetch() {
         val network = prefsRepo.preferences.first().prefetchNetwork
@@ -137,13 +146,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun detectNearestCity() = viewModelScope.launch {
+        permissionTick.intValue++
         _geocodeStatus.value = GeoCodeStatus.Loading
         try {
-            val loc = locationHelper.getCurrentLocation()
-            val nearest = CityDatabase.findNearest(loc.latitude, loc.longitude)
-            prefsRepo.updateZmanimManualLocation(nearest.name, nearest.latitude, nearest.longitude)
+            val nearest = detectAndSaveNearestCity(getApplication())
             _geocodeStatus.value = GeoCodeStatus.Success(nearest.displayName)
-            notifyServiceRefresh()
         } catch (e: Exception) {
             _geocodeStatus.value = GeoCodeStatus.Error("Could not get GPS location.")
         }

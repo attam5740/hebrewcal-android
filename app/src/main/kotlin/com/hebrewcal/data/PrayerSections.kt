@@ -145,8 +145,9 @@ object PrayerSections {
     private val MARKS = Regex("[\\u0591-\\u05BD\\u05BF-\\u05C7]")
     private val TAGS = Regex("<[^>]*>")
     private val SPACES = Regex("\\s+")
+    // Instruction and letter-size markers go too: Sefaria wraps some split phrases in <small>.
     fun normalize(he: String): String =
-        SPACES.replace(MARKS.replace(TAGS.replace(he, "").replace('\u05BE', ' '), ""), " ").trim()
+        SPACES.replace(MARKS.replace(Instructions.strip(TAGS.replace(he, "")).replace('\u05BE', ' '), ""), " ").trim()
 
     /** A finished part of the reader: its heading (null: the first section's own) and its paragraphs. */
     data class Unit(val title: SectionTitle?, val firstRef: Int, val verses: List<Verse>)

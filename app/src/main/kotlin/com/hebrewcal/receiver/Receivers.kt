@@ -10,7 +10,7 @@ class BootReceiver : BroadcastReceiver() {
         when (intent.action) {
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_MY_PACKAGE_REPLACED -> {
-                CalendarNotificationService.start(context)
+                CalendarNotificationService.refresh(context)
             }
         }
     }
@@ -19,7 +19,6 @@ class BootReceiver : BroadcastReceiver() {
 class DateChangeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            Intent.ACTION_DATE_CHANGED,
             "android.intent.action.TIME_SET",
             Intent.ACTION_TIMEZONE_CHANGED -> {
                 CalendarNotificationService.refresh(context)

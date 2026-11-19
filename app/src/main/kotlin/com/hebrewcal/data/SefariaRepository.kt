@@ -37,7 +37,7 @@ class SefariaRepository(context: Context) {
         runCatching {
             val body = httpGet(url)
             val parsed = SefariaTextParser.parse(body)
-            cacheFile.writeText(body)
+            cacheFile.writeAtomically(body)
             parsed
         }.recoverCatching {
             if (cacheFile.exists()) SefariaTextParser.parse(cacheFile.readText()) else throw it
@@ -61,7 +61,7 @@ class SefariaRepository(context: Context) {
         return runCatching {
             val body = httpGet(WikisourceText.apiUrl(WikisourceText.page(ref)))
             val text = WikisourceText.toSefariaText(WikisourceText.extract(body), heading)
-            file.writeText(body)
+            file.writeAtomically(body)
             text
         }.recoverCatching {
             if (file.exists()) WikisourceText.toSefariaText(WikisourceText.extract(file.readText()), heading) else throw it
@@ -95,11 +95,15 @@ class SefariaRepository(context: Context) {
         val book = path.substringBefore(", ")
         val cacheFile = File(cacheDir, "index_" + book.replace(Regex("[^A-Za-z0-9._-]"), "_") + ".json")
         runCatching {
-            val json = if (cacheFile.exists()) cacheFile.readText() else {
-                httpGet("https://www.sefaria.org/api/v2/index/" + URLEncoder.encode(book.replace(' ', '_'), "UTF-8"))
-                    .also { cacheFile.writeText(it) }
-            }
-            SiddurIndex.leaves(json, path, after, before).ifEmpty { error("no sections under $path") }
+            // A corrupt/truncated cache file must not break the siddur for good: drop it and refetch.
+            val cached = if (cacheFile.exists()) {
+                runCatching { SiddurIndex.leaves(cacheFile.readText(), path, after, before) }.getOrNull()
+                    ?: run { cacheFile.delete(); null }
+            } else null
+            (cached ?: run {
+                val json = httpGet("https://www.sefaria.org/api/v2/index/" + URLEncoder.encode(book.replace(' ', '_'), "UTF-8"))
+                SiddurIndex.leaves(json, path, after, before).also { cacheFile.writeAtomically(json) }
+            }).ifEmpty { error("no sections under $path") }
         }
     }
 
@@ -131,7 +135,7 @@ class SefariaRepository(context: Context) {
             cached ?: run {
                 val body = httpGet(url)
                 val parsed = ParshaCalendarsParser.parse(body) ?: error("No parsha in calendars response")
-                cacheFile.writeText(body)
+                cacheFile.writeAtomically(body)
                 parsed
             }
         }
@@ -143,7 +147,7 @@ class SefariaRepository(context: Context) {
         runCatching {
             val body = httpGet(url)
             val parsed = ParshaCalendarsParser.parse(body) ?: error("No parsha in calendars response")
-            cacheFile.writeText(body)
+            cacheFile.writeAtomically(body)
             parsed
         }.recoverCatching {
             // Offline: prefer the download job's entry for the coming Shabbat (always
@@ -157,6 +161,13 @@ class SefariaRepository(context: Context) {
             }
             cached ?: throw it
         }
+    }
+
+    /** Writes via a temp file and a rename, so a killed write never leaves a truncated cache file. */
+    private fun File.writeAtomically(text: String) {
+        val tmp = File(parentFile, "$name.tmp")
+        tmp.writeText(text)
+        if (!tmp.renameTo(this)) { tmp.delete(); writeText(text) }
     }
 
     private fun httpGet(spec: String): String {

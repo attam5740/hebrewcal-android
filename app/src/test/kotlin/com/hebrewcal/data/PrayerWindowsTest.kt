@@ -33,8 +33,12 @@ class PrayerWindowsTest {
     fun havdalahOpensAtHavdalahAndClosesThreeHoursLater() {
         // Motzei Shabbat Oct 24, 2026
         val havdalah = ShabbatTimes.calculate(at(2026, Calendar.OCTOBER, 24, 12), lat, lng, timeZone = tz).havdalah!!
-        assertFalse(PrayerButton.HAVDALAH in activeAt(Date(havdalah.time - 60_000)))
-        assertEquals(havdalah, status(Date(havdalah.time - 60_000), setOf(PrayerButton.HAVDALAH)).nextChange)
+        val tzet = cal(at(2026, Calendar.OCTOBER, 24, 12)).tzais
+        val opens = Date(minOf(tzet.time, havdalah.time) - PrayerWindows.HAVDALAH_LEAD_MS)
+        // Opens 10 minutes before tzet hakochavim.
+        assertFalse(PrayerButton.HAVDALAH in activeAt(Date(opens.time - 60_000)))
+        assertEquals(opens, status(Date(opens.time - 60_000), setOf(PrayerButton.HAVDALAH)).nextChange)
+        assertTrue(PrayerButton.HAVDALAH in activeAt(Date(opens.time + 60_000)))
         assertTrue(PrayerButton.HAVDALAH in activeAt(Date(havdalah.time + 3_600_000)))
         assertFalse(PrayerButton.HAVDALAH in activeAt(Date(havdalah.time + PrayerWindows.HAVDALAH_LENGTH_MS)))
         assertFalse(PrayerButton.HAVDALAH in activeAt(at(2026, Calendar.OCTOBER, 26, 20)))   // Monday
@@ -63,6 +67,15 @@ class PrayerWindowsTest {
         val w = status(Date(cl.time)).active.first { it.button == PrayerButton.CANDLE_LIGHTING }
         assertEquals(CandleKind.SHABBAT, w.candleKind)
         assertFalse(PrayerButton.CANDLE_LIGHTING in activeAt(at(2026, Calendar.OCTOBER, 21, 17)))  // Wednesday
+    }
+
+    @Test
+    fun candleLightingOnShabbatOpensAtNightfall() {
+        // Sat Sep 12, 2026 (Shabbat, Rosh Hashana): lighting for day 2 waits for nightfall.
+        val cl = ShabbatTimes.calculate(at(2026, Calendar.SEPTEMBER, 12, 12), lat, lng, timeZone = tz).candleLighting!!
+        assertFalse(PrayerButton.CANDLE_LIGHTING in activeAt(Date(cl.time - 60_000)))
+        assertTrue(PrayerButton.CANDLE_LIGHTING in activeAt(Date(cl.time + 60_000)))
+        assertFalse(PrayerButton.CANDLE_LIGHTING in activeAt(Date(cl.time + 61 * 60_000)))
     }
 
     @Test

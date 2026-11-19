@@ -80,4 +80,52 @@ class SefariaTextParserTest {
         assertEquals(1, t.chapters[0].verses.size)
         assertEquals("May He bless you", t.chapters[0].verses[0].en)
     }
+
+    private fun he(raw: String) = SefariaTextParser.parse(
+        kotlinx.serialization.json.buildJsonObject {
+            put("heRef", kotlinx.serialization.json.JsonPrimitive("x"))
+            put("he", kotlinx.serialization.json.JsonPrimitive(raw))
+            put("text", kotlinx.serialization.json.JsonPrimitive(""))
+        }.toString()
+    ).chapters[0].verses[0].he
+
+    private val so = Instructions.SMALL_OPEN
+    private val sc = Instructions.SMALL_CLOSE
+
+    @Test
+    fun smallLetterStaysInsideItsWord() {
+        // Genesis 2:4 (MAM): the small ה of בהבראם.
+        assertEquals("הָאָ֖רֶץ בְּ${so}הִ${sc}בָּֽרְאָ֑ם", he("הָאָ֖רֶץ בְּ<small>הִ</small>בָּֽרְאָ֑ם"))
+        // Leviticus 1:1: the small א at the end of ויקרא.
+        assertEquals("וַיִּקְרָ֖${so}א$sc אֶל־מֹשֶׁ֑ה", he("וַיִּקְרָ֖<small>א</small> אֶל־מֹשֶׁ֑ה"))
+    }
+
+    @Test
+    fun bigLettersAreAlwaysLetterSize() {
+        val bo = Instructions.BIG_OPEN; val bc = Instructions.BIG_CLOSE
+        assertEquals("${bo}בְּ${bc}רֵאשִׁ֖ית בָּרָ֣א", he("<big>בְּ</big>רֵאשִׁ֖ית בָּרָ֣א"))
+        assertEquals("שְׁמַ֖${bo}ע$bc יִשְׂרָאֵ֑ל", he("שְׁמַ֖<big>ע</big> יִשְׂרָאֵ֑ל"))
+    }
+
+    @Test
+    fun englishSmallCapsStayOneWord() {
+        val t = SefariaTextParser.parse("""{"heRef":"x","he":"א","text":"the E<small>TERNAL</small> God"}""")
+        assertEquals("the E${so}TERNAL$sc God", t.chapters[0].verses[0].en)
+    }
+
+    @Test
+    fun siddurSmallNotesStayInstructions() {
+        val o = Instructions.OPEN; val c = Instructions.CLOSE
+        assertEquals("מוֹדִים ${o}אומרים$c אֲנַחְנוּ", he("מוֹדִים <small>אומרים</small> אֲנַחְנוּ"))
+        // Glued only to punctuation, or holding punctuation: still a note.
+        assertEquals("עֹשֶׂה ( ${o}בעשי\"ת$c הַמֶּלֶךְ", he("עֹשֶׂה (<small>בעשי\"ת</small> הַמֶּלֶךְ"))
+        assertEquals("סֶלָה ${o}ג״פ$c :", he("סֶלָה <small>ג״פ</small>:"))
+        assertEquals("${o}לפורים—$c בִּימֵי", he("<small>לפורים—</small>בִּימֵי"))
+    }
+
+    @Test
+    fun inlineTagsDoNotSplitWords() {
+        assertEquals("עֲנֵֽנוּ)", he("<b>עֲנֵֽנוּ</b>)"))
+        assertEquals("כִּ֘י־חָ֥פֵֽץ", he("כִּ֘י<span>־</span>חָ֥פֵֽץ"))
+    }
 }

@@ -116,6 +116,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
+        android:layoutDirection="ltr"
         android:visibility="gone">
         <LinearLayout android:id="@+id/ll_zmanim_col0" android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content" android:orientation="vertical" android:paddingEnd="6dp" />
