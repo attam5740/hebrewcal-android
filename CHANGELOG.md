@@ -4,6 +4,13 @@ All notable changes to Hebrew Calendar are listed here, newest first.
 Version codes match `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`,
 which is what F-Droid shows.
 
+## Unreleased
+
+### Added
+- The day sheet's scriptures section ends with a **Chitas** link when the setting is on,
+  opening that day's Chumash, Tehillim and Tanya. It follows the day being viewed rather than
+  today, so browsing to another date shows that date's portions.
+
 ## 1.22 (version code 29)
 
 ### Added

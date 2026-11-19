@@ -131,6 +131,8 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
     /** Everything the bottom sheet renders for one selected day. */
     data class DayDetail(
         val info: HebrewDateInfo,
+        /** The day this sheet is showing; Chitas needs it to pick that day's portions. */
+        val date: LocalDate,
         val weekday: String,
         val zmanim: List<ZmanEntry>,
         val hasLocation: Boolean,
@@ -254,6 +256,7 @@ class CalendarViewModel(app: Application) : AndroidViewModel(app) {
 
         return DayDetail(
             info = info,
+            date = date,
             weekday = weekday,
             zmanim = zm,
             hasLocation = hasLoc,

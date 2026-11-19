@@ -39,9 +39,11 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import com.hebrewcal.data.AliyotPartitioner
 import com.hebrewcal.data.CalendarLocation
 import com.hebrewcal.data.CelestialArcData
 import com.hebrewcal.data.CelestialCalculator
+import com.hebrewcal.data.ChitasSchedule
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -66,7 +68,7 @@ fun DaySheet(
     val ctx = LocalContext.current
     fun reader(
         mode: String, ref: String, title: String, teamim: Boolean, elul: String = "",
-        aliyot: List<String> = emptyList()
+        aliyot: List<String> = emptyList(), advancedDate: String = ""
     ) =
         Intent(ctx, TextReaderActivity::class.java).apply {
             putExtra(TextReaderActivity.EXTRA_MODE, mode)
@@ -77,6 +79,7 @@ fun DaySheet(
             putExtra(TextReaderActivity.EXTRA_TEAMIM, teamim)
             putExtra(TextReaderActivity.EXTRA_DIASPORA, prefs.location == CalendarLocation.DIASPORA)
             putExtra(TextReaderActivity.EXTRA_ELUL_REF, elul)
+            putExtra(TextReaderActivity.EXTRA_ADVANCED_DATE, advancedDate)
             putStringArrayListExtra(TextReaderActivity.EXTRA_ALIYOT, ArrayList(aliyot))
         }
 
@@ -224,6 +227,29 @@ fun DaySheet(
                             if (hebrew) "אין חיבור לאינטרנט" else "No internet connection",
                             color = INACTIVE, fontSize = 12.sp
                         )
+                }
+                if (prefs.chitasButtonOn) {
+                    val chitasLabel = if (hebrew) "חת״ת" else "Chitas"
+                    // The weekly parsha the sheet already loaded is the one Chitas needs: it is
+                    // fetched for nextOrSame(Saturday), which is exactly ChitasSchedule's rule.
+                    val chitasValue = d.parsha?.let { p ->
+                        val cp = ChitasSchedule.portionFor(
+                            d.date, d.info.hebrewDayNumber, d.info.daysInMonth, p
+                        )
+                        (if (hebrew) p.nameHe else p.nameEn) + " · " +
+                            AliyotPartitioner.aliyahName(cp.aliyahIndex - 1, 7, hebrew)
+                    } ?: if (hebrew) "חומש · תהילים · תניא" else "Chumash · Tehillim · Tanya"
+                    LinkRow(chitasLabel, chitasValue) {
+                        // Blank ref: the reader resolves this day's three portions itself, the
+                        // same way the notification and widget buttons do. The date is passed
+                        // so the sheet opens the day being viewed, not today.
+                        onOpen(
+                            reader(
+                                "chitas", "", chitasLabel, false,
+                                advancedDate = d.date.toString()
+                            )
+                        )
+                    }
                 }
                 HorizontalDivider(
                     Modifier.padding(vertical = 10.dp),
