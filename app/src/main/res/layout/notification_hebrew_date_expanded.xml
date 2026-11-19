@@ -108,6 +108,22 @@
             android:textColor="#C3F6DF"
             android:text=""
             android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tv_btn_chitas"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_pill_chitas"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:textColor="#FFE2A8"
+            android:text=""
+            android:visibility="gone" />
     </LinearLayout>
 
     <!-- Zmanim container — rows added dynamically -->

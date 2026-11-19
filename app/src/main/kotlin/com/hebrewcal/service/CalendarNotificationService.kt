@@ -173,6 +173,12 @@ class CalendarNotificationService : Service() {
                     } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
                 } else null
 
+                val chitasActionLabel = if (prefs.chitasButtonOn) (if (hebrew) "חת״ת" else "Chitas") else null
+                // Same nightfall rule as getDateInfo: from tzet onward the Hebrew day is tomorrow's.
+                val chitasAdvancedDate = now.toInstant().atZone(timeZone.toZoneId()).toLocalDate()
+                    .let { if (tzetToday != null && !now.before(tzetToday)) it.plusDays(1) else it }
+                    .toString()
+
                 val elulRef = if (prefs.showElulTehillim) {
                     try {
                         ElulTehillim.portionFor(dateInfo.jewishMonth, dateInfo.hebrewDayNumber)?.sefariaRef
@@ -216,6 +222,8 @@ class CalendarNotificationService : Service() {
                     showOmer            = prefs.showOmer,
                     tehillimActionLabel = tehillimActionLabel,
                     tehillimActionRef   = tehillimPortion.sefariaRef,
+                    chitasActionLabel   = chitasActionLabel,
+                    chitasAdvancedDate  = chitasAdvancedDate,
                     parshaActionLabel   = parshaActionLabel,
                     diaspora            = prefs.location == CalendarLocation.DIASPORA,
                     languageName        = prefs.language.name,

@@ -25,6 +25,7 @@ object LockscreenNotificationBuilder {
     const val NOTIFICATION_ID = 1001
     const val TEHILLIM_ACTION_REQUEST_CODE = 3001
     const val PARSHA_ACTION_REQUEST_CODE = 3002
+    const val CHITAS_ACTION_REQUEST_CODE = 3003
     /** First of the request codes for prayer actions; one per [PrayerButton] ordinal. */
     const val PRAYER_ACTION_REQUEST_CODE_BASE = 3010
 
@@ -66,7 +67,11 @@ object LockscreenNotificationBuilder {
         showShabbatBanner: Boolean = true,
         timeFormat: com.hebrewcal.data.ZmanimTimeFormat = com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR,
         /** Prayers whose time window is open now (see PrayerWindows). */
-        prayerActions: List<PrayerAction> = emptyList()
+        prayerActions: List<PrayerAction> = emptyList(),
+        /** Chitas pill label; null hides the pill. */
+        chitasActionLabel: String? = null,
+        /** Nightfall-advanced civil date (ISO-8601) the Chitas reader should show. */
+        chitasAdvancedDate: String = ""
     ): Notification {
         val contentIntent = Intent(context, CalendarActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -265,6 +270,34 @@ object LockscreenNotificationBuilder {
         } else {
             expandedViews.setViewVisibility(R.id.tv_btn_parsha, android.view.View.GONE)
             remoteViews.setViewVisibility(R.id.tv_btn_parsha_c, android.view.View.GONE)
+        }
+        if (chitasActionLabel != null) {
+            val intent = Intent(context, TextReaderActivity::class.java).apply {
+                putExtra(TextReaderActivity.EXTRA_MODE, "chitas")
+                putExtra(TextReaderActivity.EXTRA_REF, "")
+                putExtra(TextReaderActivity.EXTRA_TITLE, chitasActionLabel)
+                putExtra(TextReaderActivity.EXTRA_DIASPORA, diaspora)
+                putExtra(TextReaderActivity.EXTRA_LANG, languageName)
+                putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
+                putExtra(TextReaderActivity.EXTRA_TEAMIM, false)
+                putExtra(TextReaderActivity.EXTRA_ELUL_REF, "")
+                putExtra(TextReaderActivity.EXTRA_ADVANCED_DATE, chitasAdvancedDate)
+                data = android.net.Uri.parse("hebrewcal://reader/chitas")
+            }
+            val pi = PendingIntent.getActivity(
+                context, CHITAS_ACTION_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            expandedViews.setTextViewText(R.id.tv_btn_chitas, chitasActionLabel)
+            expandedViews.setViewVisibility(R.id.tv_btn_chitas, android.view.View.VISIBLE)
+            expandedViews.setOnClickPendingIntent(R.id.tv_btn_chitas, pi)
+            remoteViews.setTextViewText(R.id.tv_btn_chitas_c, chitasActionLabel)
+            remoteViews.setViewVisibility(R.id.tv_btn_chitas_c, android.view.View.VISIBLE)
+            remoteViews.setOnClickPendingIntent(R.id.tv_btn_chitas_c, pi)
+            anyReaderButton = true
+        } else {
+            expandedViews.setViewVisibility(R.id.tv_btn_chitas, android.view.View.GONE)
+            remoteViews.setViewVisibility(R.id.tv_btn_chitas_c, android.view.View.GONE)
         }
         expandedViews.setViewVisibility(
             R.id.ll_reader_buttons,
