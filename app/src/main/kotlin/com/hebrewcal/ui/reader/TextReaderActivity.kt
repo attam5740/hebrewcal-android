@@ -89,6 +89,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.geometry.CornerRadius
 import com.hebrewcal.R
 import com.hebrewcal.data.AliyotPartitioner
+import com.hebrewcal.data.ChitasSections
 import com.hebrewcal.data.Instructions
 import com.hebrewcal.data.CalendarLanguage
 import com.hebrewcal.data.HebrewVocalization
@@ -119,7 +120,8 @@ class TextReaderActivity : ComponentActivity() {
         val teamim0 = intent.getBooleanExtra(EXTRA_TEAMIM, false)
         val elulRef = intent.getStringExtra(EXTRA_ELUL_REF) ?: ""
         val aliyot = intent.getStringArrayListExtra(EXTRA_ALIYOT)?.toList() ?: emptyList()
-        vm.start(mode, ref, title, diaspora, elulRef, presetAliyot = aliyot)
+        val advancedDate = intent.getStringExtra(EXTRA_ADVANCED_DATE) ?: ""
+        vm.start(mode, ref, title, diaspora, elulRef, presetAliyot = aliyot, advancedDate = advancedDate)
 
         setContent {
             val state by vm.state.collectAsState()
@@ -273,6 +275,8 @@ class TextReaderActivity : ComponentActivity() {
         const val EXTRA_TEAMIM = "teamim"
         const val EXTRA_ELUL_REF = "elul_ref"
         const val EXTRA_ALIYOT = "aliyot"
+        /** ISO-8601 nightfall-advanced Gregorian date for mode "chitas"; today when absent. */
+        const val EXTRA_ADVANCED_DATE = "advanced_date"
     }
 }
 
@@ -569,8 +573,15 @@ private fun ReaderBody(
             chapterSections(text, mode, bookNameEn, hebrew, gematria)
 
         // Verses outside every aliyah (scroll extension) stay as chapter sections on their side.
-        val split = if (aliyot.isEmpty()) null else AliyotPartitioner.layout(text.chapters, aliyot)
-        val main: List<ReaderSection> = if (split == null) plainSections() else {
+        val chitasLegs = if (mode == "chitas" && text.legs != null) {
+            val titles = text.legs.indices.map { i ->
+                text.sectionTitles?.getOrNull(i)?.let { t -> if (hebrew) t.he.ifBlank { t.en } else t.en } ?: ""
+            }
+            ChitasSections.build(text.legs, titles, hebrew)
+                .map { (t, v) -> ReaderSection(t, v, markChapters = true) }
+        } else null
+        val split = if (chitasLegs != null || aliyot.isEmpty()) null else AliyotPartitioner.layout(text.chapters, aliyot)
+        val main: List<ReaderSection> = if (chitasLegs != null) chitasLegs else if (split == null) plainSections() else {
             val leadingSections: List<ReaderSection> =
                 chapterSections(SefariaText(text.heRef, split.leading), mode, bookNameEn, hebrew, gematria)
             val aliyahSections: List<ReaderSection> = split.sections.map { sec ->
@@ -592,7 +603,7 @@ private fun ReaderBody(
 
     // A prayer with several sections opens with every section folded; tapping a heading
     // unfolds it, so the reader can jump between parts of the service.
-    val foldable = mode == "tefillah" && sections.size > 1
+    val foldable = (mode == "tefillah" || mode == "chitas") && sections.size > 1
     var folded by remember(text, mode, sections.size) {
         mutableStateOf(if (foldable) sections.indices.toSet() else emptySet())
     }
@@ -656,6 +667,14 @@ private fun ReaderBody(
                         modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp),
                         textAlign = TextAlign.Start
                     )
+                    if (!isFolded && mode == "chitas" && section.verses.isEmpty()) {
+                        Text(
+                            if (hebrew) "נדרש חיבור לאינטרנט" else "Needs a connection to load",
+                            color = Color.White.copy(alpha = 0.6f), fontSize = sizeSp.sp,
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            textAlign = TextAlign.Start
+                        )
+                    }
                     if (!isFolded) {
                     // Prayers: instructions smaller and grey, each on its own line with a half-line
                     // gap from the prayer; mid-paragraph ones stay inline. Decided per section from

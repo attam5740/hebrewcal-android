@@ -11,7 +11,9 @@ data class SefariaText(
     val heRef: String,
     val chapters: List<Chapter>,
     /** For a prayer built from several siddur sections: one title per chapter, in order. */
-    val sectionTitles: List<SectionTitle>? = null
+    val sectionTitles: List<SectionTitle>? = null,
+    /** Chitas: one parsed text per leg (null = could not be fetched); chapter numbers stay per leg. */
+    val legs: List<SefariaText?>? = null
 )
 
 object SefariaRefs {

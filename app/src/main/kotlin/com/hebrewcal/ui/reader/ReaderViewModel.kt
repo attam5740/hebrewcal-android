@@ -3,7 +3,9 @@ package com.hebrewcal.ui.reader
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.hebrewcal.data.ChitasSchedule
 import com.hebrewcal.data.ParshaRef
+import com.hebrewcal.data.SectionTitle
 import com.hebrewcal.data.Reading
 import com.hebrewcal.data.ReaderButtons
 import com.hebrewcal.data.ReaderWindow
@@ -88,15 +90,15 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
      * whatever it has navigated or scrolled to instead of reloading the intent's ref.
      */
     fun start(mode: String, ref: String, title: String, diaspora: Boolean, elulRef: String = "",
-              presetAliyot: List<String> = emptyList()) {
+              presetAliyot: List<String> = emptyList(), advancedDate: String = "") {
         if (started) return
         started = true
-        load(mode, ref, title, diaspora, elulRef, presetAliyot)
+        load(mode, ref, title, diaspora, elulRef, presetAliyot, advancedDate)
     }
 
     fun load(mode: String, ref: String, title: String, diaspora: Boolean, elulRef: String = "",
-             presetAliyot: List<String> = emptyList()) {
-        val key = "$mode|$ref|$diaspora|$elulRef"
+             presetAliyot: List<String> = emptyList(), advancedDate: String = "") {
+        val key = "$mode|$ref|$diaspora|$elulRef|$advancedDate"
         if (loadedKey == key) return
         loadedKey = key
         diasporaPref = diaspora
@@ -112,16 +114,31 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
             val resolvedRef: String
             var resolvedTitle = title
             var aliyot: List<String> = presetAliyot
+            var chitasTitles: List<SectionTitle>? = null
             if (mode == "parsha" && ref.isBlank()) {
                 val p = repo.currentParsha(diaspora).getOrNull()
                 if (p == null) { _state.value = UiState(loading = false, error = OFFLINE, title = title, mode = mode); return@launch }
                 resolvedRef = p.sefariaRef; aliyot = p.aliyot
                 if (resolvedTitle.isBlank()) resolvedTitle = p.heRef
+            } else if (mode == "chitas" && ref.isBlank()) {
+                val advanced = runCatching { java.time.LocalDate.parse(advancedDate) }.getOrElse { java.time.LocalDate.now() }
+                val p = repo.parshaFor(ChitasSchedule.parshaDateFor(advanced), diaspora).getOrNull()
+                if (p == null) { _state.value = UiState(loading = false, error = OFFLINE, title = title, mode = mode); return@launch }
+                val jd = com.kosherjava.zmanim.hebrewcalendar.JewishDate(advanced)
+                val portion = ChitasSchedule.portionFor(advanced, jd.jewishDayOfMonth, jd.daysInJewishMonth, p)
+                val en = ChitasSchedule.legTitles(portion, false)
+                val he = ChitasSchedule.legTitles(portion, true)
+                chitasTitles = en.indices.map { SectionTitle(en[it], he[it]) }
+                resolvedRef = listOf(portion.chumashRef, portion.tehillimRef, portion.tanyaRef)
+                    .joinToString(Tefillot.REF_SEPARATOR)
             } else resolvedRef = ref
-            val bookNameEn = if (mode != "tehillim") resolvedRef.substringBefore('.', "").ifBlank { null } else null
-            fetchCombined(resolvedRef, cacheFirst = mode == "tefillah").fold(
-                onSuccess = { text ->
-                    val w = ReaderWindows.fromRef(resolvedRef, text); window = w
+            val bookNameEn = if (mode != "tehillim" && mode != "chitas") resolvedRef.substringBefore('.', "").ifBlank { null } else null
+            val chitas = mode == "chitas"
+            fetchCombined(resolvedRef, cacheFirst = mode == "tefillah", siddurMerge = !chitas).fold(
+                onSuccess = { fetched ->
+                    val text = if (chitas) fetched.copy(sectionTitles = chitasTitles) else fetched
+                    // A Chitas day is three separate texts, not one range to keep reading through.
+                    val w = if (chitas) null else ReaderWindows.fromRef(resolvedRef, text); window = w
                     val elulText = if (mode == "tehillim" && elulRef.isNotBlank()) repo.fetchText(elulRef).getOrNull() else null
                     val tikkunLines = if (mode == "parsha") TikkunLayout.parseTorahRef(resolvedRef)?.let { tikkunRepo.linesFor(it) } else null
                     val finalTitle = resolvedTitle.ifBlank { text.heRef }
@@ -139,7 +156,8 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
      * service and its conclusion); they are fetched in order and shown as one text,
      * sections renumbered so every verse key stays unique.
      */
-    private suspend fun fetchCombined(ref: String, cacheFirst: Boolean): Result<SefariaText> {
+    private suspend fun fetchCombined(ref: String, cacheFirst: Boolean, siddurMerge: Boolean = true): Result<SefariaText> {
+        if (!siddurMerge) return fetchLegs(ref, cacheFirst)
         val refs = repo.expandRefs(ref).getOrElse { return Result.failure(it) }
         if (refs.size == 1 && !cacheFirst) return repo.fetchText(refs[0])
         // A service can be ~100 sections; fetch a few at a time and keep the order. Prayers are
@@ -161,6 +179,25 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
             u.title ?: com.hebrewcal.data.SefariaRefs.sectionTitle(refs[u.firstRef], texts[u.firstRef].heRef)
         }
         return Result.success(SefariaText(texts.first().heRef, chapters, titles))
+    }
+
+    /**
+     * Refs joined with [Tefillot.REF_SEPARATOR], each kept as its own leg (verses and chapter
+     * numbers untouched). A blank or failed leg is null; only if every leg fails is it an error.
+     */
+    private suspend fun fetchLegs(ref: String, cacheFirst: Boolean): Result<SefariaText> {
+        val refs = ref.split(Tefillot.REF_SEPARATOR).map { it.trim() }
+        val legs = kotlinx.coroutines.coroutineScope {
+            refs.map { r ->
+                async {
+                    if (r.isEmpty()) null
+                    else (if (cacheFirst) repo.fetchTextCacheFirst(r) else repo.fetchText(r)).getOrNull()
+                        ?.takeIf { t -> t.chapters.any { it.verses.isNotEmpty() } }
+                }
+            }.map { it.await() }
+        }
+        val first = legs.firstOrNull { it != null } ?: return Result.failure(java.io.IOException("no leg fetched"))
+        return Result.success(SefariaText(first.heRef, legs.filterNotNull().flatMap { it.chapters }, null, legs))
     }
 
     /** Jump to any Tehillim chapter or Torah chapter/parsha from the navigation dial. */
