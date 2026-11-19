@@ -10,14 +10,45 @@ class SefariaTextUrlTest {
         assertTrue(u.contains("vhe=Miqra%20according%20to%20the%20Masorah"))
     }
 
-    @Test fun tanyaRefPinsKehotOnBothSides() {
-        val u = SefariaRefs.textUrl("Tanya, Part V; Kuntres Acharon 4:35")
-        assertFalse("Masorah must not be requested for Tanya", u.contains("Masorah"))
-        assertTrue(u.contains("vhe=Kehot%20Publication%20Society"))
-        // Do not assert on the parenthesised part: URLEncoder percent-encodes
-        // ( and ) as %28/%29, so match only the stable prefix.
-        assertTrue(u.contains("ven=Kehot%20Publication%20Society"))
-        assertTrue(u.contains("English"))
+    private val kehot = "&vhe=Kehot%20Publication%20Society" +
+        "&ven=Kehot%20Publication%20Society%20%28English%20Translation%29"
+
+    private fun assertKehotPinned(ref: String) {
+        val u = SefariaRefs.textUrl(ref)
+        assertFalse("Masorah must not be requested for $ref", u.contains("Masorah"))
+        // Whole query fragment, so the vhe check cannot be satisfied by the ven value's prefix.
+        assertTrue("$ref -> $u", u.endsWith(kehot))
+    }
+
+    @Test fun tanyaRefPinsKehotOnBothSides() =
+        assertKehotPinned("Tanya, Part V; Kuntres Acharon 4:35")
+
+    @Test fun dottedTanyaRefPinsKehot() = assertKehotPinned("Tanya.1.2")
+
+    @Test fun commaLessTanyaRefPinsKehot() = assertKehotPinned("Tanya 5")
+
+    private val masorah = "vhe=Miqra%20according%20to%20the%20Masorah"
+
+    @Test fun multiWordAndRomanNumeralBooksAreTanakh() {
+        for (ref in listOf("I Samuel 3:1-10", "II Kings 4", "Song of Songs 1")) {
+            assertTrue(ref, SefariaRefs.textUrl(ref).contains(masorah))
+        }
+    }
+
+    @Test fun everyTanakhBookAsksForTheMasorahEdition() {
+        val books = listOf(
+            "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy",
+            "Joshua", "Judges", "I Samuel", "II Samuel", "I Kings", "II Kings",
+            "Isaiah", "Jeremiah", "Ezekiel", "Hosea", "Joel", "Amos", "Obadiah", "Jonah", "Micah",
+            "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi",
+            "Psalms", "Proverbs", "Job", "Song of Songs", "Ruth", "Lamentations", "Ecclesiastes",
+            "Esther", "Daniel", "Ezra", "Nehemiah", "I Chronicles", "II Chronicles"
+        )
+        assertTrue(books.size == 39)
+        for (b in books) {
+            assertTrue("$b spaced", SefariaRefs.textUrl("$b 1").contains(masorah))
+            assertTrue("$b dotted", SefariaRefs.textUrl("$b.1").contains(masorah))
+        }
     }
 
     @Test fun siddurRefAsksForNoHebrewVersion() {
