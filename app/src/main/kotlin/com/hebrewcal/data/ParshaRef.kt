@@ -9,5 +9,7 @@ data class ParshaRef(
     val nameEn: String,
     val nameHe: String,
     val aliyot: List<String> = emptyList(),
-    val haftarot: List<Reading> = emptyList()
+    val haftarot: List<Reading> = emptyList(),
+    val tanyaRef: String = "",
+    val tanyaLabel: String = ""
 )
