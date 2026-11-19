@@ -1,6 +1,7 @@
 package com.hebrewcal.data
 
 import kotlinx.serialization.json.*
+import java.net.URLEncoder
 
 data class Verse(val num: Int, val he: String, val en: String)
 data class Chapter(val number: Int, val verses: List<Verse>)
@@ -14,6 +15,44 @@ data class SefariaText(
 )
 
 object SefariaRefs {
+    // Fully-vocalized Hebrew (nikkud + te'amim). MAM carries nikkud + te'amim AND the
+    // original layout data (petucha/setuma markers, poetic line breaks) that the spacing
+    // display option renders. It exists only for Tanakh.
+    private const val TANAKH_HE = "Miqra according to the Masorah"
+    // Tanya is pinned to Kehot on both sides; never rely on Sefaria's default.
+    private const val KEHOT_HE = "Kehot Publication Society"
+    private const val KEHOT_EN = "Kehot Publication Society (English Translation)"
+
+    private val TANAKH_BOOKS = setOf(
+        "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy",
+        "Joshua", "Judges", "I Samuel", "II Samuel", "I Kings", "II Kings",
+        "Isaiah", "Jeremiah", "Ezekiel", "Hosea", "Joel", "Amos", "Obadiah", "Jonah", "Micah",
+        "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi",
+        "Psalms", "Proverbs", "Job", "Song of Songs", "Ruth", "Lamentations", "Ecclesiastes",
+        "Esther", "Daniel", "Ezra", "Nehemiah", "I Chronicles", "II Chronicles"
+    )
+    private val BOOK_END = Regex("[ .]\\d")
+
+    /** The leading book name of a ref, for both "Genesis.30.14-27" and "Hosea 12:13-14:10". */
+    private fun bookOf(ref: String): String {
+        val head = ref.substringBefore(',').substringBefore(';')
+        val m = BOOK_END.find(head)
+        return (if (m != null) head.substring(0, m.range.first) else head).trim()
+    }
+
+    private fun enc(s: String) = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
+
+    /** The full Sefaria text request for [ref], with the Hebrew/English edition suited to its book. */
+    fun textUrl(ref: String): String {
+        val book = bookOf(ref)
+        val versions = when {
+            book in TANAKH_BOOKS -> "&vhe=" + enc(TANAKH_HE)
+            book == "Tanya" -> "&vhe=" + enc(KEHOT_HE) + "&ven=" + enc(KEHOT_EN)
+            else -> "" // e.g. siddur: asking for the Masorah edition returns no Hebrew at all
+        }
+        return "https://www.sefaria.org/api/texts/" + enc(ref) + "?context=0&commentary=0" + versions
+    }
+
     private val RANGE = Regex(" \\d+(-\\d+)?$")
 
     /** The section name at the end of a ref, minus a paragraph range ("Torah Study 2-3"). */

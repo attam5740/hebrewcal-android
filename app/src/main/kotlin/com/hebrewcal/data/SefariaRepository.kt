@@ -15,25 +15,11 @@ class SefariaRepository(context: Context) {
 
     private val cacheDir = File(context.filesDir, "sefaria").apply { mkdirs() }
 
-    // Fully-vocalized Hebrew (nikkud + te'amim) + JPS 1917 English.
-    // MAM carries nikkud + te'amim AND the original layout data (petucha/setuma
-    // markers, poetic line breaks) that the spacing display option renders.
-    private val heVersion = "Miqra according to the Masorah"
-    // English: Sefaria's default edition — currently the contemporary JPS
-    // Gender-Sensitive Tanakh (2023), modern "you" English rather than 1917 "thou".
-    private val enVersion: String? = null
-
     suspend fun fetchText(ref: String): Result<SefariaText> = withContext(Dispatchers.IO) {
         if (ref.startsWith(WikisourceText.PREFIX)) return@withContext fetchWikisource(ref, cacheFirst = false)
         val cacheFile = textCacheFile(ref)
         // Try network; on failure fall back to cache.
-        val url = "https://www.sefaria.org/api/texts/" +
-            URLEncoder.encode(ref, "UTF-8").replace("+", "%20") +
-            "?context=0&commentary=0" +
-            // The Masorah edition exists only for Tanakh; asking for it on a siddur
-            // ref returns the prayer with no Hebrew at all.
-            (if (ref.contains("Siddur")) "" else "&vhe=" + URLEncoder.encode(heVersion, "UTF-8")) +
-            (enVersion?.let { "&ven=" + URLEncoder.encode(it, "UTF-8") } ?: "")
+        val url = SefariaRefs.textUrl(ref)
         runCatching {
             val body = httpGet(url)
             val parsed = SefariaTextParser.parse(body)
