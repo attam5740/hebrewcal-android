@@ -46,6 +46,11 @@ See the [changelog](CHANGELOG.md) for what is new.
   customary Elul Tehillim supplement. A Tehillim/Torah switch flips between them without leaving
   the reader, continuous scrolling loads the next (or previous) chapter automatically, and the
   haftarah of the week is available alongside the parsha
+- **Daily Chitas** (חת״ת) — an optional button on the widget and notification opens the Chabad
+  daily study cycle's Chumash aliyah, Tehillim and Tanya as three foldable sections in one
+  reader view. Off by default, and offered whichever custom you follow. The portions follow the
+  Hebrew day, so they move on at nightfall. Tanya text from Kehot Publication Society
+  (CC BY-NC 4.0) via Sefaria
 - **Tikkun mode** — unvocalized STaM sofer script rendered in the authentic 42-line
   Torah-scroll column layout (line-break data from the tikkun.io project)
 - **Offline downloads** — upcoming Tehillim and parsha readings are fetched ahead of time on
@@ -256,10 +261,10 @@ only reaches F-Droid if all of these hold:
    that tag, signed with the release key.
 
 ```bash
-git worktree add /tmp/hebrewcal-release v1.21 && cd /tmp/hebrewcal-release
+git worktree add /tmp/hebrewcal-release v1.22 && cd /tmp/hebrewcal-release
 ./gradlew assembleRelease
-scripts/release.sh app/build/outputs/apk/release/app-release-unsigned.apk 1.21
-gh release create v1.21 dist/Hebrew-Calendar-v1.21.apk --title v1.21
+scripts/release.sh app/build/outputs/apk/release/app-release-unsigned.apk 1.22
+gh release create v1.22 dist/Hebrew-Calendar-v1.22.apk --title v1.22
 ```
 
 `scripts/release.sh` refuses debug builds and checks the signing certificate against the one

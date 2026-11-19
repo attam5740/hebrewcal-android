@@ -1,0 +1,4 @@
+New: Chitas button (חת"ת) for the Chabad daily study cycle — the day's Chumash aliyah, Tehillim and Tanya in one reader view. Off by default; turn it on under Torah & Tehillim Reader. Follows the Hebrew day, so it moves on at nightfall.
+New: the widget and reader background can be set to different transparencies.
+Candle lighting and Havdalah are more accurate when Yom Tov meets Shabbat.
+Zmanim rows lay out properly in Hebrew.

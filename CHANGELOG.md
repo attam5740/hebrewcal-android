@@ -4,6 +4,28 @@ All notable changes to Hebrew Calendar are listed here, newest first.
 Version codes match `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`,
 which is what F-Droid shows.
 
+## 1.22 (version code 29)
+
+### Added
+- **Daily Chitas** (חת״ת), the Chabad daily study cycle. A button on the widget and the
+  notification opens the day's Chumash aliyah, Tehillim and Tanya as three foldable sections in
+  one reader view. It is off by default and lives with the other reader buttons in Settings, so
+  it is available whichever custom you follow. The portions follow the Hebrew day and move on at
+  nightfall, and they are downloaded ahead of time like the other readings.
+- The widget and the reader can now be given **different background transparencies**; linking
+  them stays the default.
+
+### Changed
+- Candle lighting and Havdalah handle Yom Tov that falls on or beside Shabbat more accurately:
+  lighting waits until nightfall when the eve is itself Shabbat or Yom Tov, and there is no
+  Havdalah when Yom Tov follows.
+- Prayer instructions are styled apart from the prayer text rather than running into it.
+- Zmanim rows have a proper right-to-left layout in Hebrew.
+- The date now refreshes from the zman alarms rather than a separate midnight job.
+
+### Credits
+- Tanya text from Kehot Publication Society (CC BY-NC 4.0, kehot.com), via Sefaria.
+
 ## 1.21 (version code 28)
 
 ### Added
