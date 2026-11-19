@@ -1,0 +1,1 @@
+The day's details now end their scriptures list with a Chitas link, alongside Daily Tehillim, the parsha and the haftarah, when the Chitas setting is on. It opens the Chumash, Tehillim and Tanya for the day you are looking at, so browsing to another date shows that date's portions rather than today's.

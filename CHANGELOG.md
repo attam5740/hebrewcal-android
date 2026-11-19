@@ -4,7 +4,7 @@ All notable changes to Hebrew Calendar are listed here, newest first.
 Version codes match `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`,
 which is what F-Droid shows.
 
-## Unreleased
+## 1.23 (version code 30)
 
 ### Added
 - The day sheet's scriptures section ends with a **Chitas** link when the setting is on,
