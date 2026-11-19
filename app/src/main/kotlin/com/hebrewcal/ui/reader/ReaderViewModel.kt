@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hebrewcal.data.ChitasSchedule
+import com.hebrewcal.data.ChitasSections
 import com.hebrewcal.data.ParshaRef
 import com.hebrewcal.data.SectionTitle
 import com.hebrewcal.data.Reading
@@ -59,7 +60,10 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         val extendingUp: Boolean = false,
         val extendingDown: Boolean = false,
         /** Sections added at the top by the last prepend; the UI consumes this to keep its scroll still. */
-        val prependedSections: Int = 0
+        val prependedSections: Int = 0,
+        /** Chitas only: one parsed text per leg (null = not fetched), and the legs' en/he headings. */
+        val legs: List<SefariaText?>? = null,
+        val legTitles: List<SectionTitle>? = null
     )
     data class WeekInfo(val parsha: ParshaRef? = null)
     private data class Position(val ref: String, val title: String, val aliyot: List<String>)
@@ -120,25 +124,44 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                 if (p == null) { _state.value = UiState(loading = false, error = OFFLINE, title = title, mode = mode); return@launch }
                 resolvedRef = p.sefariaRef; aliyot = p.aliyot
                 if (resolvedTitle.isBlank()) resolvedTitle = p.heRef
-            } else if (mode == "chitas" && ref.isBlank()) {
+            } else if (mode == "chitas") {
+                // TODO(Tasks 6/7): they must pass EXTRA_ADVANCED_DATE. Until then this falls back to
+                // today's date, so after nightfall the reader shows the previous day's Chitas while
+                // the notification shows the next day's. That mismatch is not intended behaviour.
                 val advanced = runCatching { java.time.LocalDate.parse(advancedDate) }.getOrElse { java.time.LocalDate.now() }
                 val p = repo.parshaFor(ChitasSchedule.parshaDateFor(advanced), diaspora).getOrNull()
-                if (p == null) { _state.value = UiState(loading = false, error = OFFLINE, title = title, mode = mode); return@launch }
-                val jd = com.kosherjava.zmanim.hebrewcalendar.JewishDate(advanced)
-                val portion = ChitasSchedule.portionFor(advanced, jd.jewishDayOfMonth, jd.daysInJewishMonth, p)
-                val en = ChitasSchedule.legTitles(portion, false)
-                val he = ChitasSchedule.legTitles(portion, true)
-                chitasTitles = en.indices.map { SectionTitle(en[it], he[it]) }
-                resolvedRef = listOf(portion.chumashRef, portion.tehillimRef, portion.tanyaRef)
+                if (p == null && ref.isBlank()) { _state.value = UiState(loading = false, error = OFFLINE, title = title, mode = mode); return@launch }
+                val portion = p?.let {
+                    val jd = com.kosherjava.zmanim.hebrewcalendar.JewishDate(advanced)
+                    ChitasSchedule.portionFor(advanced, jd.jewishDayOfMonth, jd.daysInJewishMonth, it)
+                }
+                // Headings are built however the ref was obtained; a section without one could not be unfolded.
+                chitasTitles = if (portion != null) {
+                    val en = ChitasSchedule.legTitles(portion, false)
+                    val he = ChitasSchedule.legTitles(portion, true)
+                    en.indices.map { SectionTitle(en[it], he[it]) }
+                } else listOf(SectionTitle("Chumash", "חומש"), SectionTitle("Tehillim", "תהילים"), SectionTitle("Tanya", "תניא"))
+                resolvedRef = if (ref.isNotBlank()) ref else listOf(portion!!.chumashRef, portion.tehillimRef, portion.tanyaRef)
                     .joinToString(Tefillot.REF_SEPARATOR)
+                if (resolvedTitle.isBlank()) resolvedTitle = "Chitas"
             } else resolvedRef = ref
             val bookNameEn = if (mode != "tehillim" && mode != "chitas") resolvedRef.substringBefore('.', "").ifBlank { null } else null
             val chitas = mode == "chitas"
-            fetchCombined(resolvedRef, cacheFirst = mode == "tefillah", siddurMerge = !chitas).fold(
-                onSuccess = { fetched ->
-                    val text = if (chitas) fetched.copy(sectionTitles = chitasTitles) else fetched
+            if (chitas) {
+                val legs = fetchLegs(resolvedRef, cacheFirst = false)
+                if (legs == null) {
+                    _state.value = UiState(false, OFFLINE, resolvedTitle, null, mode)
+                } else {
+                    window = null // three separate texts, not one range to keep reading through
+                    _state.value = UiState(false, null, resolvedTitle, SefariaText(resolvedTitle, emptyList()), mode,
+                        legs = legs, legTitles = chitasTitles)
+                }
+                return@launch
+            }
+            fetchCombined(resolvedRef, cacheFirst = mode == "tefillah").fold(
+                onSuccess = { text ->
                     // A Chitas day is three separate texts, not one range to keep reading through.
-                    val w = if (chitas) null else ReaderWindows.fromRef(resolvedRef, text); window = w
+                    val w = ReaderWindows.fromRef(resolvedRef, text); window = w
                     val elulText = if (mode == "tehillim" && elulRef.isNotBlank()) repo.fetchText(elulRef).getOrNull() else null
                     val tikkunLines = if (mode == "parsha") TikkunLayout.parseTorahRef(resolvedRef)?.let { tikkunRepo.linesFor(it) } else null
                     val finalTitle = resolvedTitle.ifBlank { text.heRef }
@@ -156,8 +179,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
      * service and its conclusion); they are fetched in order and shown as one text,
      * sections renumbered so every verse key stays unique.
      */
-    private suspend fun fetchCombined(ref: String, cacheFirst: Boolean, siddurMerge: Boolean = true): Result<SefariaText> {
-        if (!siddurMerge) return fetchLegs(ref, cacheFirst)
+    private suspend fun fetchCombined(ref: String, cacheFirst: Boolean): Result<SefariaText> {
         val refs = repo.expandRefs(ref).getOrElse { return Result.failure(it) }
         if (refs.size == 1 && !cacheFirst) return repo.fetchText(refs[0])
         // A service can be ~100 sections; fetch a few at a time and keep the order. Prayers are
@@ -183,12 +205,11 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * Refs joined with [Tefillot.REF_SEPARATOR], each kept as its own leg (verses and chapter
-     * numbers untouched). A blank or failed leg is null; only if every leg fails is it an error.
+     * numbers untouched). A blank or failed leg is null; null overall when every leg failed.
      */
-    private suspend fun fetchLegs(ref: String, cacheFirst: Boolean): Result<SefariaText> {
-        val refs = ref.split(Tefillot.REF_SEPARATOR).map { it.trim() }
+    private suspend fun fetchLegs(ref: String, cacheFirst: Boolean): List<SefariaText?>? {
         val legs = kotlinx.coroutines.coroutineScope {
-            refs.map { r ->
+            ChitasSections.splitRefs(ref).map { r ->
                 async {
                     if (r.isEmpty()) null
                     else (if (cacheFirst) repo.fetchTextCacheFirst(r) else repo.fetchText(r)).getOrNull()
@@ -196,8 +217,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }.map { it.await() }
         }
-        val first = legs.firstOrNull { it != null } ?: return Result.failure(java.io.IOException("no leg fetched"))
-        return Result.success(SefariaText(first.heRef, legs.filterNotNull().flatMap { it.chapters }, null, legs))
+        return legs.takeIf { l -> l.any { it != null } }
     }
 
     /** Jump to any Tehillim chapter or Torah chapter/parsha from the navigation dial. */

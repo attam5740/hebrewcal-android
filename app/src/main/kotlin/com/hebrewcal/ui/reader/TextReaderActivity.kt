@@ -90,6 +90,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import com.hebrewcal.R
 import com.hebrewcal.data.AliyotPartitioner
 import com.hebrewcal.data.ChitasSections
+import com.hebrewcal.data.SectionTitle
 import com.hebrewcal.data.Instructions
 import com.hebrewcal.data.CalendarLanguage
 import com.hebrewcal.data.HebrewVocalization
@@ -231,6 +232,7 @@ class TextReaderActivity : ComponentActivity() {
                             sizeSp = textSize, mode = state.mode, bookNameEn = state.bookNameEn,
                             aliyot = if (byAliyot) state.aliyot else emptyList(),
                             elulText = state.elulText,
+                            legs = state.legs, legTitles = state.legTitles,
                             tikkunLines = state.tikkunLines,
                             extendingUp = state.extendingUp,
                             extendingDown = state.extendingDown,
@@ -521,6 +523,8 @@ private fun ReaderBody(
     bookNameEn: String? = null,
     aliyot: List<String> = emptyList(),
     elulText: SefariaText? = null,
+    legs: List<SefariaText?>? = null,
+    legTitles: List<SectionTitle>? = null,
     tikkunLines: List<TikkunLayout.Line>? = null,
     extendingUp: Boolean = false,
     extendingDown: Boolean = false,
@@ -565,7 +569,7 @@ private fun ReaderBody(
     var flippedVerses by remember(text, textMode) { mutableStateOf(setOf<String>()) }
 
     // Section list: one per aliyah when partitioning, else one per chapter.
-    val sections = remember(text, mode, bookNameEn, aliyot, hebrew, elulText) {
+    val sections = remember(text, mode, bookNameEn, aliyot, hebrew, elulText, legs, legTitles) {
         // `chapterSections` for the whole window: the shape used whenever the reading is
         // not partitioned by aliyah, and the fallback when partitioning cannot be mapped
         // onto the window. Kept as a function so the aliyot path does not build it.
@@ -573,11 +577,12 @@ private fun ReaderBody(
             chapterSections(text, mode, bookNameEn, hebrew, gematria)
 
         // Verses outside every aliyah (scroll extension) stay as chapter sections on their side.
-        val chitasLegs = if (mode == "chitas" && text.legs != null) {
-            val titles = text.legs.indices.map { i ->
-                text.sectionTitles?.getOrNull(i)?.let { t -> if (hebrew) t.he.ifBlank { t.en } else t.en } ?: ""
+        val chitasLegs = if (mode == "chitas") {
+            val texts = legs.orEmpty()
+            val titles = texts.indices.map { i ->
+                legTitles?.getOrNull(i)?.let { t -> if (hebrew) t.he.ifBlank { t.en } else t.en } ?: ""
             }
-            ChitasSections.build(text.legs, titles, hebrew)
+            ChitasSections.build(texts, titles)
                 .map { (t, v) -> ReaderSection(t, v, markChapters = true) }
         } else null
         val split = if (chitasLegs != null || aliyot.isEmpty()) null else AliyotPartitioner.layout(text.chapters, aliyot)
@@ -604,8 +609,9 @@ private fun ReaderBody(
     // A prayer with several sections opens with every section folded; tapping a heading
     // unfolds it, so the reader can jump between parts of the service.
     val foldable = (mode == "tefillah" || mode == "chitas") && sections.size > 1
-    var folded by remember(text, mode, sections.size) {
-        mutableStateOf(if (foldable) sections.indices.toSet() else emptySet())
+    var folded by remember(text, mode, sections.size, legs) {
+        // A section with no heading has no fold affordance, so it must never start folded.
+        mutableStateOf(if (foldable) sections.indices.filter { sections[it].title.isNotBlank() }.toSet() else emptySet())
     }
 
     // Authentic scroll layout: tikkun mode on a Torah reading with layout data.
@@ -696,7 +702,7 @@ private fun ReaderBody(
                             lastKind = instruction
                         }
                         section.verses.forEach { tv ->
-                            val verseKey = "${if (section.extra) "e" else "m"}:${tv.chapter}:${tv.verse.num}"
+                            val verseKey = "${if (section.extra) "e" else "m"}:$index:${tv.chapter}:${tv.verse.num}"
                             // If the other language has no text for this verse, keep the original.
                             // A verse with no text in the shown language (e.g. Sefard's Hebrew-only
                             // siddur in English mode) falls back to the other language.
