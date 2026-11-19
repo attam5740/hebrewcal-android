@@ -11,5 +11,6 @@ data class ParshaRef(
     val aliyot: List<String> = emptyList(),
     val haftarot: List<Reading> = emptyList(),
     val tanyaRef: String = "",
-    val tanyaLabel: String = ""
+    val tanyaLabel: String = "",
+    val tanyaLabelHe: String = ""
 )

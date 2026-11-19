@@ -18,13 +18,14 @@ class ParshaCalendarsParserTest {
     private val jsonWithTanya = json.replace(
         """{"title":{"en":"Haftarah","he":"הפטרה"},"ref":"Isaiah 60:1-22"}""",
         """{"title":{"en":"Haftarah","he":"הפטרה"},"ref":"Isaiah 60:1-22"},
-        {"title":{"en":"Tanya Yomi","he":"תניא יומי"},"ref":"Tanya, Part V; Kuntres Acharon 4:35","displayValue":{"en":"8 Kislev","he":"ח׳ כסלו"}}"""
+        {"title":{"en":"Tanya Yomi","he":"תניא יומי"},"ref":"Tanya, Part V; Kuntres Acharon 4:35","displayValue":{"en":"8 Kislev","he":"ח כסלו"}}"""
     )
 
     @Test fun extractsTanyaYomi() {
         val p = ParshaCalendarsParser.parse(jsonWithTanya)!!
         assertEquals("Tanya, Part V; Kuntres Acharon 4:35", p.tanyaRef)
         assertEquals("8 Kislev", p.tanyaLabel)
+        assertEquals("ח כסלו", p.tanyaLabelHe)
     }
 
     @Test fun missingTanyaYomiLeavesRefBlank() {

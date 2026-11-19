@@ -43,6 +43,7 @@ object ParshaCalendarsParser {
             .firstOrNull { str(it["title"] as? JsonObject, "en") == "Tanya Yomi" }
         val tanyaRef = str(tanya, "ref") ?: ""
         val tanyaLabel = str(tanya?.get("displayValue") as? JsonObject, "en") ?: ""
+        val tanyaLabelHe = str(tanya?.get("displayValue") as? JsonObject, "he") ?: ""
 
         return ParshaRef(
             sefariaRef = dotted,
@@ -52,7 +53,8 @@ object ParshaCalendarsParser {
             aliyot = aliyot,
             haftarot = haftarot,
             tanyaRef = tanyaRef,
-            tanyaLabel = tanyaLabel
+            tanyaLabel = tanyaLabel,
+            tanyaLabelHe = tanyaLabelHe
         )
     }
 }

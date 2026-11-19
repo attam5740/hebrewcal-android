@@ -16,7 +16,8 @@ data class ChitasPortion(
     val tehillimFirst: Int,
     val tehillimLast: Int,
     val tanyaRef: String,
-    val tanyaLabel: String
+    val tanyaLabel: String,
+    val tanyaLabelHe: String
 )
 
 /** Pure computation: every date passed in is already nightfall-advanced by the caller. */
@@ -44,7 +45,8 @@ object ChitasSchedule {
             tehillimFirst = tehillim.firstChapter,
             tehillimLast = tehillim.lastChapter,
             tanyaRef = parsha.tanyaRef,
-            tanyaLabel = parsha.tanyaLabel
+            tanyaLabel = parsha.tanyaLabel,
+            tanyaLabelHe = parsha.tanyaLabelHe
         )
     }
 
@@ -57,8 +59,8 @@ object ChitasSchedule {
         else "${n(p.tehillimFirst)}–${n(p.tehillimLast)}"
         return if (hebrew) listOf(
             "חומש — ${p.chumashParshaHe}, $aliyah",
-            "תהלים $range",
-            "תניא — ${p.tanyaLabel}"
+            "תהילים $range",
+            "תניא — ${p.tanyaLabelHe.ifBlank { p.tanyaLabel }}"
         ) else listOf(
             "Chumash — ${p.chumashParsha}, $aliyah",
             "Tehillim $range",

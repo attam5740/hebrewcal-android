@@ -13,7 +13,7 @@ class ChitasScheduleTest {
             "Genesis 30:14-30:27", "Genesis 30:28-31:16", "Genesis 31:17-31:42",
             "Genesis 31:43-32:3", "Genesis 32:1-32:3"
         ),
-        tanyaRef = "Tanya, Part V; Kuntres Acharon 4:35", tanyaLabel = "8 Kislev"
+        tanyaRef = "Tanya, Part V; Kuntres Acharon 4:35", tanyaLabel = "8 Kislev", tanyaLabelHe = "ח כסלו"
     )
 
     @Test fun wednesdayOfVayetzeiIsTheFourthAliyah() {
@@ -68,5 +68,18 @@ class ChitasScheduleTest {
         assertEquals(3, t.size)
         assertEquals(true, t[0].startsWith("Chumash — Vayetzei"))
         assertEquals(true, t[2].contains("8 Kislev"))
+    }
+
+    @Test fun hebrewLegTitlesUseHebrewTanyaLabelAndPleneTehillim() {
+        val t = ChitasSchedule.legTitles(ChitasSchedule.portionFor(LocalDate.of(2026, 11, 18), 8, 30, vayetzei), hebrew = true)
+        assertEquals(3, t.size)
+        assertEquals(true, t[1].startsWith("תהילים"))
+        assertEquals(true, t[2].contains("ח כסלו"))
+        assertEquals(false, t[2].contains("Kislev"))
+    }
+
+    @Test fun hebrewTanyaTitleFallsBackWhenHebrewLabelIsEmpty() {
+        val p = ChitasSchedule.portionFor(LocalDate.of(2026, 11, 18), 8, 30, vayetzei.copy(tanyaLabelHe = ""))
+        assertEquals("תניא — 8 Kislev", ChitasSchedule.legTitles(p, hebrew = true)[2])
     }
 }
