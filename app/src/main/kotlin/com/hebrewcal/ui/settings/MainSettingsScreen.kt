@@ -763,7 +763,7 @@ private fun AboutSection() {
                 Text(whatsNew, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text("Free and open source (MIT). Texts from Sefaria; Chabad's Shabbat-eve prayers from Siddur Torah Or on Hebrew Wikisource (CC BY-SA); zmanim by KosherJava.",
+            Text("Free and open source (MIT). Texts from Sefaria (Tanya by Kehot Publication Society, CC BY-NC); Chabad's Shabbat-eve prayers from Siddur Torah Or on Hebrew Wikisource (CC BY-SA); zmanim by KosherJava.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {

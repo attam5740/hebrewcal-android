@@ -9,6 +9,7 @@ import android.content.Context
 import android.util.Log
 import androidx.work.WorkManager
 import com.hebrewcal.data.CalendarLocation
+import com.hebrewcal.data.ChitasSchedule
 import com.hebrewcal.data.PrefetchNetwork
 import com.hebrewcal.data.PrefetchPlanner
 import com.hebrewcal.data.SefariaRepository
@@ -69,7 +70,18 @@ object TextPrefetch {
             for (ref in refs) { prayerRefs++; if (!repo.prefetchText(ref)) failures++ }
         }
 
-        Log.i(TAG, "done: ${tehillim.size} tehillim refs, ${prefs.prefetchParshaWeeks} weeks of parsha, $prayerRefs prayer refs, $failures failures")
+        // Daily Chitas: each day's calendars response (cached per date) carries that day's
+        // Tanya ref. Chumash and Tehillim texts are already covered by the loops above.
+        var chitasDays = 0
+        if (prefs.chitasButtonOn) for (offset in 0..prefs.prefetchTehillimDays) {
+            val day = LocalDate.now().plusDays(offset.toLong())
+            val portion = repo.parshaFor(ChitasSchedule.parshaDateFor(day), diaspora).getOrNull()
+            if (portion == null) { failures++; continue }
+            chitasDays++
+            if (portion.tanyaRef.isNotBlank() && !repo.prefetchText(portion.tanyaRef)) failures++
+        }
+
+        Log.i(TAG, "done: ${tehillim.size} tehillim refs, ${prefs.prefetchParshaWeeks} weeks of parsha, $prayerRefs prayer refs, $chitasDays chitas days, $failures failures")
         return failures == 0
     }
 
