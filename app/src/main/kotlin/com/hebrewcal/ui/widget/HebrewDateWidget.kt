@@ -263,11 +263,16 @@ fun HebrewDateWidgetContent(
             // rows enabled the outer Column would exceed that, so the pills live in a
             // nested Column (which gets its own child budget).
             if (tehillimLabel != null || parshaLabel != null || chitasLabel != null) Column(horizontalAlignment = Alignment.End) {
-                Spacer(GlanceModifier.height(8.dp))
+                // No standalone Spacers: Glance 1.0.0 silently drops children beyond its
+                // per-container limit, so each pill carries its own top gap (8dp for the
+                // first visible pill, 4dp for any pill that follows another).
+                val tehillimTop = 8.dp
+                val parshaTop = if (tehillimLabel != null) 4.dp else 8.dp
+                val chitasTop = if (tehillimLabel != null || parshaLabel != null) 4.dp else 8.dp
                 if (tehillimLabel != null) Text(
                     text = tehillimLabel,
                     style = TextStyle(textAlign = TextAlign.End, color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
-                    modifier = GlanceModifier.clickable(
+                    modifier = GlanceModifier.padding(top = tehillimTop).clickable(
                     actionStartActivity<TextReaderActivity>(
                         actionParametersOf(
                             ActionParameters.Key<String>(TextReaderActivity.EXTRA_MODE) to "tehillim",
@@ -282,11 +287,10 @@ fun HebrewDateWidgetContent(
                 )
                 )
                 if (parshaLabel != null) {
-                    Spacer(GlanceModifier.height(4.dp))
                     Text(
                         text = parshaLabel,
                         style = TextStyle(textAlign = TextAlign.End, color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
-                        modifier = GlanceModifier.clickable(
+                        modifier = GlanceModifier.padding(top = parshaTop).clickable(
                             actionStartActivity<TextReaderActivity>(
                                 actionParametersOf(
                                     ActionParameters.Key<String>(TextReaderActivity.EXTRA_MODE) to "parsha",
@@ -302,11 +306,10 @@ fun HebrewDateWidgetContent(
                     )
                 }
                 if (chitasLabel != null) {
-                    Spacer(GlanceModifier.height(4.dp))
                     Text(
                         text = chitasLabel,
                         style = TextStyle(textAlign = TextAlign.End, color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
-                        modifier = GlanceModifier.clickable(
+                        modifier = GlanceModifier.padding(top = chitasTop).clickable(
                             actionStartActivity<TextReaderActivity>(
                                 actionParametersOf(
                                     ActionParameters.Key<String>(TextReaderActivity.EXTRA_MODE) to "chitas",
