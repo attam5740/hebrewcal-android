@@ -108,6 +108,8 @@ class HebrewDateWidget : GlanceAppWidget(errorUiLayout = R.layout.widget_error) 
                         ?.let { ReaderButtons.parshaLabel(it, hebrew) }
                 }.onFailure { Log.e(TAG, "parsha label failed", it) }.getOrNull()
             } else null
+            val chitasLabel = if (prefs.chitasButtonOn) (if (hebrew) "חת״ת" else "Chitas") else null
+            val chitasDate = chitasAdvancedDate(now, timeZone, tzetToday)
             val diaspora = prefs.location == CalendarLocation.DIASPORA
             val elulRef = if (prefs.showElulTehillim) {
                 runCatching { ElulTehillim.portionFor(dateInfo.jewishMonth, dateInfo.hebrewDayNumber)?.sefariaRef }
@@ -124,7 +126,9 @@ class HebrewDateWidget : GlanceAppWidget(errorUiLayout = R.layout.widget_error) 
                     tehillimRef   = portion?.sefariaRef ?: "",
                     parshaLabel   = parshaLabel,
                     diaspora      = diaspora,
-                    elulRef       = elulRef ?: ""
+                    elulRef       = elulRef ?: "",
+                    chitasLabel   = chitasLabel,
+                    chitasDate    = chitasDate
                 )
             }
             block
@@ -165,7 +169,9 @@ fun HebrewDateWidgetContent(
     tehillimRef: String,
     parshaLabel: String?,
     diaspora: Boolean,
-    elulRef: String = ""
+    elulRef: String = "",
+    chitasLabel: String? = null,
+    chitasDate: String = ""
 ) {
     val goldColor      = ColorProvider(Color(0xFFD4AF37))
     val pillColor      = ColorProvider(Color(0xFFFFD255))
@@ -256,7 +262,7 @@ fun HebrewDateWidgetContent(
             // Glance/RemoteViews containers allow at most 10 children; with all optional
             // rows enabled the outer Column would exceed that, so the pills live in a
             // nested Column (which gets its own child budget).
-            if (tehillimLabel != null || parshaLabel != null) Column(horizontalAlignment = Alignment.End) {
+            if (tehillimLabel != null || parshaLabel != null || chitasLabel != null) Column(horizontalAlignment = Alignment.End) {
                 Spacer(GlanceModifier.height(8.dp))
                 if (tehillimLabel != null) Text(
                     text = tehillimLabel,
@@ -290,6 +296,28 @@ fun HebrewDateWidgetContent(
                                     ActionParameters.Key<String>(TextReaderActivity.EXTRA_LANG) to prefs.language.name,
                                     ActionParameters.Key<Boolean>(TextReaderActivity.EXTRA_NIKKUD) to true,
                                     ActionParameters.Key<Boolean>(TextReaderActivity.EXTRA_TEAMIM) to true
+                                )
+                            )
+                        )
+                    )
+                }
+                if (chitasLabel != null) {
+                    Spacer(GlanceModifier.height(4.dp))
+                    Text(
+                        text = chitasLabel,
+                        style = TextStyle(textAlign = TextAlign.End, color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
+                        modifier = GlanceModifier.clickable(
+                            actionStartActivity<TextReaderActivity>(
+                                actionParametersOf(
+                                    ActionParameters.Key<String>(TextReaderActivity.EXTRA_MODE) to "chitas",
+                                    ActionParameters.Key<String>(TextReaderActivity.EXTRA_REF) to "",
+                                    ActionParameters.Key<String>(TextReaderActivity.EXTRA_TITLE) to chitasLabel,
+                                    ActionParameters.Key<Boolean>(TextReaderActivity.EXTRA_DIASPORA) to diaspora,
+                                    ActionParameters.Key<String>(TextReaderActivity.EXTRA_LANG) to prefs.language.name,
+                                    ActionParameters.Key<Boolean>(TextReaderActivity.EXTRA_NIKKUD) to true,
+                                    ActionParameters.Key<Boolean>(TextReaderActivity.EXTRA_TEAMIM) to false,
+                                    ActionParameters.Key<String>(TextReaderActivity.EXTRA_ELUL_REF) to "",
+                                    ActionParameters.Key<String>(TextReaderActivity.EXTRA_ADVANCED_DATE) to chitasDate
                                 )
                             )
                         )

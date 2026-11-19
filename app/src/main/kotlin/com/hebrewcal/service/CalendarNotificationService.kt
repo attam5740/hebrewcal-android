@@ -175,9 +175,7 @@ class CalendarNotificationService : Service() {
 
                 val chitasActionLabel = if (prefs.chitasButtonOn) (if (hebrew) "חת״ת" else "Chitas") else null
                 // Same nightfall rule as getDateInfo: from tzet onward the Hebrew day is tomorrow's.
-                val chitasAdvancedDate = now.toInstant().atZone(timeZone.toZoneId()).toLocalDate()
-                    .let { if (tzetToday != null && !now.before(tzetToday)) it.plusDays(1) else it }
-                    .toString()
+                val chitasAdvancedDate = chitasAdvancedDate(now, timeZone, tzetToday)
 
                 val elulRef = if (prefs.showElulTehillim) {
                     try {

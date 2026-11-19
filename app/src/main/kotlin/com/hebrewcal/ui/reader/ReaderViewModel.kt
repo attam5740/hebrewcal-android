@@ -125,9 +125,6 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                 resolvedRef = p.sefariaRef; aliyot = p.aliyot
                 if (resolvedTitle.isBlank()) resolvedTitle = p.heRef
             } else if (mode == "chitas") {
-                // TODO(Tasks 6/7): they must pass EXTRA_ADVANCED_DATE. Until then this falls back to
-                // today's date, so after nightfall the reader shows the previous day's Chitas while
-                // the notification shows the next day's. That mismatch is not intended behaviour.
                 val advanced = runCatching { java.time.LocalDate.parse(advancedDate) }.getOrElse { java.time.LocalDate.now() }
                 val p = repo.parshaFor(ChitasSchedule.parshaDateFor(advanced), diaspora).getOrNull()
                 if (p == null && ref.isBlank()) { _state.value = UiState(loading = false, error = OFFLINE, title = title, mode = mode); return@launch }

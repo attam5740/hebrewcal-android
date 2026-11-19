@@ -4,6 +4,8 @@ import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
+import java.util.Date
+import java.util.TimeZone
 
 /** The day's Chitas: one Chumash aliyah, the day's Tehillim, and the day's Tanya. */
 data class ChitasPortion(
@@ -68,3 +70,14 @@ object ChitasSchedule {
         )
     }
 }
+
+/**
+ * The civil date whose Chitas the reader should show: from tzet hakochavim onward the Hebrew
+ * day is tomorrow's (same rule as getDateInfo's advanceAfter, hence `>=`, not strict `after`).
+ * A null [tzet] (no location configured) means civil-midnight rollover, i.e. no advance.
+ * Returns ISO-8601 (yyyy-MM-dd), which the reader parses with LocalDate.parse.
+ */
+fun chitasAdvancedDate(now: Date, tz: TimeZone, tzet: Date?): String =
+    now.toInstant().atZone(tz.toZoneId()).toLocalDate()
+        .let { if (tzet != null && !now.before(tzet)) it.plusDays(1) else it }
+        .toString()
