@@ -1,20 +1,14 @@
 package com.hebrewcal.ui.reader
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,9 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,7 +27,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,21 +35,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hebrewcal.data.TorahNavigation
@@ -69,93 +58,87 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 
-// The reader's navigation dial: book / parsha / chapter picker, rotary dial and flame chips.
+// The reader's navigation dial: book / parsha / chapter picker, rotary dial and quiet chips.
 
-/** Ember palette for the animated flame chips: deep red → orange → gold and back. */
-private val FLAME = listOf(
-    Color(0xFFB3160B), Color(0xFFFF4D00), Color(0xFFFFA000), Color(0xFFFFE066),
-    Color(0xFFFFA000), Color(0xFFFF4D00), Color(0xFFB3160B)
-)
-private val FLAME_INK = Color(0xFF1A0A00)
-
-/** Shared flame animation: a linear sweep phase (0→1) and a breathing glow (0.5↔1). */
-@Composable
-private fun rememberFlame(): Pair<State<Float>, State<Float>> {
-    val transition = rememberInfiniteTransition(label = "flame")
-    val phase = transition.animateFloat(
-        0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing)), label = "flamePhase"
-    )
-    val breath = transition.animateFloat(
-        0.5f, 1f, infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "flameBreath"
-    )
-    return phase to breath
-}
-
-/** Soft ember halo drawn in expanding translucent layers around the whole bounds. */
-private fun DrawScope.emberGlow(breath: Float, cornerPx: Float) {
-    for (i in 1..5) {
-        val grow = i * 4.dp.toPx()
-        drawRoundRect(
-            color = Color(0xFFFF6A00).copy(alpha = 0.14f * breath * (6 - i) / 5f),
-            topLeft = Offset(-grow, -grow),
-            size = Size(size.width + 2 * grow, size.height + 2 * grow),
-            cornerRadius = CornerRadius(cornerPx + grow)
-        )
+/**
+ * Largest font size in [maxSp] down to [minSp] (0.5sp steps) at which [widthAt] fits in
+ * [availablePx], or null when even [minSp] does not fit.
+ */
+internal fun fitFontSp(availablePx: Float, widthAt: (Float) -> Float, maxSp: Float = 15f, minSp: Float = 11f): Float? {
+    var sp = maxSp
+    while (sp >= minSp) {
+        if (widthAt(sp) <= availablePx) return sp
+        sp -= 0.5f
     }
+    return null
 }
 
-/** Navigation chip: quiet when inactive; the active one burns with a sweeping gradient and breathing glow. */
+/** Quiet navigation chip: plain text when inactive; gold text on a faint gold wash with a hairline border when active. */
 @Composable
-private fun FlameToggle(label: String, active: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun NavChip(
+    label: String, active: Boolean, modifier: Modifier = Modifier, fontSize: TextUnit = 15.sp,
+    horizontalPadding: Dp = 12.dp, onClick: () -> Unit
+) {
     val shape = RoundedCornerShape(14.dp)
-    if (!active) {
-        Text(
-            label, color = INACTIVE, fontSize = 15.sp,
-            modifier = modifier.padding(horizontal = 3.dp).clip(shape).clickable { onClick() }
-                .padding(horizontal = 12.dp, vertical = 7.dp)
-        )
-        return
-    }
-    val (phase, breath) = rememberFlame()
     Text(
-        label, color = FLAME_INK, fontSize = 15.sp, fontWeight = FontWeight.Bold,
-        modifier = modifier.padding(horizontal = 3.dp)
-            .drawBehind { emberGlow(breath.value, 14.dp.toPx()) }
-            .clip(shape)
-            .drawBehind {
-                val w = size.width
-                val shift = 2 * w * phase.value   // mirror tiling makes a 2w shift loop seamlessly
-                drawRect(
-                    Brush.linearGradient(
-                        FLAME, start = Offset(-w + shift, 0f), end = Offset(shift, size.height), tileMode = TileMode.Mirror
-                    )
-                )
-            }
+        label,
+        color = if (active) ACTIVE_GOLD else INACTIVE,
+        fontSize = fontSize, fontWeight = FontWeight.Medium, maxLines = 1, textAlign = TextAlign.Center,
+        modifier = modifier.clip(shape)
+            .then(
+                if (active) Modifier.background(ACTIVE_GOLD.copy(alpha = 0.16f))
+                    .border(1.dp, ACTIVE_GOLD.copy(alpha = 0.5f), shape)
+                else Modifier
+            )
             .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 7.dp)
+            .padding(horizontal = horizontalPadding, vertical = 7.dp)
     )
 }
 
-/** The dial's "go" control: a 46dp ring of spinning fire with a bold ↵ so it reads as a button. */
+/**
+ * The five books filling the available width: equal-weight chips on one row with the largest
+ * font (15sp down to 11sp) that fits the longest label; if even 11sp does not fit, 3 + 2 rows.
+ */
 @Composable
-private fun FlameGoButton(onGo: () -> Unit) {
-    val (phase, breath) = rememberFlame()
+private fun BooksRow(hebrew: Boolean, selected: Int, onSelect: (Int) -> Unit) {
+    val labels = TorahNavigation.BOOKS.map { if (hebrew) it.he else it.en }
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val chipPad = 4.dp
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val totalPx = with(density) { maxWidth.toPx() }
+        val padPx = with(density) { (chipPad * 2).toPx() } + 2f // 2px slack for the 1dp border rounding
+        fun widthAt(sp: Float) = labels.maxOf {
+            measurer.measure(it, TextStyle(fontSize = sp.sp, fontWeight = FontWeight.Medium), maxLines = 1).size.width
+        }.toFloat() + padPx
+        val oneRowSp = fitFontSp(totalPx / 5f, ::widthAt)
+        val twoRows = oneRowSp == null
+        val sp = (oneRowSp ?: fitFontSp(totalPx / 3f, ::widthAt) ?: 11f).sp
+        @Composable
+        fun chip(i: Int, m: Modifier) =
+            NavChip(labels[i], i == selected, m, sp, chipPad) { onSelect(i) }
+        if (!twoRows) {
+            Row(Modifier.fillMaxWidth()) { for (i in labels.indices) chip(i, Modifier.weight(1f)) }
+        } else {
+            Column(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth()) { for (i in 0..2) chip(i, Modifier.weight(1f)) }
+                Row(Modifier.fillMaxWidth().padding(top = 4.dp)) { for (i in 3..4) chip(i, Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+/** The dial's "go" control: a plain 46dp gold-outlined circle with a gold return arrow. */
+@Composable
+private fun NavGoButton(onGo: () -> Unit) {
     Box(
         Modifier.padding(horizontal = 12.dp).size(46.dp)
-            .drawBehind {
-                val r = size.minDimension / 2f
-                for (i in 1..5) drawCircle(
-                    Color(0xFFFF6A00).copy(alpha = 0.14f * breath.value * (6 - i) / 5f),
-                    radius = r + i * 4.dp.toPx()
-                )
-                rotate(phase.value * 360f) { drawCircle(Brush.sweepGradient(FLAME), radius = r) }
-                drawCircle(Color(0xFFFFB300), radius = r - 5.dp.toPx())
-            }
             .clip(CircleShape)
+            .border(1.5.dp, ACTIVE_GOLD, CircleShape)
             .clickable { onGo() },
         contentAlignment = Alignment.Center
     ) {
-        Text("↵", color = FLAME_INK, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("↵", color = ACTIVE_GOLD, fontSize = 24.sp)
     }
 }
 
@@ -164,7 +147,6 @@ private fun FlameGoButton(onGo: () -> Unit) {
  * 1-150. Torah: pick a book, then dial a chapter or choose a parsha.
  */
 @Composable
-@OptIn(ExperimentalFoundationApi::class)
 internal fun NavDialOverlay(
     mode: String,
     hebrew: Boolean,
@@ -192,20 +174,10 @@ internal fun NavDialOverlay(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (torah) {
-                // The five books overflow narrow screens; keep the active one in view.
-                val activeBook = remember { BringIntoViewRequester() }
-                LaunchedEffect(bookIdx) { activeBook.bringIntoView() }
-                Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
-                    TorahNavigation.BOOKS.forEachIndexed { i, b ->
-                        FlameToggle(
-                            if (hebrew) b.he else b.en, active = i == bookIdx,
-                            modifier = if (i == bookIdx) Modifier.bringIntoViewRequester(activeBook) else Modifier
-                        ) { bookIdx = i }
-                    }
-                }
-                Row(Modifier.padding(top = 6.dp)) {
-                    FlameToggle(if (hebrew) "פרשה" else "Parsha", active = byParsha) { byParsha = true }
-                    FlameToggle(if (hebrew) "פרק" else "Chapter", active = !byParsha) { byParsha = false }
+                BooksRow(hebrew, bookIdx) { bookIdx = it }
+                Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    NavChip(if (hebrew) "פרשה" else "Parsha", active = byParsha) { byParsha = true }
+                    NavChip(if (hebrew) "פרק" else "Chapter", active = !byParsha) { byParsha = false }
                 }
                 Spacer(Modifier.height(10.dp))
                 if (byParsha) {
@@ -310,7 +282,7 @@ private fun RotaryDial(min: Int, max: Int, label: (Int) -> String, onGo: (Int) -
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
                     Text("−", color = INACTIVE, fontSize = 26.sp, modifier = Modifier.clickable { value = (value - 1).coerceIn(min, max) }.padding(horizontal = 14.dp))
-                    FlameGoButton { onGo(value) }
+                    NavGoButton { onGo(value) }
                     Text("+", color = INACTIVE, fontSize = 26.sp, modifier = Modifier.clickable { value = (value + 1).coerceIn(min, max) }.padding(horizontal = 14.dp))
                 }
             }
