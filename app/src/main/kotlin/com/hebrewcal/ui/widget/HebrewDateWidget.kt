@@ -303,10 +303,7 @@ fun HebrewDateWidgetContent(
                 val tehillimTop = 8.dp
                 val parshaTop = if (tehillimLabel != null) 4.dp else 8.dp
                 val chitasTop = if (tehillimLabel != null || parshaLabel != null) 4.dp else 8.dp
-                if (tehillimLabel != null) Text(
-                    text = tehillimLabel,
-                    style = TextStyle(textAlign = TextAlign.End, color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
-                    modifier = GlanceModifier.padding(top = tehillimTop).clickable(
+                if (tehillimLabel != null) PillRow(R.drawable.ic_glyph_harp, tehillimLabel, tehillimTop, pillColor,
                     actionStartActivity<TextReaderActivity>(
                         actionParametersOf(
                             ActionParameters.Key<String>(TextReaderActivity.EXTRA_MODE) to "tehillim",
@@ -319,13 +316,8 @@ fun HebrewDateWidgetContent(
                         )
                     )
                 )
-                )
-                if (parshaLabel != null) {
-                    Text(
-                        text = parshaLabel,
-                        style = TextStyle(textAlign = TextAlign.End, color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
-                        modifier = GlanceModifier.padding(top = parshaTop).clickable(
-                            actionStartActivity<TextReaderActivity>(
+                if (parshaLabel != null) PillRow(R.drawable.ic_glyph_scroll, parshaLabel, parshaTop, pillColor,
+                    actionStartActivity<TextReaderActivity>(
                                 actionParametersOf(
                                     ActionParameters.Key<String>(TextReaderActivity.EXTRA_MODE) to "parsha",
                                     ActionParameters.Key<String>(TextReaderActivity.EXTRA_REF) to "",
@@ -336,15 +328,9 @@ fun HebrewDateWidgetContent(
                                     ActionParameters.Key<Boolean>(TextReaderActivity.EXTRA_TEAMIM) to true
                                 )
                             )
-                        )
-                    )
-                }
-                if (chitasLabel != null) {
-                    Text(
-                        text = chitasLabel,
-                        style = TextStyle(textAlign = TextAlign.End, color = pillColor, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
-                        modifier = GlanceModifier.padding(top = chitasTop).clickable(
-                            actionStartActivity<TextReaderActivity>(
+                )
+                if (chitasLabel != null) PillRow(R.drawable.ic_glyph_menorah, chitasLabel, chitasTop, pillColor,
+                    actionStartActivity<TextReaderActivity>(
                                 actionParametersOf(
                                     ActionParameters.Key<String>(TextReaderActivity.EXTRA_MODE) to "chitas",
                                     ActionParameters.Key<String>(TextReaderActivity.EXTRA_REF) to "",
@@ -357,9 +343,7 @@ fun HebrewDateWidgetContent(
                                     ActionParameters.Key<String>(TextReaderActivity.EXTRA_ADVANCED_DATE) to chitasDate
                                 )
                             )
-                        )
-                    )
-                }
+                )
             }
         }
     }
@@ -375,4 +359,24 @@ private fun widgetBackgroundRes(opacityPercent: Int): Int = when ((opacityPercen
 
 class HebrewDateWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = HebrewDateWidget()
+}
+
+/** One reader pill: a glyph (tinted like the text) before its label, the whole row tapping through. */
+@androidx.compose.runtime.Composable
+private fun PillRow(glyph: Int, label: String, top: androidx.compose.ui.unit.Dp, tint: ColorProvider, action: androidx.glance.action.Action) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = GlanceModifier.padding(top = top).clickable(action)
+    ) {
+        androidx.glance.Image(
+            provider = ImageProvider(glyph), contentDescription = null,
+            colorFilter = androidx.glance.ColorFilter.tint(tint),
+            modifier = GlanceModifier.size(width = 15.dp, height = 15.dp)
+        )
+        Text(
+            text = label,
+            style = TextStyle(textAlign = TextAlign.End, color = tint, fontSize = TextUnit(12f, TextUnitType.Sp), fontWeight = FontWeight.Bold),
+            modifier = GlanceModifier.padding(start = 4.dp)
+        )
+    }
 }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Torah scroll: two rollers with handles and a sheet between. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="12dp" android:height="15dp" android:viewportWidth="12" android:viewportHeight="15">
+    <group android:translateX="-6" android:translateY="-4">
+<path android:pathData="M7,9 L17,9 L17,15 L7,15 Z" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.1" android:fillColor="#00000000"/>
+    <path android:pathData="M7,8 L7,16 M17,8 L17,16" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.7" android:fillColor="#00000000"/>
+    <path android:pathData="M7,5.8 L7,8 M7,16 L7,18.2 M17,5.8 L17,8 M17,16 L17,18.2" android:strokeColor="#FFFFFFFF" android:strokeWidth="1" android:strokeLineCap="round" android:fillColor="#00000000"/>
+</group>
+</vector>
