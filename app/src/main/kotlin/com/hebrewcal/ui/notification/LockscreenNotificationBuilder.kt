@@ -63,8 +63,8 @@ object LockscreenNotificationBuilder {
     /** Root padding of notification_hebrew_date_expanded.xml (8dp each side). */
     private const val EXPANDED_LAYOUT_PADDING_DP = 16f
     /** Pill text sizes, sp (match textSize in the layouts). */
-    private const val COLLAPSED_PILL_TEXT_SP = 11f
-    private const val EXPANDED_PILL_TEXT_SP = 11.5f
+    private const val COLLAPSED_PILL_TEXT_SP = 9f
+    private const val EXPANDED_PILL_TEXT_SP = 9.5f
     /** Pill horizontal padding (left + right) and inter-pill margin, dp (match layouts). */
     private const val COLLAPSED_PILL_PADDING_DP = 22f
     private const val EXPANDED_PILL_PADDING_DP = 24f

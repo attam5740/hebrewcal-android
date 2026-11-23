@@ -42,10 +42,10 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** The three parts of a Chitas day, in the order of the legs the reader loads. */
+/** The three parts of a Chitas day, in the order of the legs the reader loads (see ChitasSchedule.legTitles). */
 internal enum class ChitasPart(val labelEn: String, val labelHe: String) {
-    TEHILIM("Tehilim", "תהילים"),
     CHUMASH("Chumash", "חומש"),
+    TEHILIM("Tehilim", "תהילים"),
     TANYA("Tanya", "תניא")
 }
 
