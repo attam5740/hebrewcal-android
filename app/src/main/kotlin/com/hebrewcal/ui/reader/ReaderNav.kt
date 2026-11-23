@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -61,17 +62,20 @@ import kotlin.math.sin
 // The reader's navigation dial: book / parsha / chapter picker, rotary dial and quiet chips.
 
 /**
- * Largest font size in [maxSp] down to [minSp] (0.5sp steps) at which [widthAt] fits in
- * [availablePx], or null when even [minSp] does not fit.
+ * Largest font size in [maxSp] down to [minSp] (0.5sp steps) at which [totalAt] (the total width
+ * the row needs at that size) fits in [availablePx], or null when even [minSp] does not fit.
  */
-internal fun fitFontSp(availablePx: Float, widthAt: (Float) -> Float, maxSp: Float = 15f, minSp: Float = 11f): Float? {
+internal fun fitFontSp(availablePx: Float, totalAt: (Float) -> Float, maxSp: Float = 15f, minSp: Float = 11f): Float? {
     var sp = maxSp
     while (sp >= minSp) {
-        if (widthAt(sp) <= availablePx) return sp
+        if (totalAt(sp) <= availablePx) return sp
         sp -= 0.5f
     }
     return null
 }
+
+/** Chosen book-row layout: font size, whether it is 3 + 2 rows, and per-chip weights (measured widths). */
+private class BooksLayout(val sp: Float, val twoRows: Boolean, val weights: List<Float>)
 
 /** Quiet navigation chip: plain text when inactive; gold text on a faint gold wash with a hairline border when active. */
 @Composable
@@ -96,33 +100,42 @@ private fun NavChip(
 }
 
 /**
- * The five books filling the available width: equal-weight chips on one row with the largest
- * font (15sp down to 11sp) that fits the longest label; if even 11sp does not fit, 3 + 2 rows.
+ * The five books filling the available width: chips weighted by their own measured width on one
+ * row at the largest font (15sp down to 11sp) where the whole row fits; if even 11sp does not fit, 3 + 2 rows.
  */
 @Composable
 private fun BooksRow(hebrew: Boolean, selected: Int, onSelect: (Int) -> Unit) {
     val labels = TorahNavigation.BOOKS.map { if (hebrew) it.he else it.en }
-    val measurer = rememberTextMeasurer()
+    val measurer = rememberTextMeasurer(cacheSize = 32)
     val density = LocalDensity.current
     val chipPad = 4.dp
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val totalPx = with(density) { maxWidth.toPx() }
-        val padPx = with(density) { (chipPad * 2).toPx() } + 2f // 2px slack for the 1dp border rounding
-        fun widthAt(sp: Float) = labels.maxOf {
-            measurer.measure(it, TextStyle(fontSize = sp.sp, fontWeight = FontWeight.Medium), maxLines = 1).size.width
-        }.toFloat() + padPx
-        val oneRowSp = fitFontSp(totalPx / 5f, ::widthAt)
-        val twoRows = oneRowSp == null
-        val sp = (oneRowSp ?: fitFontSp(totalPx / 3f, ::widthAt) ?: 11f).sp
+        val layout = remember(totalPx, hebrew, density.density, density.fontScale) {
+            val padPx = with(density) { (chipPad * 2).toPx() } + 2f // 2px slack for border rounding
+            fun need(sp: Float) = labels.map {
+                measurer.measure(it, TextStyle(fontSize = sp.sp, fontWeight = FontWeight.Medium), maxLines = 1)
+                    .size.width + padPx
+            }
+            val one = fitFontSp(totalPx, { need(it).sum() })
+            if (one != null) BooksLayout(one, false, need(one))
+            else {
+                // 3 + 2: both rows must fit at the same size (the wider row decides).
+                fun rowMax(sp: Float) = need(sp).let { maxOf(it.take(3).sum(), it.drop(3).sum()) }
+                val sp = fitFontSp(totalPx, ::rowMax) ?: 11f
+                BooksLayout(sp, true, need(sp))
+            }
+        }
+        val sp = layout.sp.sp
         @Composable
-        fun chip(i: Int, m: Modifier) =
-            NavChip(labels[i], i == selected, m, sp, chipPad) { onSelect(i) }
-        if (!twoRows) {
-            Row(Modifier.fillMaxWidth()) { for (i in labels.indices) chip(i, Modifier.weight(1f)) }
+        fun RowScope.chip(i: Int) =
+            NavChip(labels[i], i == selected, Modifier.weight(layout.weights[i]), sp, chipPad) { onSelect(i) }
+        if (!layout.twoRows) {
+            Row(Modifier.fillMaxWidth()) { for (i in labels.indices) chip(i) }
         } else {
             Column(Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth()) { for (i in 0..2) chip(i, Modifier.weight(1f)) }
-                Row(Modifier.fillMaxWidth().padding(top = 4.dp)) { for (i in 3..4) chip(i, Modifier.weight(1f)) }
+                Row(Modifier.fillMaxWidth()) { for (i in 0..2) chip(i) }
+                Row(Modifier.fillMaxWidth().padding(top = 4.dp)) { for (i in 3..4) chip(i) }
             }
         }
     }
