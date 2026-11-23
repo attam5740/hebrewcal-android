@@ -188,6 +188,9 @@ class TextReaderActivity : ComponentActivity() {
                 }
             }
 
+            // Chitas: which part (0 Tehilim, 1 Chumash, 2 Tanya) the reader shows.
+            var chitasPart by rememberSaveable { mutableStateOf(0) }
+
             Box(
                 Modifier.fillMaxSize()
                     .background(Color(0xFF2E2E2E).copy(alpha = opacity / 100f))
@@ -214,6 +217,7 @@ class TextReaderActivity : ComponentActivity() {
                         byAliyot = byAliyot,
                         mode = state.mode,
                         torahSide = state.mode != "tehillim",
+                        chitasMode = state.mode == "chitas",
                         onToggleMode = { vm.toggleMode(hebrewUi) },
                         onNav = { showNav = true },
                         onTextMode = { m ->
@@ -224,6 +228,9 @@ class TextReaderActivity : ComponentActivity() {
                         onAliyot = { byAliyot = !byAliyot },
                         onClose = { finish() }
                     )
+                    if (state.mode == "chitas") Box(Modifier.fillMaxWidth().background(Color(0x73181818))) {
+                        ChitasToggle(selected = chitasPart, hebrew = textMode != MODE_EN, onSelect = { chitasPart = it })
+                    }
                     WeekBanner(
                         week.parsha, hebrewUi,
                         onParsha = { vm.load("parsha", "", if (hebrewUi) "פרשת השבוע" else "Weekly Parsha", diaspora) },
@@ -242,6 +249,7 @@ class TextReaderActivity : ComponentActivity() {
                             legs = state.legs, legTitles = state.legTitles, legBlank = state.legBlank,
                             legWindows = state.legWindows, legExtending = state.legExtending,
                             legFailed = state.legFailed,
+                            chitasPart = chitasPart,
                             onExtendLeg = { i, down -> vm.extendLeg(i, down) },
                             tikkunLines = state.tikkunLines,
                             extendingUp = state.extendingUp,
@@ -472,6 +480,7 @@ private fun ReaderBar(
     showAliyotToggle: Boolean, byAliyot: Boolean,
     mode: String = "tehillim",
     torahSide: Boolean = false,
+    chitasMode: Boolean = false,
     onToggleMode: () -> Unit = {},
     onNav: () -> Unit = {},
     onTextMode: (String) -> Unit, onNikkud: () -> Unit, onTeamim: () -> Unit,
@@ -488,7 +497,7 @@ private fun ReaderBar(
                 modifier = Modifier.weight(1f)
             )
             // Tehillim ⇄ Torah, then the week's haftarah when there is one.
-            ModeToggle(torah = torahSide, onToggle = onToggleMode)
+            if (!chitasMode) ModeToggle(torah = torahSide, onToggle = onToggleMode)
             // Navigation dial (jump to any chapter / parsha).
             TextButton(onClick = onNav) {
                 Icon(Icons.Default.MenuBook, contentDescription = "Jump to chapter or parsha", tint = ACTIVE_GOLD, modifier = Modifier.size(24.dp))
@@ -539,6 +548,7 @@ private fun ReaderBody(
     legWindows: List<LegWindow?>? = null,
     legExtending: List<Pair<Boolean, Boolean>> = emptyList(),
     legFailed: List<Pair<Boolean, Boolean>> = emptyList(),
+    chitasPart: Int = 0,
     onExtendLeg: (Int, Boolean) -> Unit = { _, _ -> },
     tikkunLines: List<TikkunLayout.Line>? = null,
     extendingUp: Boolean = false,
@@ -642,16 +652,13 @@ private fun ReaderBody(
     // edge, its blocks and a fixed-height bottom edge — and grows on its own when a real scroll
     // reaches either end. Blocks landing above the text being read are scrolled away (see below).
     val legCount = if (mode == "chitas") legs.orEmpty().size else 0
+    // Only the part picked in the toggle is shown; the others are not in the list at all.
+    val shownLeg = chitasPart.coerceIn(0, (legCount - 1).coerceAtLeast(0))
     val legTitleText = (0 until legCount).map { i ->
         legTitles?.getOrNull(i)?.let { t -> if (hebrew) t.he.ifBlank { t.en } else t.en } ?: ""
     }
-    // As before: with several legs every titled leg opens folded; tap its heading to unfold it.
-    val legsFoldable = legCount > 1
-    var foldedLegs by remember(text, mode, legCount, legs) {
-        mutableStateOf(if (legsFoldable) (0 until legCount).filter { legTitleText[it].isNotBlank() }.toSet() else emptySet())
-    }
-    val legRowList: List<LegRows.Row> = (0 until legCount).flatMap { i ->
-        LegRows.rows(i, folded = legsFoldable && i in foldedLegs, blocks = legWindows?.getOrNull(i)?.blocks)
+    val legRowList: List<LegRows.Row> = (if (legCount > 0) listOf(shownLeg) else emptyList()).flatMap { i ->
+        LegRows.rows(i, folded = false, blocks = legWindows?.getOrNull(i)?.blocks)
     }
     fun legEdgeState(leg: Int, down: Boolean): LegRows.EdgeState {
         val w = legWindows?.getOrNull(leg)
@@ -682,6 +689,8 @@ private fun ReaderBody(
         }
     }
     if (mode == "chitas") {
+        // A new part starts at its own top.
+        LaunchedEffect(shownLeg) { listState.scrollToItem(0) }
         LaunchedEffect(listState) {
             snapshotFlow { listState.isScrollInProgress }.collect { if (!it) chitasScrollDir = 0 }
         }
@@ -713,7 +722,7 @@ private fun ReaderBody(
         // comes into view is handled in the same pass. A down-extension never changes a leg's
         // first block, and blocks that landed off screen (the reader scrolled away during the
         // fetch, or the early zone) are not on screen, so neither ever scrolls anything.
-        (0 until legCount).forEach { i ->
+        (if (legCount > 0) listOf(shownLeg) else emptyList()).forEach { i ->
             val blocks = legWindows?.getOrNull(i)?.blocks.orEmpty()
             val firstKey = blocks.firstOrNull { it.verses.isNotEmpty() }?.key
             key("leg-prepend", i) {
@@ -785,24 +794,7 @@ private fun ReaderBody(
                         when (row) {
                             is LegRows.Row.Head -> {
                                 val title = legTitleText.getOrElse(row.leg) { "" }
-                                val isFolded = legsFoldable && row.leg in foldedLegs
                                 if (title.isBlank()) Spacer(Modifier.height(12.dp))
-                                else if (legsFoldable) Row(
-                                    Modifier.fillMaxWidth()
-                                        .clickable { foldedLegs = if (isFolded) foldedLegs - row.leg else foldedLegs + row.leg }
-                                        .padding(top = 12.dp, bottom = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        if (!isFolded) "▾" else if (hebrew) "◂" else "▸",
-                                        color = accent, fontSize = (sizeSp * 0.9f).sp
-                                    )
-                                    Spacer(Modifier.width(10.dp))
-                                    Text(
-                                        title, color = accent, fontSize = (sizeSp + 2).sp,
-                                        modifier = Modifier.weight(1f), textAlign = TextAlign.Start
-                                    )
-                                }
                                 else Text(
                                     title, color = accent, fontSize = (sizeSp + 2).sp,
                                     modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp),
