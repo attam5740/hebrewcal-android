@@ -4,6 +4,28 @@ All notable changes to Hebrew Calendar are listed here, newest first.
 Version codes match `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`,
 which is what F-Droid shows.
 
+## 1.24 (version code 31)
+
+### Added
+- **Month-calendar widget**, a second home-screen widget. It shows the Hebrew or Gregorian month
+  with both dates in every cell, pages with ‹ › and Today without opening the app, and a tap on
+  the heading raises the date navigator to jump to any year and month. A small עב / EN toggle
+  switches calendar. Tapping a day opens that day's sheet in the app.
+- The date widget now shows the **candle-lighting and Havdalah** line the notification does, when
+  it is relevant.
+- The widget's Tehillim, parsha and Chitas buttons carry the harp, scroll and menorah glyphs.
+
+### Changed
+- The **Chitas reader** is now a three-part toggle at the top (Chumash, Tehillim, Tanya) showing
+  one part at a time. Scrolling past the end of a part loads the next chapter, and past the top
+  the previous one, so there are no neighbouring-section scroll zones to hit. The Tehillim/Torah
+  switch is hidden there.
+- The Tanya part shows the **whole day's lesson**, not only where it starts.
+- Notification buttons for Tehillim, the parsha and Chitas now use the width available, in a
+  slightly smaller type, and shorten the middle of a long label so the verse range stays visible.
+- The scripture navigator is calmer, in the app's own gold and glass styling, and the five books
+  of the Chumash fit the screen width.
+
 ## 1.23 (version code 30)
 
 ### Added

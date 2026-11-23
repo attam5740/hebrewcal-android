@@ -20,7 +20,8 @@ See the [changelog](CHANGELOG.md) for what is new.
 - **Weekly Parsha** displayed on Shabbat
 - **Zmanim (prayer times)** — user selects exactly which times to show
 - **Lockscreen notification** — persistent, always visible on lockscreen (Android 8+)
-- **Home screen Glance widget** — resizable, with adjustable background transparency
+- **Home screen Glance widgets** — a resizable date widget with adjustable background
+  transparency, and a month-calendar widget with its own month navigator
 - **Shabbat and Yom Tov** — candle-lighting time with a live countdown on Friday and Erev Yom
   Tov, Havdalah by your chosen opinion, and a Shabbat Shalom banner on the lockscreen
 - **Sun, moon, and direction** — a sun arc for today that shows where the sun is heading, with
@@ -47,8 +48,8 @@ See the [changelog](CHANGELOG.md) for what is new.
   the reader, continuous scrolling loads the next (or previous) chapter automatically, and the
   haftarah of the week is available alongside the parsha
 - **Daily Chitas** (חת״ת) — an optional button on the widget and notification opens the Chabad
-  daily study cycle's Chumash aliyah, Tehillim and Tanya as three foldable sections in one
-  reader view. Off by default, and offered whichever custom you follow. The portions follow the
+  daily study cycle's Chumash aliyah, Tehillim and Tanya in one reader, picked with a
+  three-part toggle (Chumash · Tehillim · Tanya) and each scrolling on its own. Off by default, and offered whichever custom you follow. The portions follow the
   Hebrew day, so they move on at nightfall. Tanya text from Kehot Publication Society
   (CC BY-NC 4.0) via Sefaria
 - **Tikkun mode** — unvocalized STaM sofer script rendered in the authentic 42-line
@@ -86,7 +87,9 @@ app/
 │   ├── notification/
 │   │   └── LockscreenNotificationBuilder.kt  # RemoteViews notification layout builder
 │   ├── widget/
-│   │   └── HebrewDateWidget.kt               # Glance AppWidget (home screen)
+│   │   ├── HebrewDateWidget.kt               # Glance AppWidget (home screen)
+│   │   ├── CalendarMonthWidget.kt            # Month-calendar Glance widget with navigator
+│   │   └── MonthPickerActivity.kt            # Date navigator raised by the month widget heading
 │   ├── calendar/
 │   │   ├── CalendarActivity.kt               # Launcher: translucent month grid
 │   │   ├── DaySheet.kt                       # Day details, zmanim, reader links
@@ -261,10 +264,10 @@ only reaches F-Droid if all of these hold:
    that tag, signed with the release key.
 
 ```bash
-git worktree add /tmp/hebrewcal-release v1.23 && cd /tmp/hebrewcal-release
+git worktree add /tmp/hebrewcal-release v1.24 && cd /tmp/hebrewcal-release
 ./gradlew assembleRelease
-scripts/release.sh app/build/outputs/apk/release/app-release-unsigned.apk 1.23
-gh release create v1.23 dist/Hebrew-Calendar-v1.23.apk --title v1.23
+scripts/release.sh app/build/outputs/apk/release/app-release-unsigned.apk 1.24
+gh release create v1.24 dist/Hebrew-Calendar-v1.24.apk --title v1.24
 ```
 
 `scripts/release.sh` refuses debug builds and checks the signing certificate against the one
