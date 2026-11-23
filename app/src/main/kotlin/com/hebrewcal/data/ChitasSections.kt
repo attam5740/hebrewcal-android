@@ -29,4 +29,13 @@ object ChitasSections {
         val chapters = text.chapters.dropLast(1) + if (trimmed.verses.isEmpty()) emptyList() else listOf(trimmed)
         return text.copy(chapters = chapters)
     }
+
+    /**
+     * Drops tomorrow's first segment from the Tanya leg (index 2) when [trimTanya]. A leg with a
+     * single verse is left alone (a server that returned only the start segment), null legs too.
+     */
+    fun legsAfterTrim(legs: List<SefariaText?>, trimTanya: Boolean): List<SefariaText?> =
+        legs.mapIndexed { i, t ->
+            if (i == 2 && trimTanya && t != null && t.chapters.sumOf { it.verses.size } > 1) dropLastVerse(t) else t
+        }
 }

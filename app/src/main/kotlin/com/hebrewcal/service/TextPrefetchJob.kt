@@ -84,7 +84,10 @@ object TextPrefetch {
             if (daily.tanyaRef.isBlank()) { tanyaBlank++; continue }
             // The same range ref the reader requests (the cache key is the ref string).
             val tomorrow = repo.parshaFor(day.plusDays(1), diaspora).getOrNull()
-            if (repo.prefetchText(ChitasSchedule.tanyaLegRef(daily, tomorrow).ref)) tanyaTexts++ else failures++
+            val leg = ChitasSchedule.tanyaLegRef(daily, tomorrow)
+            if (repo.prefetchText(leg.ref)) tanyaTexts++ else failures++
+            // The reader falls back to the start segment when the range is unavailable.
+            if (leg.ref != daily.tanyaRef && !repo.prefetchText(daily.tanyaRef)) failures++
         }
 
         Log.i(TAG, "done: ${tehillim.size} tehillim refs, ${prefs.prefetchParshaWeeks} weeks of parsha, $prayerRefs prayer refs, $chitasDays chitas days, $tanyaTexts tanya texts ($tanyaBlank days without a tanya ref), $failures failures")

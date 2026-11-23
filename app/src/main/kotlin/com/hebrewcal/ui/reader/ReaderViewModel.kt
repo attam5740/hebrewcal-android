@@ -123,6 +123,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
             var chitasTitles: List<SectionTitle>? = null
             var tanyaFetchFailed = false
             var trimTanya = false
+            var tanyaStartRef = ""
             if (mode == "parsha" && ref.isBlank()) {
                 val p = repo.currentParsha(diaspora).getOrNull()
                 if (p == null) { _state.value = UiState(loading = false, error = OFFLINE, title = title, mode = mode); return@launch }
@@ -133,7 +134,8 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                 val weekly = repo.parshaFor(ChitasSchedule.parshaDateFor(advanced), diaspora).getOrNull()
                 val daily = repo.parshaFor(advanced, diaspora).getOrNull()
                 // Tomorrow's start ends today's lesson; if unavailable the leg shows just the start segment.
-                val tomorrow = repo.parshaFor(advanced.plusDays(1), diaspora).getOrNull()
+                val tomorrow = if (ref.isBlank() && !daily?.tanyaRef.isNullOrBlank())
+                    repo.parshaFor(advanced.plusDays(1), diaspora).getOrNull() else null
                 // Without the day's own response the Tanya leg is blanked (the Shabbat's Tanya would be the wrong day's).
                 tanyaFetchFailed = weekly != null && daily == null
                 val p = weekly?.let { w ->
@@ -151,6 +153,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                     en.indices.map { SectionTitle(en[it], he[it]) }
                 } else listOf(SectionTitle("Chumash", "חומש"), SectionTitle("Tehillim", "תהילים"), SectionTitle("Tanya", "תניא"))
                 val tanyaLeg = p?.let { ChitasSchedule.tanyaLegRef(it, tomorrow) }
+                tanyaStartRef = p?.tanyaRef.orEmpty()
                 trimTanya = ref.isBlank() && tanyaLeg?.trimLast == true
                 resolvedRef = if (ref.isNotBlank()) ref else listOf(portion!!.chumashRef, portion.tehillimRef, tanyaLeg!!.ref)
                     .joinToString(Tefillot.REF_SEPARATOR)
@@ -159,8 +162,16 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
             val bookNameEn = if (mode != "tehillim" && mode != "chitas") resolvedRef.substringBefore('.', "").ifBlank { null } else null
             val chitas = mode == "chitas"
             if (chitas) {
-                val legs = fetchLegs(resolvedRef, cacheFirst = false)
-                    ?.mapIndexed { i, t -> if (i == 2 && trimTanya && t != null) ChitasSections.dropLastVerse(t) else t }
+                var legs = fetchLegs(resolvedRef, cacheFirst = false)
+                // The range could not be had (offline with only the start segment cached, a failed
+                // request): fall back to the start segment, untrimmed, as before the range existed.
+                if (trimTanya && legs != null && legs.getOrNull(2) == null && tanyaStartRef.isNotBlank()) {
+                    val start = repo.fetchText(tanyaStartRef).getOrNull()
+                        ?.takeIf { t -> t.chapters.any { it.verses.isNotEmpty() } }
+                    if (start != null) legs = legs.toMutableList().also { it[2] = start }
+                    trimTanya = false
+                }
+                legs = legs?.let { ChitasSections.legsAfterTrim(it, trimTanya) }
                 if (legs == null) {
                     _state.value = UiState(false, OFFLINE, resolvedTitle, null, mode)
                 } else {

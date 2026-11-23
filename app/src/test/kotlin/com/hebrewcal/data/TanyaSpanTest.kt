@@ -85,4 +85,38 @@ class TanyaSpanTest {
         assertTrue(url, url.contains("ven=Kehot"))
         assertFalse(url, url.contains("Masorah"))
     }
+
+    @Test fun chapterAndSegmentCompareNumerically() {
+        assertEquals("$acharon 4:9-4:10", TanyaSpan.spanRef("$acharon 4:9", "$acharon 4:10"))
+        assertNull(TanyaSpan.spanRef("$acharon 4:10", "$acharon 4:9"))
+        assertEquals("$acharon 9:1-10:1", TanyaSpan.spanRef("$acharon 9:1", "$acharon 10:1"))
+    }
+
+    @Test fun apostropheInPrefixParses() =
+        assertEquals("Tanya, Part V; Compiler's Foreword 1:1-1:3",
+            TanyaSpan.spanRef("Tanya, Part V; Compiler's Foreword 1:1", "Tanya, Part V; Compiler's Foreword 1:3"))
+
+    // --- legsAfterTrim ---
+    @Test fun trimsOnlyTanyaLegWhenFlagged() {
+        val legs = listOf(text(1 to 1..3), text(2 to 1..3), text(4 to 35..40))
+        val r = ChitasSections.legsAfterTrim(legs, true)
+        assertEquals(3, r[0]!!.chapters.single().verses.size)
+        assertEquals(3, r[1]!!.chapters.single().verses.size)
+        assertEquals(listOf(35, 36, 37, 38, 39), r[2]!!.chapters.single().verses.map { it.num })
+    }
+
+    @Test fun noTrimWhenNotFlagged() {
+        val legs = listOf(text(1 to 1..3), text(2 to 1..3), text(4 to 35..40))
+        assertEquals(legs, ChitasSections.legsAfterTrim(legs, false))
+    }
+
+    @Test fun singleVerseLegNeverTrimmed() {
+        val legs = listOf(null, null, text(4 to 35..35))
+        assertEquals(legs, ChitasSections.legsAfterTrim(legs, true))
+    }
+
+    @Test fun nullLegsLeftAlone() {
+        val legs = listOf<SefariaText?>(null, null, null)
+        assertEquals(legs, ChitasSections.legsAfterTrim(legs, true))
+    }
 }
