@@ -110,6 +110,91 @@ class LegWindowTest {
         assertEquals("Genesis 28", h.nextFetch(false))
     }
 
+    @Test fun crossChapterChumashAliyahBothWays() {
+        val w = LegWindow.start("Genesis 30:28-31:16", text(30 to 28..43, 31 to 1..16, next = "Genesis 32", prev = "Genesis 29"))
+        // Down: 31 is completed first (17..54, no heading), then 32 with a heading.
+        assertEquals("Genesis 31", w.nextFetch(true))
+        val d1 = w.applied(true, "Genesis 31", text(31 to 1..54, next = "Genesis 32", prev = "Genesis 30"))
+        assertEquals((17..54).toList(), d1.blocks.last().nums())
+        assertTrue(d1.blocks.last().verses.all { it.chapter == 31 })
+        assertNull(d1.blocks.last().heading)
+        assertEquals("Genesis 32", d1.nextFetch(true))
+        val d2 = d1.applied(true, "Genesis 32", text(32 to 1..33, next = "Genesis 33", prev = "Genesis 31"))
+        assertEquals("Genesis 32", d2.blocks.last().heading)
+        assertEquals((1..33).toList(), d2.blocks.last().nums())
+        // Up: 30 is completed first (1..27, no heading), then 29.
+        assertEquals("Genesis 30", w.nextFetch(false))
+        val u1 = w.applied(false, "Genesis 30", text(30 to 1..43, next = "Genesis 31", prev = "Genesis 29"))
+        assertEquals((1..27).toList(), u1.blocks.first().nums())
+        assertNull(u1.blocks.first().heading)
+        assertEquals("Genesis 29", u1.nextFetch(false))
+        assertEquals("Genesis 29", u1.applied(false, "Genesis 29", text(29 to 1..35, prev = "Genesis 28")).blocks.first().heading)
+    }
+
+    // ---- Tanya depth-1 nodes: a bare number is a paragraph of the node, not a chapter ----
+
+    private val foreword = "Tanya, Part I; Likkutei Amarim, Compiler's Foreword"
+
+    /** A node-level response: sections=[] parses as chapter 1, paragraphs 1..n. */
+    private fun wholeForeword() = text(1 to 1..15, next = "Tanya, Part I; Likkutei Amarim 1",
+        prev = "Tanya, Part I; Likkutei Amarim, Approbation 3")
+
+    @Test fun singleParagraphOfDepthOneNodeDoesNotTrustItsNext() {
+        // "…Compiler's Foreword 1": sections=[1], one segment, next = the chapter after the WHOLE node.
+        val w = LegWindow.start("$foreword 1", text(1 to 1..1, next = "Tanya, Part I; Likkutei Amarim 1",
+            prev = "Tanya, Part I; Likkutei Amarim, Approbation 3"))
+        assertEquals(listOf(1 to 1), w.verses())
+        assertEquals(foreword, w.nextFetch(true))
+        assertEquals(foreword, w.nextFetch(false))
+        val g = w.applied(true, foreword, wholeForeword())
+        assertEquals((2..15).toList(), g.blocks.last().nums())
+        assertNull(g.blocks.last().heading)
+        assertEquals("Tanya, Part I; Likkutei Amarim 1", g.nextFetch(true))
+    }
+
+    @Test fun laterParagraphOfDepthOneNodeIsNumberedTrue() {
+        // "…Compiler's Foreword 9": the parser calls it chapter 9 verse 1; it is paragraph 9.
+        val w = LegWindow.start("$foreword 9", text(9 to 1..1))
+        assertEquals(listOf(1 to 9), w.verses())
+        assertEquals(foreword, w.nextFetch(true))
+        val up = w.applied(false, foreword, wholeForeword())
+        assertEquals((1..8).toList(), up.blocks.first().nums())
+        assertEquals("Tanya, Part I; Likkutei Amarim, Approbation 3", up.nextFetch(false))
+        val down = w.applied(true, foreword, wholeForeword())
+        assertEquals((10..15).toList(), down.blocks.last().nums())
+    }
+
+    @Test fun trimmedDepthOneNodeRangeKeepsParagraphNumbers() {
+        // "…9-13" (sections=[9], flat, 5 segments) trimmed to four: paragraphs 9..12.
+        val w = LegWindow.start("$foreword 9-13", text(9 to 1..4, next = "Tanya, Part I; Likkutei Amarim 1"), trimmed = true)
+        assertEquals((9..12).toList(), w.blocks.single().nums())
+        assertEquals(foreword, w.nextFetch(true))
+        val g = w.applied(true, foreword, wholeForeword())
+        assertEquals((13..15).toList(), g.blocks.last().nums())
+        assertEquals("Tanya, Part I; Likkutei Amarim 1", g.nextFetch(true))
+        val h = g.applied(true, "Tanya, Part I; Likkutei Amarim 1", text(1 to 1..8, next = "Tanya, Part I; Likkutei Amarim 2"))
+        assertEquals("Tanya, Part I; Likkutei Amarim 1", h.blocks.last().heading)
+    }
+
+    @Test fun depthOneRangeFromTheStartUpGoesToPreviousNode() {
+        val w = LegWindow.start("$foreword 1-9", text(1 to 1..8), trimmed = true)
+        assertEquals((1..8).toList(), w.blocks.single().nums())
+        val up = w.applied(false, foreword, wholeForeword())
+        assertEquals(0, up.blocksAdded(w))
+        assertEquals("Tanya, Part I; Likkutei Amarim, Approbation 3", up.nextFetch(false))
+    }
+
+    @Test fun wholeSectionOfACommaNodeStaysAChapter() {
+        // "…Approbation 3" is a whole section (10 segments, sections=[3]): a chapter, as before.
+        val ap = "Tanya, Part I; Likkutei Amarim, Approbation"
+        val w = LegWindow.start("$ap 3", text(3 to 1..10, next = foreword, prev = "$ap 2"))
+        assertEquals((1..10).map { 3 to it }, w.verses())
+        assertEquals(foreword, w.nextFetch(true))
+        assertEquals("$ap 2", w.nextFetch(false))
+        // A chapter:segment ref in a comma node is a normal verse-bounded ref.
+        assertEquals("$ap 3", LegWindow.start("$ap 3:1", text(3 to 1..1)).nextFetch(true))
+    }
+
     // ---- Review Focus 3: a "complete the chapter" fetch that adds nothing ----
 
     @Test fun edgeChapterAlreadyCompleteSignalsNoGrowthAndPointsAtNeighbour() {

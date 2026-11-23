@@ -137,9 +137,16 @@ class LegWindow private constructor(
             val startPoint = POINT.matchEntire(startSpec) ?: return LegWindow(listOf(original), null, null)
             val endPoint = POINT.matchEntire(endSpec) ?: return LegWindow(listOf(original), null, null)
             val startHasVerse = startPoint.groupValues[2].isNotEmpty()
+            val endPointHasVerse = endPoint.groupValues[2].isNotEmpty()
+            // A depth-1 Tanya node ("…Likkutei Amarim, Compiler's Foreword 9" or "… 9-13"): the bare
+            // number is a paragraph, but the parser numbers the response as chapter 9, verse 1.
+            // A whole section of such a node ("…Approbation 3", many segments) stays a chapter.
+            val paragraphs = !startHasVerse && !endPointHasVerse && TanyaSpan.isCommaNode(prefix) &&
+                chapters.size == 1 && (spec.contains('-') || chapters.single().verses.size == 1)
+            if (paragraphs) return paragraphWindow(prefix, startPoint.groupValues[1].toInt(), chapters.single())
             // "119.1-96": a bare end after a verse-bearing start is a verse in the same chapter
             // (and a single-segment ref, "12:3", is its own end).
-            val endHasVerse = endPoint.groupValues[2].isNotEmpty() || startHasVerse
+            val endHasVerse = endPointHasVerse || startHasVerse
             val upBounded = startHasVerse
             val downBounded = endHasVerse || trimmed
 
@@ -154,6 +161,19 @@ class LegWindow private constructor(
                 complete = !downBounded, neighbourKnown = !downBounded, neighbour = if (downBounded) null else text.next
             )
             return LegWindow(listOf(original), upEdge, downEdge)
+        }
+
+        /**
+         * The node is treated as one chapter numbered 1 (how the parser numbers the node-level
+         * response, `sections=[]`), its paragraphs as verses from [firstParagraph]. Both edges are
+         * verse-bounded: a paragraph-level response's `next` is the chapter after the whole node,
+         * so the neighbours are read from the node-level fetch ([prefix] with no number).
+         */
+        private fun paragraphWindow(prefix: String, firstParagraph: Int, shown: Chapter): LegWindow {
+            val verses = shown.verses.mapIndexed { i, v -> AliyotPartitioner.TaggedVerse(1, v.copy(num = firstParagraph + i)) }
+            fun edge(verse: Int) = Edge(prefix, 1, verse, complete = false, neighbourKnown = false, neighbour = null)
+            return LegWindow(listOf(LegBlock("leg", null, verses)),
+                edge(verses.first().verse.num), edge(verses.last().verse.num))
         }
     }
 }

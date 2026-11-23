@@ -385,7 +385,9 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                 if (gen != generation) return@launch
                 if (fetched == null) { failed = true; break }
                 val next = w.applied(down, ref, fetched)
-                if (next === w) break // not the chapter asked for: refetching would not help
+                // The response lacked the chapter asked for: report it rather than stop silently,
+                // or the trigger stays live and refetches on every scroll for nothing.
+                if (next === w) { failed = true; break }
                 val grew = next.blocksAdded(w) > 0
                 w = next
                 if (grew) break

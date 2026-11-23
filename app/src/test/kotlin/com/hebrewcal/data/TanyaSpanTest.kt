@@ -96,6 +96,36 @@ class TanyaSpanTest {
         assertEquals("Tanya, Part V; Compiler's Foreword 1:1-1:3",
             TanyaSpan.spanRef("Tanya, Part V; Compiler's Foreword 1:1", "Tanya, Part V; Compiler's Foreword 1:3"))
 
+    // --- depth-1 nodes (Tanya Yomi's first days, real refs from the live calendar) ---
+    private val foreword = "Tanya, Part I; Likkutei Amarim, Compiler's Foreword"
+
+    @Test fun depthOneNodeParagraphSpan() {
+        assertEquals("$foreword 1-9", TanyaSpan.spanRef("$foreword 1", "$foreword 9"))
+        assertEquals("$foreword 9-13", TanyaSpan.spanRef("$foreword 9", "$foreword 13")) // numeric, not lexical
+    }
+
+    @Test fun depthOneNodeSpanReversedOrEqualIsNull() {
+        assertNull(TanyaSpan.spanRef("$foreword 13", "$foreword 9"))
+        assertNull(TanyaSpan.spanRef("$foreword 9", "$foreword 9"))
+    }
+
+    @Test fun depthOneNodeAcrossNodesIsNull() {
+        assertNull(TanyaSpan.spanRef("$foreword 13", "Tanya, Part I; Likkutei Amarim 1:1"))
+        assertNull(TanyaSpan.spanRef("Tanya, Part I; Likkutei Amarim, Title Page 1", "Tanya, Part I; Likkutei Amarim, Approbation 3:1"))
+    }
+
+    @Test fun bareNumberNeverPairsWithChapterSegment() {
+        assertNull(TanyaSpan.spanRef("$foreword 1", "$foreword 9:1"))
+        assertNull(TanyaSpan.spanRef("$foreword 1:1", "$foreword 9"))
+    }
+
+    @Test fun depthOneNodeLegIsTrimmed() {
+        // The last paragraph of 1-9 (9) is tomorrow's start, so the leg is marked for trimming.
+        assertEquals(TanyaLeg("$foreword 1-9", true), ChitasSchedule.tanyaLegRef(day("$foreword 1"), day("$foreword 9")))
+        val r = ChitasSections.legsAfterTrim(listOf(null, null, text(1 to 1..9)), true)
+        assertEquals((1..8).toList(), r[2]!!.chapters.single().verses.map { it.num })
+    }
+
     // --- legsAfterTrim ---
     @Test fun trimsOnlyTanyaLegWhenFlagged() {
         val legs = listOf(text(1 to 1..3), text(2 to 1..3), text(4 to 35..40))
