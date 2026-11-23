@@ -81,4 +81,26 @@ class ShabbatBannerTest {
     }
 
     @Test fun ordinaryDayGivesNull() = assertNull(text(times(cl = null, hav = null), at(12, 0)))
+
+    @Test fun atExactCandleLightingTimeIsAlreadyLit() = assertEquals(
+        "Shabbat Shalom · Havdalah \u206617:30\u2069", text(times(), at(16, 12))
+    )
+
+    @Test fun atExactHavdalahTimeGivesNull() = assertNull(text(times(), at(17, 30)))
+
+    @Test fun hebrew12hCandleLighting() {
+        val expected = SimpleDateFormat("h:mm a", Locale.US).format(at(16, 12))
+        assertEquals("🕯️🕯️ הדלקת נרות: \u2066$expected\u2069", text(times(), at(10, 0), heb = true, f = f12))
+    }
+
+    @Test fun hebrew12hHavdalah() {
+        val expected = SimpleDateFormat("h:mm a", Locale.US).format(at(17, 30))
+        assertEquals("שַׁבָּת שָׁלוֹם · הבדלה \u2066$expected\u2069", text(times(), at(16, 30), heb = true, f = f12))
+    }
+
+    @Test fun shabbatWithHavdalahButNoCandleLighting() {
+        val t = times(cl = null, hav = at(17, 30), shabbat = true)
+        assertEquals("Shabbat Shalom · Havdalah \u206617:30\u2069", text(t, at(12, 0)))
+        assertNull(text(t, at(17, 30)))
+    }
 }
