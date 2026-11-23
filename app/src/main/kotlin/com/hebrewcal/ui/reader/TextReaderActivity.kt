@@ -61,6 +61,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.key
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.rememberUpdatedState
 import kotlinx.coroutines.flow.first
 import androidx.compose.ui.Alignment
@@ -582,7 +584,7 @@ private fun ReaderBody(
     var flippedVerses by remember(text, textMode) { mutableStateOf(setOf<String>()) }
 
     // Section list: one per aliyah when partitioning, else one per chapter.
-    val sections = remember(text, mode, bookNameEn, aliyot, hebrew, elulText, legs, legTitles, legBlank) {
+    val sections = remember(text, mode, bookNameEn, aliyot, hebrew, elulText) {
         // `chapterSections` for the whole window: the shape used whenever the reading is
         // not partitioned by aliyah, and the fallback when partitioning cannot be mapped
         // onto the window. Kept as a function so the aliyot path does not build it.
@@ -591,9 +593,9 @@ private fun ReaderBody(
 
         // Verses outside every aliyah (scroll extension) stay as chapter sections on their side.
         // Chitas legs are not sections: they are keyed rows of their own (see `legRowList` below).
-        val chitasLegs: List<ReaderSection>? = if (mode == "chitas") emptyList() else null
-        val split = if (chitasLegs != null || aliyot.isEmpty()) null else AliyotPartitioner.layout(text.chapters, aliyot)
-        val main: List<ReaderSection> = if (chitasLegs != null) chitasLegs else if (split == null) plainSections() else {
+        val chitas = mode == "chitas"
+        val split = if (chitas || aliyot.isEmpty()) null else AliyotPartitioner.layout(text.chapters, aliyot)
+        val main: List<ReaderSection> = if (chitas) emptyList() else if (split == null) plainSections() else {
             val leadingSections: List<ReaderSection> =
                 chapterSections(SefariaText(text.heRef, split.leading), mode, bookNameEn, hebrew, gematria)
             val aliyahSections: List<ReaderSection> = split.sections.map { sec ->
@@ -615,8 +617,8 @@ private fun ReaderBody(
 
     // A prayer with several sections opens with every section folded; tapping a heading
     // unfolds it, so the reader can jump between parts of the service.
-    val foldable = (mode == "tefillah" || mode == "chitas") && sections.size > 1
-    var folded by remember(text, mode, sections.size, legs) {
+    val foldable = mode == "tefillah" && sections.size > 1
+    var folded by remember(text, mode, sections.size) {
         // A section with no heading has no fold affordance, so it must never start folded.
         mutableStateOf(if (foldable) sections.indices.filter { sections[it].title.isNotBlank() }.toSet() else emptySet())
     }
@@ -636,9 +638,9 @@ private fun ReaderBody(
         listState, sections.size, prependedSections, onExtendUp, onExtendDown, onPrependConsumed
     )
 
-    // Chitas: each leg is its own run of keyed rows — heading, then (expanded) a top trigger, its
-    // blocks and a bottom trigger — and grows on its own when a real scroll reaches either end.
-    // Keyed rows keep the viewport still when a block lands above it, so no scroll correction.
+    // Chitas: each leg is its own run of keyed rows — heading, then (expanded) a fixed-height top
+    // edge, its blocks and a fixed-height bottom edge — and grows on its own when a real scroll
+    // reaches either end. Blocks landing above the text being read are scrolled away (see below).
     val legCount = if (mode == "chitas") legs.orEmpty().size else 0
     val legTitleText = (0 until legCount).map { i ->
         legTitles?.getOrNull(i)?.let { t -> if (hebrew) t.he.ifBlank { t.en } else t.en } ?: ""
@@ -649,28 +651,32 @@ private fun ReaderBody(
         mutableStateOf(if (legsFoldable) (0 until legCount).filter { legTitleText[it].isNotBlank() }.toSet() else emptySet())
     }
     val legRowList: List<LegRows.Row> = (0 until legCount).flatMap { i ->
-        val w = legWindows?.getOrNull(i)
-        LegRows.rows(
-            leg = i,
-            folded = legsFoldable && i in foldedLegs,
-            blocks = w?.blocks,
-            canExtendUp = w?.canExtendUp == true,
-            canExtendDown = w?.canExtendDown == true,
-            extending = legExtending.getOrElse(i) { false to false },
-            failed = legFailed.getOrElse(i) { false to false }
+        LegRows.rows(i, folded = legsFoldable && i in foldedLegs, blocks = legWindows?.getOrNull(i)?.blocks)
+    }
+    fun legEdgeState(leg: Int, down: Boolean): LegRows.EdgeState {
+        val w = legWindows?.getOrNull(leg)
+        val ext = legExtending.getOrElse(leg) { false to false }
+        val f = legFailed.getOrElse(leg) { false to false }
+        return LegRows.edgeState(
+            canExtend = if (down) w?.canExtendDown == true else w?.canExtendUp == true,
+            loading = if (down) ext.second else ext.first,
+            failed = if (down) f.second else f.first
         )
     }
     // Direction of the user's current drag or fling: +1 toward the list's end, -1 toward its start,
-    // 0 when no scroll is running. Taken from the nested-scroll deltas, which only the list's own
-    // gestures dispatch (not `scrollToItem`), and counting travel the list could not follow, so a
-    // drag still has a direction when every row already fits on screen or the list is at that end.
+    // 0 when no scroll is running; and a tick that counts every movement. Taken from the
+    // nested-scroll deltas, which only the list's own gestures dispatch (not `scrollToItem` or
+    // `dispatchRawDelta`), and counting travel the list could not follow, so a drag still has a
+    // direction when every row already fits on screen or the list is at that end.
     // (This Compose version has no `LazyListState.lastScrolledForward`.)
     var chitasScrollDir by remember { mutableStateOf(0) }
+    var chitasScrollTick by remember { mutableStateOf(0) }
     val chitasScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                 val delta = consumed.y + available.y
-                if (delta < -0.5f) chitasScrollDir = 1 else if (delta > 0.5f) chitasScrollDir = -1
+                if (delta < -0.5f) { chitasScrollDir = 1; chitasScrollTick++ }
+                else if (delta > 0.5f) { chitasScrollDir = -1; chitasScrollTick++ }
                 return Offset.Zero
             }
         }
@@ -679,40 +685,81 @@ private fun ReaderBody(
         LaunchedEffect(listState) {
             snapshotFlow { listState.isScrollInProgress }.collect { if (!it) chitasScrollDir = 0 }
         }
-        legRowList.filterIsInstance<LegRows.Row.Trigger>().forEach { t ->
-            key(t.key) {
-                val w = legWindows?.getOrNull(t.leg)
+        legRowList.filterIsInstance<LegRows.Row.Edge>().forEach { e ->
+            key(e.key) {
+                val w = legWindows?.getOrNull(e.leg)
                 LegTriggerEffect(
                     listState = listState,
-                    rowKey = t.key,
-                    down = t.down,
-                    canExtend = if (t.down) w?.canExtendDown == true else w?.canExtendUp == true,
-                    extending = legExtending.getOrElse(t.leg) { false to false },
-                    failed = legFailed.getOrElse(t.leg) { false to false }.let { if (t.down) it.second else it.first },
+                    rowKey = e.key,
+                    down = e.down,
+                    firstBlockRowKey = if (e.down) null else
+                        w?.blocks?.firstOrNull { it.verses.isNotEmpty() }?.let { LegRows.blockRowKey(e.leg, it.key) },
+                    canExtend = if (e.down) w?.canExtendDown == true else w?.canExtendUp == true,
+                    extending = legExtending.getOrElse(e.leg) { false to false },
+                    failed = legFailed.getOrElse(e.leg) { false to false }.let { if (e.down) it.second else it.first },
                     scrollDir = { chitasScrollDir },
-                    onFire = { onExtendLeg(t.leg, t.down) }
+                    scrollTick = { chitasScrollTick },
+                    onFire = { onExtendLeg(e.leg, e.down) }
                 )
             }
         }
+        // Keep the text being read still when blocks are prepended to a leg. Compose keeps the
+        // first visible row still, and the top edge only fires with that edge (and so the leg's
+        // heading or edge row, above the insertion point) on screen, unless the early zone fired
+        // while the leg's first block was the anchor. A new block that is on screen after the
+        // insertion therefore landed below the anchor and pushed the text down by its height, so
+        // scroll forward by exactly that much. `dispatchRawDelta` needs no scroll mutex, so a drag
+        // in progress cannot cancel it, and it remeasures at once, so a second new block that
+        // comes into view is handled in the same pass. A down-extension never changes a leg's
+        // first block, and blocks that landed off screen (the reader scrolled away during the
+        // fetch, or the early zone) are not on screen, so neither ever scrolls anything.
+        (0 until legCount).forEach { i ->
+            val blocks = legWindows?.getOrNull(i)?.blocks.orEmpty()
+            val firstKey = blocks.firstOrNull { it.verses.isNotEmpty() }?.key
+            key("leg-prepend", i) {
+                val lastFirst = remember { arrayOfNulls<String>(1) }
+                LaunchedEffect(firstKey) {
+                    val newKeys = LegRows.prependedKeys(i, lastFirst[0], blocks)
+                    lastFirst[0] = firstKey
+                    if (newKeys == null) return@LaunchedEffect
+                    withFrameNanos { }   // the frame that brought the new blocks in has been laid out
+                    val done = mutableSetOf<String>()
+                    while (done.size < newKeys.size) {
+                        val (shift, now) = LegRows.prependShift(
+                            newKeys, done, listState.layoutInfo.visibleItemsInfo.map { it.key to it.size }
+                        )
+                        if (shift <= 0) break
+                        listState.dispatchRawDelta(shift.toFloat())
+                        done += now
+                    }
+                }
+            }
+        }
     }
+    // An edge row has one height whatever it shows, so nothing next to it moves when it changes.
+    val edgeHeight = with(LocalDensity.current) { (sizeSp * 1.4f).sp.toDp() }.coerceAtLeast(24.dp)
 
-    /** One block of a leg as a flowing paragraph, exactly as a whole leg was shown before. */
-    fun legParagraph(leg: Int, block: LegBlock): AnnotatedString = buildAnnotatedString {
-        var lastChapter = -1
+    /**
+     * One block of a leg as a flowing paragraph, styled as a leg's verses always were. Chapter
+     * marks continue from [prevChapter], the previous block's last chapter, so a block without a
+     * heading that opens a new chapter is still marked; a headed block's heading names its first.
+     */
+    fun legParagraph(leg: Int, block: LegBlock, prevChapter: Int, headed: Boolean): AnnotatedString = buildAnnotatedString {
+        var lastChapter = prevChapter
+        var first = true
         block.verses.forEach { tv ->
             val verseKey = LegRows.verseKey(leg, block.key, tv.chapter, tv.verse.num)
             val flipped = verseKey in flippedVerses
             val body = verseBody(tv.verse.he, tv.verse.en, flipped)
                 .ifBlank { verseBody(tv.verse.he, tv.verse.en, !flipped) }
             if (body.isBlank()) return@forEach
-            if (tv.chapter != lastChapter) {
-                if (lastChapter != -1) {
-                    withStyle(SpanStyle(color = accent, fontSize = (sizeSp * 0.7f).sp)) {
-                        append(if (hebrew) " ‹פרק ${gematria.formatHebrewNumber(tv.chapter)}› " else " ‹Ch. ${tv.chapter}› ")
-                    }
+            if (LegRows.markBefore(lastChapter, tv.chapter, firstOfHeadedBlock = first && headed)) {
+                withStyle(SpanStyle(color = accent, fontSize = (sizeSp * 0.7f).sp)) {
+                    append(if (hebrew) " ‹פרק ${gematria.formatHebrewNumber(tv.chapter)}› " else " ‹Ch. ${tv.chapter}› ")
                 }
-                lastChapter = tv.chapter
             }
+            lastChapter = tv.chapter
+            first = false
             pushStringAnnotation("verse", verseKey)
             withStyle(SpanStyle(color = accent, fontSize = (sizeSp * 0.62f).sp)) {
                 append(if (hebrew) gematria.formatHebrewNumber(tv.verse.num) else tv.verse.num.toString())
@@ -734,7 +781,7 @@ private fun ReaderBody(
             ) {
                 if (extendingUp) item { EdgeLoading() }
                 legRowList.forEach { row ->
-                    item(key = row.key) {
+                    item(key = row.key, contentType = row.javaClass) {
                         when (row) {
                             is LegRows.Row.Head -> {
                                 val title = legTitleText.getOrElse(row.leg) { "" }
@@ -769,18 +816,28 @@ private fun ReaderBody(
                                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                                 textAlign = TextAlign.Start
                             )
-                            // A thin sentinel: what fires it is LegTriggerEffect, not its being here.
-                            is LegRows.Row.Trigger -> Spacer(Modifier.fillMaxWidth().height(1.dp))
-                            is LegRows.Row.Loading -> EdgeLoading()
-                            is LegRows.Row.Retry -> Text(
-                                if (hebrew) "נדרש חיבור לאינטרנט — הקש לנסות שוב" else "Needs a connection — tap to retry",
-                                color = Color.White.copy(alpha = 0.6f), fontSize = (sizeSp * 0.8f).sp,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.fillMaxWidth()
-                                    .clickable { onExtendLeg(row.leg, row.down) }
-                                    .padding(vertical = 8.dp),
-                                textAlign = TextAlign.Start
-                            )
+                            // Fixed height whatever it shows; what fires it is LegTriggerEffect, not its being here.
+                            is LegRows.Row.Edge -> {
+                                val state = legEdgeState(row.leg, row.down)
+                                Box(
+                                    Modifier.fillMaxWidth().height(edgeHeight)
+                                        .then(if (state == LegRows.EdgeState.RETRY) Modifier.clickable { onExtendLeg(row.leg, row.down) } else Modifier),
+                                    contentAlignment = if (state == LegRows.EdgeState.LOADING) Alignment.Center else Alignment.CenterStart
+                                ) {
+                                    when (state) {
+                                        LegRows.EdgeState.LOADING ->
+                                            CircularProgressIndicator(color = ACTIVE_GOLD, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                        LegRows.EdgeState.RETRY -> Text(
+                                            if (hebrew) "נדרש חיבור לאינטרנט — הקש לנסות שוב" else "Needs a connection — tap to retry",
+                                            color = Color.White.copy(alpha = 0.6f), fontSize = (sizeSp * 0.8f).sp,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            textAlign = TextAlign.Start
+                                        )
+                                        else -> {}
+                                    }
+                                }
+                            }
                             is LegRows.Row.Block -> Column(Modifier.fillMaxWidth()) {
                                 val heading = if (hebrew) row.block.headingHe ?: row.block.heading else row.block.heading
                                 if (heading != null) Text(
@@ -788,7 +845,12 @@ private fun ReaderBody(
                                     modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp),
                                     textAlign = TextAlign.Start
                                 )
-                                val paragraph = legParagraph(row.leg, row.block)
+                                // Rebuilt only when this block, its own flipped verses or the text settings change.
+                                val prefix = LegRows.blockKeyPrefix(row.leg, row.block.key)
+                                val blockFlips = flippedVerses.filterTo(HashSet()) { it.startsWith(prefix) }
+                                val paragraph = remember(row, heading != null, blockFlips, textMode, nikkud, teamim, sizeSp, accent) {
+                                    legParagraph(row.leg, row.block, row.prevChapter, headed = heading != null)
+                                }
                                 // Tap a verse to read just that verse in the other language; tap again to switch back.
                                 ClickableText(
                                     paragraph,
@@ -850,15 +912,6 @@ private fun ReaderBody(
                         modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp),
                         textAlign = TextAlign.Start
                     )
-                    if (!isFolded && mode == "chitas" && section.verses.isEmpty()) {
-                        Text(
-                            if (section.blankRef) { if (hebrew) "אין חלק להיום" else "Not available for this day" }
-                            else if (hebrew) "נדרש חיבור לאינטרנט" else "Needs a connection to load",
-                            color = Color.White.copy(alpha = 0.6f), fontSize = sizeSp.sp,
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                            textAlign = TextAlign.Start
-                        )
-                    }
                     if (!isFolded) {
                     // Prayers: instructions smaller and grey, each on its own line with a half-line
                     // gap from the prayer; mid-paragraph ones stay inline. Decided per section from
@@ -967,14 +1020,17 @@ private fun ReaderBody(
 }
 
 /**
- * Chitas: asks [onFire] to extend one end of a leg when its trigger row [rowKey] is on screen
- * during a real scroll toward that end (see [LegRows.shouldFire]). Being on screen alone never
- * fires it, so unfolding a short leg whose ends are already visible loads nothing.
+ * Chitas: asks [onFire] to extend one end of a leg when that end is on screen during a real
+ * scroll toward it (see [LegRows.shouldFire]). Being on screen alone never fires it, so unfolding
+ * a short leg whose ends are already visible loads nothing. "On screen" is the edge row [rowKey]
+ * being laid out in the viewport, or, for the top edge, the leg's first block ([firstBlockRowKey])
+ * being the first row with its top less than a screen away ([LegRows.inTopZone]).
  *
- * The effect restarts whenever the row's visibility, the leg's [extending] pair, [failed] or
- * [canExtend] change, and each run fires at most once. The ViewModel ignores a request for a leg
- * that is busy in either direction, so a trigger that is still on screen gets a fresh run when
- * the leg frees up and fires again — still only if the user is scrolling its way.
+ * The effect restarts whenever that visibility, the leg's [extending] pair, [failed] or
+ * [canExtend] change, and each run fires at most once, and only after the scroll has moved
+ * ([scrollTick] changed) since the run began, so a finger held still does not fire it. The
+ * ViewModel ignores a request for a leg that is busy in either direction, so an edge still on
+ * screen gets a fresh run when the leg frees up and fires again if the user keeps scrolling its way.
  * [scrollDir] is the direction of the user's current drag or fling (+1 forward, -1 back, 0 none).
  */
 @Composable
@@ -982,27 +1038,45 @@ private fun LegTriggerEffect(
     listState: androidx.compose.foundation.lazy.LazyListState,
     rowKey: String,
     down: Boolean,
+    firstBlockRowKey: String?,
     canExtend: Boolean,
     extending: Pair<Boolean, Boolean>,
     failed: Boolean,
     scrollDir: () -> Int,
+    scrollTick: () -> Int,
     onFire: () -> Unit
 ) {
-    val visible by remember(listState, rowKey) {
-        derivedStateOf { listState.layoutInfo.visibleItemsInfo.any { it.key == rowKey } }
+    val visible by remember(listState, rowKey, firstBlockRowKey) {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            val edgeVisible = info.visibleItemsInfo.any { it.key == rowKey }
+            if (down) edgeVisible else {
+                val first = info.visibleItemsInfo.firstOrNull()
+                LegRows.inTopZone(
+                    edgeVisible = edgeVisible,
+                    firstVisibleKey = first?.key,
+                    firstVisibleOffset = maxOf(0, info.viewportStartOffset - (first?.offset ?: 0)),
+                    viewportHeight = info.viewportEndOffset - info.viewportStartOffset,
+                    firstBlockRowKey = firstBlockRowKey
+                )
+            }
+        }
     }
     val fire by rememberUpdatedState(onFire)
     val readDir by rememberUpdatedState(scrollDir)
+    val readTick by rememberUpdatedState(scrollTick)
     LaunchedEffect(visible, extending, failed, canExtend) {
         if (!visible) return@LaunchedEffect
         val busy = extending.first || extending.second
+        val startTick = readTick()
         snapshotFlow {
             LegRows.shouldFire(
                 visible = visible,
                 scrollInProgress = listState.isScrollInProgress,
                 scrolledForward = readDir() > 0,
                 scrolledBackward = readDir() < 0,
-                down = down, canExtend = canExtend, busy = busy, failed = failed
+                down = down, canExtend = canExtend, busy = busy, failed = failed,
+                movedSinceStart = readTick() != startTick
             )
         }.first { it }
         fire()
@@ -1139,9 +1213,7 @@ private data class ReaderSection(
     val title: String,
     val verses: List<AliyotPartitioner.TaggedVerse>,
     val markChapters: Boolean,
-    val extra: Boolean = false,
-    /** Chitas leg whose ref is blank for this day (nothing to fetch), as opposed to a failed fetch. */
-    val blankRef: Boolean = false
+    val extra: Boolean = false
 )
 
 @Composable
