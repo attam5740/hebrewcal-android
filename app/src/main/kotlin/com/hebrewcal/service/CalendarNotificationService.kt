@@ -239,6 +239,7 @@ class CalendarNotificationService : Service() {
                 // and renders the (now halachically advanced) Hebrew date.
                 try {
                     HebrewDateWidget().updateAll(applicationContext)
+                    com.hebrewcal.ui.widget.CalendarMonthWidget().updateAll(applicationContext)
                 } catch (e: Exception) { Log.w(TAG, "widget update skipped", e) }
 
                 if (prefs.showZmanim && lat != 0.0 && lng != 0.0) {

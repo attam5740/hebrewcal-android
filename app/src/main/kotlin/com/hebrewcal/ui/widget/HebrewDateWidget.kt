@@ -350,7 +350,7 @@ fun HebrewDateWidgetContent(
 }
 
 /** Pre-baked rounded backgrounds in 10% steps (Glance cannot tint a drawable's alpha). */
-private fun widgetBackgroundRes(opacityPercent: Int): Int = when ((opacityPercent / 10).coerceIn(1, 10)) {
+internal fun widgetBackgroundRes(opacityPercent: Int): Int = when ((opacityPercent / 10).coerceIn(1, 10)) {
     1 -> R.drawable.widget_bg_10; 2 -> R.drawable.widget_bg_20; 3 -> R.drawable.widget_bg_30
     4 -> R.drawable.widget_bg_40; 5 -> R.drawable.widget_bg_50; 6 -> R.drawable.widget_bg_60
     7 -> R.drawable.widget_bg_70; 8 -> R.drawable.widget_bg_80; 9 -> R.drawable.widget_bg_90

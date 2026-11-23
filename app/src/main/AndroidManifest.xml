@@ -109,6 +109,19 @@
                 android:resource="@xml/hebrew_date_widget_info" />
         </receiver>
 
+        <!-- Month-calendar widget with its own month navigator -->
+        <receiver
+            android:name=".ui.widget.CalendarMonthWidgetReceiver"
+            android:label="@string/widget_month_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/calendar_month_widget_info" />
+        </receiver>
+
         <!-- Offline text downloads; network policy enforced by the system JobScheduler. -->
         <service
             android:name=".service.TextPrefetchJobService"

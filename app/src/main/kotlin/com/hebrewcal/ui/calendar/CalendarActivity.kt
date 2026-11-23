@@ -98,8 +98,22 @@ class CalendarActivity : ComponentActivity() {
     private fun openAppSettings() =
         startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
 
+    /** A tap on a day in the month widget asks for that day's sheet (ISO date in [EXTRA_DATE]). */
+    private fun openRequestedDay(intent: Intent?) {
+        val iso = intent?.getStringExtra(EXTRA_DATE) ?: return
+        intent.removeExtra(EXTRA_DATE)
+        runCatching { LocalDate.parse(iso) }.getOrNull()?.let { vm.select(it) }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        openRequestedDay(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) openRequestedDay(intent)
         setContent {
             val prefs by vm.prefs.collectAsState()
             val view by vm.view.collectAsState()
@@ -263,6 +277,8 @@ class CalendarActivity : ComponentActivity() {
         }
     }
 }
+
+const val EXTRA_DATE = "date"
 
 private const val NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS"
 

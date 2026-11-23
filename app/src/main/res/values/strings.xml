@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Hebrew Calendar</string>
+    <string name="widget_month_label">Hebrew Calendar – Month</string>
+    <string name="widget_month_description">A month calendar you can page through; tap a day to open it</string>
     <string name="widget_description">Displays the Hebrew date and upcoming zmanim</string>
     <string name="notification_channel_name">Hebrew Calendar</string>
     <string name="notification_channel_desc">Hebrew date and zmanim on lockscreen</string>
