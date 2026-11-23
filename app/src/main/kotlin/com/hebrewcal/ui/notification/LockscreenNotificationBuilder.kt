@@ -46,6 +46,13 @@ object LockscreenNotificationBuilder {
      * padding ~16, plus ~16 slack = 128 outside the custom view.
      */
     private const val CARD_CHROME_DP = 128f
+    /**
+     * Widest screen width we trust, dp. In landscape, multi-window or on foldables
+     * the card is NOT `widthPixels - chrome`, and we cannot read its real width,
+     * so the width is capped at a phone-portrait maximum: those cases shorten
+     * more rather than clip. Deliberate known limit.
+     */
+    private const val MAX_SCREEN_WIDTH_DP = 600f
     /** Root padding of notification_hebrew_date.xml (4dp each side). */
     private const val COLLAPSED_LAYOUT_PADDING_DP = 8f
     /** Root padding of notification_hebrew_date_expanded.xml (8dp each side). */
@@ -79,8 +86,11 @@ object LockscreenNotificationBuilder {
         }
         fun dp(v: Float) = v * metrics.density
         val specs = listOfNotNull(tehillim, parsha, chitas?.let { PillSpec(it, null) })
-        val budget = metrics.widthPixels - dp(CARD_CHROME_DP + layoutPaddingDp)
-        val out = PillLabelFit.fit(specs, budget, dp(pillPaddingDp), dp(gapDp)) { paint.measureText(it) }
+        val budget = minOf(metrics.widthPixels.toFloat(), dp(MAX_SCREEN_WIDTH_DP)) - dp(CARD_CHROME_DP + layoutPaddingDp)
+        val out = PillLabelFit.fit(
+            specs, budget, dp(pillPaddingDp), dp(gapDp),
+            PillLabelFit.leadingMarginCount(tehillim != null, parsha != null, chitas != null)
+        ) { paint.measureText(it) }
         var i = 0
         return FittedPills(
             tehillim = if (tehillim != null) out[i++] else null,

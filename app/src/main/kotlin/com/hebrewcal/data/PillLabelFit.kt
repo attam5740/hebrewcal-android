@@ -25,7 +25,9 @@ object PillLabelFit {
     /**
      * @param budgetPx total horizontal room for the whole pill row
      * @param perPillChromePx horizontal padding of one pill (left + right)
-     * @param gapPx margin between two adjacent pills
+     * @param gapPx width of one pill's leading margin
+     * @param gapCount how many pills actually carry a leading margin (see [leadingMarginCount]);
+     *   defaults to pills-1, which is only right when the first pill has no margin
      * @param measure width in px of a string in the pill's font
      * @return one display string per pill, same order
      */
@@ -34,10 +36,11 @@ object PillLabelFit {
         budgetPx: Float,
         perPillChromePx: Float,
         gapPx: Float,
+        gapCount: Int = pills.size - 1,
         measure: (String) -> Float
     ): List<String> {
         if (pills.isEmpty()) return emptyList()
-        val textBudget = budgetPx - pills.size * perPillChromePx - (pills.size - 1) * gapPx
+        val textBudget = budgetPx - pills.size * perPillChromePx - gapCount.coerceAtLeast(0) * gapPx
 
         // Per pill, every candidate from the full label down to a lone ellipsis.
         val candidates = pills.map { candidatesFor(it) }
@@ -55,6 +58,13 @@ object PillLabelFit {
         }
         return pills.indices.map { candidates[it][step[it]] }
     }
+
+    /**
+     * The notification layouts put `marginStart` on the Parsha and Chitas pills,
+     * never on Tehillim, so a margin belongs to a specific pill, not a position.
+     */
+    fun leadingMarginCount(hasTehillim: Boolean, hasParsha: Boolean, hasChitas: Boolean): Int =
+        (if (hasParsha) 1 else 0) + (if (hasChitas) 1 else 0)
 
     private fun candidatesFor(pill: PillSpec): List<String> {
         val full = pill.full
