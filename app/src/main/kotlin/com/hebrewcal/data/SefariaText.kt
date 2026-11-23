@@ -11,7 +11,14 @@ data class SefariaText(
     val heRef: String,
     val chapters: List<Chapter>,
     /** For a prayer built from several siddur sections: one title per chapter, in order. */
-    val sectionTitles: List<SectionTitle>? = null
+    val sectionTitles: List<SectionTitle>? = null,
+    /**
+     * Sefaria's neighbouring chapter refs ("Genesis 31"), null at a book's ends. They are relative
+     * to the last/first chapter of the *requested* range, so only a whole-chapter fetch's are
+     * reliable for the text actually shown (see [LegWindow]).
+     */
+    val next: String? = null,
+    val prev: String? = null
 )
 
 object SefariaRefs {
@@ -161,7 +168,8 @@ object SefariaTextParser {
         } else {
             chapters += Chapter(startChapter, zipVerses(he, en, startVerse))
         }
-        return SefariaText(heRef, chapters)
+        fun ref(key: String) = (obj[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+        return SefariaText(heRef, chapters, next = ref("next"), prev = ref("prev"))
     }
 
     private fun zipVerses(he: JsonArray, en: JsonArray, firstVerse: Int): List<Verse> {

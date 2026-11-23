@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hebrewcal.data.ChitasSchedule
 import com.hebrewcal.data.ChitasSections
+import com.hebrewcal.data.LegWindow
 import com.hebrewcal.data.ParshaRef
 import com.hebrewcal.data.SectionTitle
 import com.hebrewcal.data.Reading
@@ -65,7 +66,16 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         val legs: List<SefariaText?>? = null,
         val legTitles: List<SectionTitle>? = null,
         /** Chitas only: per leg, true when the day genuinely has no portion (blank ref, not a failed fetch). */
-        val legBlank: List<Boolean>? = null
+        val legBlank: List<Boolean>? = null,
+        /**
+         * Chitas only, index-aligned with [legs]: each leg's growing window (null = no portion that
+         * day or not fetched, so it cannot extend). Supersedes [legs] for rendering.
+         */
+        val legWindows: List<LegWindow?>? = null,
+        /** Chitas only, per leg: (extending up, extending down). */
+        val legExtending: List<Pair<Boolean, Boolean>> = emptyList(),
+        /** Chitas only, per leg: (last up attempt failed, last down attempt failed), for a retry line. */
+        val legFailed: List<Pair<Boolean, Boolean>> = emptyList()
     )
     data class WeekInfo(val parsha: ParshaRef? = null)
     private data class Position(val ref: String, val title: String, val aliyot: List<String>)
@@ -87,6 +97,8 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
     private var lastTehillim: Position? = null
     private var lastTorah: Position? = null
     private var extendJob: Job? = null
+    /** Chitas: one in-flight extension per leg, so the legs never wait on each other. */
+    private val legJobs = HashMap<Int, Job>()
     private var loadJob: Job? = null
     private var generation = 0
     private var started = false
@@ -110,6 +122,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         diasporaPref = diaspora
         if (mode == "tehillim") elulRefPref = elulRef
         extendJob?.cancel()
+        legJobs.values.forEach { it.cancel() }; legJobs.clear()
         generation++
         window = null
         _state.value = UiState(loading = true, title = title, mode = mode)
@@ -124,6 +137,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
             var tanyaFetchFailed = false
             var trimTanya = false
             var tanyaStartRef = ""
+            var tanyaFromStart = false
             if (mode == "parsha" && ref.isBlank()) {
                 val p = repo.currentParsha(diaspora).getOrNull()
                 if (p == null) { _state.value = UiState(loading = false, error = OFFLINE, title = title, mode = mode); return@launch }
@@ -168,7 +182,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                 if (trimTanya && legs != null && legs.getOrNull(2) == null && tanyaStartRef.isNotBlank()) {
                     val start = repo.fetchText(tanyaStartRef).getOrNull()
                         ?.takeIf { t -> t.chapters.any { it.verses.isNotEmpty() } }
-                    if (start != null) legs = legs.toMutableList().also { it[2] = start }
+                    if (start != null) { legs = legs.toMutableList().also { it[2] = start }; tanyaFromStart = true }
                     trimTanya = false
                 }
                 legs = legs?.let { ChitasSections.legsAfterTrim(it, trimTanya) }
@@ -176,11 +190,20 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                     _state.value = UiState(false, OFFLINE, resolvedTitle, null, mode)
                 } else {
                     window = null // three separate texts, not one range to keep reading through
+                    val legRefs = ChitasSections.splitRefs(resolvedRef)
+                    // Each leg grows on its own; the start-segment fallback is windowed by its own ref, untrimmed.
+                    val windows = legs.mapIndexed { i, t ->
+                        val r = if (i == 2 && tanyaFromStart) tanyaStartRef else legRefs.getOrElse(i) { "" }
+                        if (t == null || r.isBlank()) null else LegWindow.start(r, t, trimmed = i == 2 && trimTanya)
+                    }
                     _state.value = UiState(false, null, resolvedTitle, SefariaText(resolvedTitle, emptyList()), mode,
                         legs = legs, legTitles = chitasTitles,
-                        legBlank = ChitasSections.splitRefs(resolvedRef).mapIndexed { i, r ->
+                        legBlank = legRefs.mapIndexed { i, r ->
                             r.isEmpty() && !(i == 2 && tanyaFetchFailed)
-                        })
+                        },
+                        legWindows = windows,
+                        legExtending = legs.map { false to false },
+                        legFailed = legs.map { false to false })
                 }
                 return@launch
             }
@@ -334,11 +357,63 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Chitas: grows leg [index] by one step up or down. A step may need two fetches (completing
+     * an edge chapter that turns out already complete, then the neighbouring chapter), so it keeps
+     * going until the leg has gained a block, the book ends, or [MAX_LEG_FETCHES] is reached. A
+     * failed fetch stops it and marks that leg and direction failed; nothing is retried here.
+     */
+    fun extendLeg(index: Int, down: Boolean) {
+        val s = _state.value
+        if (s.mode != "chitas" || s.loading) return
+        val start = s.legWindows?.getOrNull(index) ?: return
+        if (legJobs[index]?.isActive == true) return
+        if (start.nextFetch(down) == null) return
+        val gen = generation
+        _state.value = s.copy(
+            legExtending = s.legExtending.withSide(index, down, true),
+            legFailed = s.legFailed.withSide(index, down, false)
+        )
+        legJobs[index] = viewModelScope.launch {
+            var w = start
+            var failed = false
+            var fetches = 0
+            while (fetches < MAX_LEG_FETCHES) {
+                val ref = w.nextFetch(down) ?: break
+                fetches++
+                val fetched = repo.fetchText(ref).getOrNull()?.takeIf { t -> t.chapters.any { it.verses.isNotEmpty() } }
+                if (gen != generation) return@launch
+                if (fetched == null) { failed = true; break }
+                val next = w.applied(down, ref, fetched)
+                if (next === w) break // not the chapter asked for: refetching would not help
+                val grew = next.blocksAdded(w) > 0
+                w = next
+                if (grew) break
+            }
+            if (gen != generation) return@launch
+            val cur = _state.value
+            // Only this leg's job writes this leg's window, so replacing it cannot lose another update.
+            // Edge facts learnt before a failure (a chapter found complete, its neighbour) are kept;
+            // they add no visible text and spare the retry a fetch.
+            val windows = cur.legWindows?.toMutableList()?.also { it[index] = w }
+            _state.value = cur.copy(
+                legWindows = windows,
+                legExtending = cur.legExtending.withSide(index, down, false),
+                legFailed = cur.legFailed.withSide(index, down, failed)
+            )
+        }
+    }
+
+    private fun List<Pair<Boolean, Boolean>>.withSide(i: Int, down: Boolean, v: Boolean) =
+        mapIndexed { k, p -> if (k != i) p else if (down) p.first to v else v to p.second }
+
     fun consumedPrepend() { _state.value = _state.value.copy(prependedSections = 0) }
 
     fun setTextSize(sp: Float) = viewModelScope.launch { prefsRepo.updateReaderTextSize(sp) }
 
     companion object {
         const val OFFLINE = "offline"
+        /** Per extension gesture: complete the edge chapter, then its neighbour, with slack. */
+        private const val MAX_LEG_FETCHES = 4
     }
 }

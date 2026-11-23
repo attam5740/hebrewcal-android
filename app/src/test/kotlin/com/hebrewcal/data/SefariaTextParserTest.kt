@@ -41,6 +41,25 @@ class SefariaTextParserTest {
         assertEquals(listOf(28, 29, 30), t.chapters[0].verses.map { it.num })
     }
 
+    @Test fun parsesNextAndPrevChapterRefs() {
+        val json = """
+            {"heRef":"בראשית ל׳","sections":["30"],"toSections":["30"],"he":["a"],"text":["a"],
+             "next":"Genesis 31","prev":"Genesis 29"}
+        """.trimIndent()
+        val t = SefariaTextParser.parse(json)
+        assertEquals("Genesis 31", t.next)
+        assertEquals("Genesis 29", t.prev)
+    }
+
+    @Test fun absentOrNullNextAndPrevAreNull() {
+        val absent = SefariaTextParser.parse("""{"heRef":"x","sections":["1"],"he":["a"],"text":["a"]}""")
+        assertEquals(null, absent.next)
+        assertEquals(null, absent.prev)
+        val nulls = SefariaTextParser.parse("""{"heRef":"x","sections":["50"],"he":["a"],"text":["a"],"next":null,"prev":null}""")
+        assertEquals(null, nulls.next)
+        assertEquals(null, nulls.prev)
+    }
+
     @Test fun preservesLayoutMarkersAndLineBreaks() {
         val json = """
             {"heRef":"דברים ל״א","sections":["31"],"toSections":["31"],
