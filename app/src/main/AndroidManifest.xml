@@ -109,6 +109,14 @@
                 android:resource="@xml/hebrew_date_widget_info" />
         </receiver>
 
+        <!-- Year/month picker raised by the month widget's heading -->
+        <activity
+            android:name=".ui.widget.MonthPickerActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.HebrewCalendar.Reader" />
+
         <!-- Month-calendar widget with its own month navigator -->
         <receiver
             android:name=".ui.widget.CalendarMonthWidgetReceiver"

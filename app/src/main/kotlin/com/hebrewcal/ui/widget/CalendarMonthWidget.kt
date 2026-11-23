@@ -23,6 +23,9 @@ import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.background
 import androidx.glance.currentState
+import androidx.glance.LocalContext
+import androidx.glance.LocalGlanceId
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -57,18 +60,18 @@ import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 
 private const val TAG = "CalendarMonthWidget"
-private val K_HEBREW = booleanPreferencesKey("month_hebrew")
-private val K_YEAR = intPreferencesKey("month_year")
-private val K_MONTH = intPreferencesKey("month_month")
-private val K_DAY = longPreferencesKey("month_set_on_epoch_day")
-private val OP = ActionParameters.Key<String>("month_op")
+internal val K_HEBREW = booleanPreferencesKey("month_hebrew")
+internal val K_YEAR = intPreferencesKey("month_year")
+internal val K_MONTH = intPreferencesKey("month_month")
+internal val K_DAY = longPreferencesKey("month_set_on_epoch_day")
+internal val OP = ActionParameters.Key<String>("month_op")
 
 /**
  * The month shown by one widget instance. A month chosen by paging is kept only for the day it
  * was chosen, so the widget is back on the current month the next day; the Hebrew/Gregorian
  * choice is kept.
  */
-private fun anchorFrom(s: Preferences, today: LocalDate): MonthAnchor {
+internal fun anchorFrom(s: Preferences, today: LocalDate): MonthAnchor {
     val hebrew = s[K_HEBREW] ?: true
     val y = s[K_YEAR]; val m = s[K_MONTH]
     return if (y != null && m != null && s[K_DAY] == today.toEpochDay()) MonthAnchor(hebrew, y, m)
@@ -92,13 +95,15 @@ class CalendarMonthWidget : GlanceAppWidget(errorUiLayout = R.layout.widget_erro
                 if (anchor.hebrew) CalendarMonths.hebrewMonth(anchor.year, anchor.month, israel, he, today)
                 else CalendarMonths.gregorianMonth(anchor.year, anchor.month, israel, he, today)
             }.onFailure { Log.e(TAG, "month grid failed", it) }.getOrNull()
-            MonthContent(prefs, anchor, grid)
+            val context = LocalContext.current
+            val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(LocalGlanceId.current)
+            MonthContent(prefs, anchor, grid, appWidgetId)
         }
     }
 }
 
 @Composable
-private fun MonthContent(prefs: UserPreferences, anchor: MonthAnchor, grid: MonthGrid?) {
+private fun MonthContent(prefs: UserPreferences, anchor: MonthAnchor, grid: MonthGrid?, appWidgetId: Int) {
     val hebrew = prefs.language == CalendarLanguage.HEBREW
     val gold = ColorProvider(Color(0xFFFFD255))
     val softGold = ColorProvider(Color(0xFFD4AF37))
@@ -121,7 +126,11 @@ private fun MonthContent(prefs: UserPreferences, anchor: MonthAnchor, grid: Mont
                     modifier = GlanceModifier.padding(horizontal = 10.dp).clickable(navigate("prev"))
                 )
                 Column(
-                    GlanceModifier.defaultWeight().clickable(navigate("toggle")),
+                    GlanceModifier.defaultWeight().clickable(
+                        actionStartActivity<MonthPickerActivity>(
+                            actionParametersOf(ActionParameters.Key<Int>(MonthPickerActivity.EXTRA_WIDGET_ID) to appWidgetId)
+                        )
+                    ),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
@@ -131,6 +140,19 @@ private fun MonthContent(prefs: UserPreferences, anchor: MonthAnchor, grid: Mont
                     Text(
                         grid?.subtitle ?: "", maxLines = 1,
                         style = TextStyle(color = muted, fontSize = TextUnit(10f, TextUnitType.Sp), textAlign = TextAlign.Center)
+                    )
+                }
+                // Which calendar the grid shows; tap to switch.
+                Row(
+                    GlanceModifier.background(ImageProvider(R.drawable.bg_cal_today)).padding(horizontal = 6.dp, vertical = 2.dp)
+                        .clickable(navigate("toggle")),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "עב", style = TextStyle(color = if (anchor.hebrew) gold else dim, fontSize = TextUnit(11f, TextUnitType.Sp), fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        " EN", style = TextStyle(color = if (!anchor.hebrew) gold else dim, fontSize = TextUnit(11f, TextUnitType.Sp), fontWeight = FontWeight.Bold)
                     )
                 }
                 Text(
