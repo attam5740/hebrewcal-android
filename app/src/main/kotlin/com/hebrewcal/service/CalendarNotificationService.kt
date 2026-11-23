@@ -163,13 +163,13 @@ class CalendarNotificationService : Service() {
                 val tehillimPortion = TehillimSchedule.portionFor(
                     dateInfo.hebrewDayNumber, dateInfo.daysInMonth
                 )
-                val tehillimActionLabel = if (prefs.showTehillimButton) {
-                    try { ReaderButtons.tehillimLabel(tehillimPortion, hebrew) } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
+                val tehillimActionSpec = if (prefs.showTehillimButton) {
+                    try { ReaderButtons.tehillimSpec(tehillimPortion, hebrew) } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
                 } else null
-                val parshaActionLabel = if (prefs.showParshaButton) {
+                val parshaActionSpec = if (prefs.showParshaButton) {
                     try {
                         calRepo.upcomingParshaName(now, prefs.location, prefs.language)
-                            ?.let { ReaderButtons.parshaLabel(it, hebrew) }
+                            ?.let { ReaderButtons.parshaSpec(it, hebrew) }
                     } catch (e: Exception) { Log.w(TAG, "non-fatal", e); null }
                 } else null
 
@@ -218,11 +218,11 @@ class CalendarNotificationService : Service() {
                     showGregorian       = prefs.showGregorianDate,
                     showParsha          = prefs.showParsha,
                     showOmer            = prefs.showOmer,
-                    tehillimActionLabel = tehillimActionLabel,
+                    tehillimActionSpec  = tehillimActionSpec,
                     tehillimActionRef   = tehillimPortion.sefariaRef,
                     chitasActionLabel   = chitasActionLabel,
                     chitasAdvancedDate  = chitasAdvancedDate,
-                    parshaActionLabel   = parshaActionLabel,
+                    parshaActionSpec    = parshaActionSpec,
                     diaspora            = prefs.location == CalendarLocation.DIASPORA,
                     languageName        = prefs.language.name,
                     elulRef             = elulRef,

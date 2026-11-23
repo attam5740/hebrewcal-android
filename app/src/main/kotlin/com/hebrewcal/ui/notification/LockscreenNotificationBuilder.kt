@@ -6,10 +6,15 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Typeface
+import android.text.TextPaint
+import android.util.TypedValue
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import com.hebrewcal.R
 import com.hebrewcal.data.HebrewDateInfo
+import com.hebrewcal.data.PillLabelFit
+import com.hebrewcal.data.PillSpec
 import com.hebrewcal.data.ZmanEntry
 import com.hebrewcal.data.ZmanimData
 import com.hebrewcal.ui.calendar.CalendarActivity
@@ -28,6 +33,61 @@ object LockscreenNotificationBuilder {
     const val CHITAS_ACTION_REQUEST_CODE = 3003
     /** First of the request codes for prayer actions; one per [PrayerButton] ordinal. */
     const val PRAYER_ACTION_REQUEST_CODE_BASE = 3010
+
+    /**
+     * Horizontal "chrome" the pill row cannot use, in dp. These are DELIBERATELY
+     * CONSERVATIVE ESTIMATES: the notification card margin, the decorated-style
+     * icon column and the card's end padding are not readable at runtime, and the
+     * custom view's own padding is mirrored here by hand from the layout XML.
+     * Over-estimating only trims a little pill text; under-estimating clips the
+     * LAST pill (Chitas) off the edge. Calibrate on a device; change only here.
+     *
+     * Derivation: shade side margin 16 + 16, decorated icon column ~64, end
+     * padding ~16, plus ~16 slack = 128 outside the custom view.
+     */
+    private const val CARD_CHROME_DP = 128f
+    /** Root padding of notification_hebrew_date.xml (4dp each side). */
+    private const val COLLAPSED_LAYOUT_PADDING_DP = 8f
+    /** Root padding of notification_hebrew_date_expanded.xml (8dp each side). */
+    private const val EXPANDED_LAYOUT_PADDING_DP = 16f
+    /** Pill text sizes, sp (match textSize in the layouts). */
+    private const val COLLAPSED_PILL_TEXT_SP = 11f
+    private const val EXPANDED_PILL_TEXT_SP = 11.5f
+    /** Pill horizontal padding (left + right) and inter-pill margin, dp (match layouts). */
+    private const val COLLAPSED_PILL_PADDING_DP = 22f
+    private const val EXPANDED_PILL_PADDING_DP = 24f
+    private const val COLLAPSED_PILL_GAP_DP = 6f
+    private const val EXPANDED_PILL_GAP_DP = 8f
+
+    /** Display strings for one row of pills; null where a pill is absent. */
+    private data class FittedPills(val tehillim: String?, val parsha: String?, val chitas: String?)
+
+    private fun fitRow(
+        context: Context,
+        tehillim: PillSpec?,
+        parsha: PillSpec?,
+        chitas: String?,
+        textSizeSp: Float,
+        layoutPaddingDp: Float,
+        pillPaddingDp: Float,
+        gapDp: Float
+    ): FittedPills {
+        val metrics = context.resources.displayMetrics
+        val paint = TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = Typeface.DEFAULT_BOLD
+            textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, textSizeSp, metrics)
+        }
+        fun dp(v: Float) = v * metrics.density
+        val specs = listOfNotNull(tehillim, parsha, chitas?.let { PillSpec(it, null) })
+        val budget = metrics.widthPixels - dp(CARD_CHROME_DP + layoutPaddingDp)
+        val out = PillLabelFit.fit(specs, budget, dp(pillPaddingDp), dp(gapDp)) { paint.measureText(it) }
+        var i = 0
+        return FittedPills(
+            tehillim = if (tehillim != null) out[i++] else null,
+            parsha = if (parsha != null) out[i++] else null,
+            chitas = if (chitas != null) out[i] else null
+        )
+    }
 
     /** A time-limited prayer shortcut shown as a standard notification action. */
     data class PrayerAction(val key: String, val label: String, val title: String, val ref: String, val requestCode: Int)
@@ -57,9 +117,9 @@ object LockscreenNotificationBuilder {
         showGregorian: Boolean,
         showParsha: Boolean,
         showOmer: Boolean = true,
-        tehillimActionLabel: String? = null,
+        tehillimActionSpec: PillSpec? = null,
         tehillimActionRef: String? = null,
-        parshaActionLabel: String? = null,
+        parshaActionSpec: PillSpec? = null,
         diaspora: Boolean = true,
         languageName: String = "ENGLISH",
         elulRef: String? = null,
@@ -201,11 +261,20 @@ object LockscreenNotificationBuilder {
         // Reader buttons — drawn inside the custom layout with our own bright pills
         // (system addAction pills are OEM-recolored and ignore setColor).
         var anyReaderButton = false
-        if (tehillimActionLabel != null && tehillimActionRef != null) {
+        val tehillimShown = if (tehillimActionRef != null) tehillimActionSpec else null
+        val collapsedPills = fitRow(
+            context, tehillimShown, parshaActionSpec, chitasActionLabel,
+            COLLAPSED_PILL_TEXT_SP, COLLAPSED_LAYOUT_PADDING_DP, COLLAPSED_PILL_PADDING_DP, COLLAPSED_PILL_GAP_DP
+        )
+        val expandedPills = fitRow(
+            context, tehillimShown, parshaActionSpec, chitasActionLabel,
+            EXPANDED_PILL_TEXT_SP, EXPANDED_LAYOUT_PADDING_DP, EXPANDED_PILL_PADDING_DP, EXPANDED_PILL_GAP_DP
+        )
+        if (tehillimActionSpec != null && tehillimActionRef != null) {
             val intent = Intent(context, TextReaderActivity::class.java).apply {
                 putExtra(TextReaderActivity.EXTRA_MODE, "tehillim")
                 putExtra(TextReaderActivity.EXTRA_REF, tehillimActionRef)
-                putExtra(TextReaderActivity.EXTRA_TITLE, tehillimActionLabel)
+                putExtra(TextReaderActivity.EXTRA_TITLE, tehillimActionSpec.full)
                 putExtra(TextReaderActivity.EXTRA_LANG, languageName)
                 putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
                 putExtra(TextReaderActivity.EXTRA_TEAMIM, false)
@@ -216,10 +285,10 @@ object LockscreenNotificationBuilder {
                 context, TEHILLIM_ACTION_REQUEST_CODE, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            expandedViews.setTextViewText(R.id.tv_btn_tehillim, tehillimActionLabel)
+            expandedViews.setTextViewText(R.id.tv_btn_tehillim, expandedPills.tehillim)
             expandedViews.setViewVisibility(R.id.tv_btn_tehillim, android.view.View.VISIBLE)
             expandedViews.setOnClickPendingIntent(R.id.tv_btn_tehillim, pi)
-            remoteViews.setTextViewText(R.id.tv_btn_tehillim_c, tehillimActionLabel)
+            remoteViews.setTextViewText(R.id.tv_btn_tehillim_c, collapsedPills.tehillim)
             remoteViews.setViewVisibility(R.id.tv_btn_tehillim_c, android.view.View.VISIBLE)
             remoteViews.setOnClickPendingIntent(R.id.tv_btn_tehillim_c, pi)
             anyReaderButton = true
@@ -245,11 +314,11 @@ object LockscreenNotificationBuilder {
             )
             NotificationCompat.Action.Builder(0, p.label, pi).build()
         }
-        if (parshaActionLabel != null) {
+        if (parshaActionSpec != null) {
             val intent = Intent(context, TextReaderActivity::class.java).apply {
                 putExtra(TextReaderActivity.EXTRA_MODE, "parsha")
                 putExtra(TextReaderActivity.EXTRA_REF, "")
-                putExtra(TextReaderActivity.EXTRA_TITLE, parshaActionLabel)
+                putExtra(TextReaderActivity.EXTRA_TITLE, parshaActionSpec.full)
                 putExtra(TextReaderActivity.EXTRA_DIASPORA, diaspora)
                 putExtra(TextReaderActivity.EXTRA_LANG, languageName)
                 putExtra(TextReaderActivity.EXTRA_NIKKUD, true)
@@ -260,10 +329,10 @@ object LockscreenNotificationBuilder {
                 context, PARSHA_ACTION_REQUEST_CODE, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            expandedViews.setTextViewText(R.id.tv_btn_parsha, parshaActionLabel)
+            expandedViews.setTextViewText(R.id.tv_btn_parsha, expandedPills.parsha)
             expandedViews.setViewVisibility(R.id.tv_btn_parsha, android.view.View.VISIBLE)
             expandedViews.setOnClickPendingIntent(R.id.tv_btn_parsha, pi)
-            remoteViews.setTextViewText(R.id.tv_btn_parsha_c, parshaActionLabel)
+            remoteViews.setTextViewText(R.id.tv_btn_parsha_c, collapsedPills.parsha)
             remoteViews.setViewVisibility(R.id.tv_btn_parsha_c, android.view.View.VISIBLE)
             remoteViews.setOnClickPendingIntent(R.id.tv_btn_parsha_c, pi)
             anyReaderButton = true
@@ -288,10 +357,10 @@ object LockscreenNotificationBuilder {
                 context, CHITAS_ACTION_REQUEST_CODE, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            expandedViews.setTextViewText(R.id.tv_btn_chitas, chitasActionLabel)
+            expandedViews.setTextViewText(R.id.tv_btn_chitas, expandedPills.chitas)
             expandedViews.setViewVisibility(R.id.tv_btn_chitas, android.view.View.VISIBLE)
             expandedViews.setOnClickPendingIntent(R.id.tv_btn_chitas, pi)
-            remoteViews.setTextViewText(R.id.tv_btn_chitas_c, chitasActionLabel)
+            remoteViews.setTextViewText(R.id.tv_btn_chitas_c, collapsedPills.chitas)
             remoteViews.setViewVisibility(R.id.tv_btn_chitas_c, android.view.View.VISIBLE)
             remoteViews.setOnClickPendingIntent(R.id.tv_btn_chitas_c, pi)
             anyReaderButton = true

@@ -9,15 +9,20 @@ import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter
  */
 object ReaderButtons {
 
-    fun tehillimLabel(portion: TehillimPortion, hebrew: Boolean): String {
-        val title = if (hebrew) "תהילים יומי" else "Daily Tehillim"
-        return "$title · ${rangeLabel(portion.firstChapter, portion.lastChapter, hebrew)}"
-    }
+    fun tehillimSpec(portion: TehillimPortion, hebrew: Boolean): PillSpec =
+        PillSpec(
+            if (hebrew) "תהילים יומי" else "Daily Tehillim",
+            rangeLabel(portion.firstChapter, portion.lastChapter, hebrew)
+        )
 
-    fun parshaLabel(parshaName: String, hebrew: Boolean): String {
-        val title = if (hebrew) "פרשת השבוע" else "Weekly Parsha"
-        return "$title · $parshaName"
-    }
+    fun parshaSpec(parshaName: String, hebrew: Boolean): PillSpec =
+        PillSpec(if (hebrew) "פרשת השבוע" else "Weekly Parsha", parshaName)
+
+    fun tehillimLabel(portion: TehillimPortion, hebrew: Boolean): String =
+        tehillimSpec(portion, hebrew).full
+
+    fun parshaLabel(parshaName: String, hebrew: Boolean): String =
+        parshaSpec(parshaName, hebrew).full
 
     private fun rangeLabel(first: Int, last: Int, hebrew: Boolean): String {
         val fmt = HebrewDateFormatter()
