@@ -122,6 +122,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
             var aliyot: List<String> = presetAliyot
             var chitasTitles: List<SectionTitle>? = null
             var tanyaFetchFailed = false
+            var trimTanya = false
             if (mode == "parsha" && ref.isBlank()) {
                 val p = repo.currentParsha(diaspora).getOrNull()
                 if (p == null) { _state.value = UiState(loading = false, error = OFFLINE, title = title, mode = mode); return@launch }
@@ -131,6 +132,8 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                 val advanced = runCatching { java.time.LocalDate.parse(advancedDate) }.getOrElse { java.time.LocalDate.now() }
                 val weekly = repo.parshaFor(ChitasSchedule.parshaDateFor(advanced), diaspora).getOrNull()
                 val daily = repo.parshaFor(advanced, diaspora).getOrNull()
+                // Tomorrow's start ends today's lesson; if unavailable the leg shows just the start segment.
+                val tomorrow = repo.parshaFor(advanced.plusDays(1), diaspora).getOrNull()
                 // Without the day's own response the Tanya leg is blanked (the Shabbat's Tanya would be the wrong day's).
                 tanyaFetchFailed = weekly != null && daily == null
                 val p = weekly?.let { w ->
@@ -147,7 +150,9 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                     val he = ChitasSchedule.legTitles(portion, true)
                     en.indices.map { SectionTitle(en[it], he[it]) }
                 } else listOf(SectionTitle("Chumash", "חומש"), SectionTitle("Tehillim", "תהילים"), SectionTitle("Tanya", "תניא"))
-                resolvedRef = if (ref.isNotBlank()) ref else listOf(portion!!.chumashRef, portion.tehillimRef, portion.tanyaRef)
+                val tanyaLeg = p?.let { ChitasSchedule.tanyaLegRef(it, tomorrow) }
+                trimTanya = ref.isBlank() && tanyaLeg?.trimLast == true
+                resolvedRef = if (ref.isNotBlank()) ref else listOf(portion!!.chumashRef, portion.tehillimRef, tanyaLeg!!.ref)
                     .joinToString(Tefillot.REF_SEPARATOR)
                 if (resolvedTitle.isBlank()) resolvedTitle = "Chitas"
             } else resolvedRef = ref
@@ -155,6 +160,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
             val chitas = mode == "chitas"
             if (chitas) {
                 val legs = fetchLegs(resolvedRef, cacheFirst = false)
+                    ?.mapIndexed { i, t -> if (i == 2 && trimTanya && t != null) ChitasSections.dropLastVerse(t) else t }
                 if (legs == null) {
                     _state.value = UiState(false, OFFLINE, resolvedTitle, null, mode)
                 } else {

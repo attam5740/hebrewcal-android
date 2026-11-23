@@ -21,4 +21,12 @@ object ChitasSections {
      */
     fun splitRefs(joined: String): List<String> =
         joined.split(Tefillot.REF_SEPARATOR).map { it.trim() }
+
+    /** Removes the final verse of the final chapter, and that chapter if it is left empty. */
+    fun dropLastVerse(text: SefariaText): SefariaText {
+        val last = text.chapters.lastOrNull() ?: return text
+        val trimmed = last.copy(verses = last.verses.dropLast(1))
+        val chapters = text.chapters.dropLast(1) + if (trimmed.verses.isEmpty()) emptyList() else listOf(trimmed)
+        return text.copy(chapters = chapters)
+    }
 }

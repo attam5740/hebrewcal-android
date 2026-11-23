@@ -82,7 +82,9 @@ object TextPrefetch {
             chitasDays++
             for (aliyah in weekly.aliyot.take(7)) if (aliyah.isNotBlank() && !repo.prefetchText(aliyah)) failures++
             if (daily.tanyaRef.isBlank()) { tanyaBlank++; continue }
-            if (repo.prefetchText(daily.tanyaRef)) tanyaTexts++ else failures++
+            // The same range ref the reader requests (the cache key is the ref string).
+            val tomorrow = repo.parshaFor(day.plusDays(1), diaspora).getOrNull()
+            if (repo.prefetchText(ChitasSchedule.tanyaLegRef(daily, tomorrow).ref)) tanyaTexts++ else failures++
         }
 
         Log.i(TAG, "done: ${tehillim.size} tehillim refs, ${prefs.prefetchParshaWeeks} weeks of parsha, $prayerRefs prayer refs, $chitasDays chitas days, $tanyaTexts tanya texts ($tanyaBlank days without a tanya ref), $failures failures")

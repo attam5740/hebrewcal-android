@@ -22,6 +22,9 @@ data class ChitasPortion(
     val tanyaLabelHe: String
 )
 
+/** The ref to fetch for the Tanya leg; [trimLast] means it ends on tomorrow's first segment, to be dropped. */
+data class TanyaLeg(val ref: String, val trimLast: Boolean)
+
 /** Pure computation: every date passed in is already nightfall-advanced by the caller. */
 object ChitasSchedule {
 
@@ -40,6 +43,14 @@ object ChitasSchedule {
      */
     fun withDailyTanya(weekly: ParshaRef, daily: ParshaRef): ParshaRef =
         weekly.copy(tanyaRef = daily.tanyaRef, tanyaLabel = daily.tanyaLabel, tanyaLabelHe = daily.tanyaLabelHe)
+
+    /** The whole day's Tanya range when [nextDay]'s start allows one, else just the start segment. */
+    fun tanyaLegRef(day: ParshaRef, nextDay: ParshaRef?): TanyaLeg {
+        val start = day.tanyaRef
+        if (start.isBlank()) return TanyaLeg("", false)
+        val span = nextDay?.tanyaRef?.takeIf { it.isNotBlank() }?.let { TanyaSpan.spanRef(start, it) }
+        return if (span != null) TanyaLeg(span, true) else TanyaLeg(start, false)
+    }
 
     fun portionFor(advanced: LocalDate, hebrewDay: Int, daysInMonth: Int, parsha: ParshaRef): ChitasPortion {
         // Sunday = 1 .. Saturday = 7; maftir (8th entry) is never used.
