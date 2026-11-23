@@ -42,10 +42,15 @@ object LockscreenNotificationBuilder {
      * Over-estimating only trims a little pill text; under-estimating clips the
      * LAST pill (Chitas) off the edge. Calibrate on a device; change only here.
      *
-     * Derivation: shade side margin 16 + 16, decorated icon column ~64, end
-     * padding ~16, plus ~16 slack = 128 outside the custom view.
+     * Calibrated on a OnePlus Nord 2 (OxygenOS, Android 13, 360dp wide) from a
+     * screenshot: the pill row starts 36.7dp from the screen edge and the date text
+     * ends 36.7dp from the other edge. The custom view's own padding is 4dp a side
+     * (collapsed), so the system contributes 32.7dp a side = 65.4dp in total.
+     * There is no decorated icon column on this layout, so the content runs nearly
+     * edge to edge. 72 adds ~6.7dp of deliberate safety: the earlier guess of 128
+     * left ~74dp of the row unused and needlessly shortened the text.
      */
-    private const val CARD_CHROME_DP = 128f
+    private const val CARD_CHROME_DP = 72f
     /**
      * Widest screen width we trust, dp. In landscape, multi-window or on foldables
      * the card is NOT `widthPixels - chrome`, and we cannot read its real width,
