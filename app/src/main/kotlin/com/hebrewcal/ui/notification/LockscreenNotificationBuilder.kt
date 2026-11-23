@@ -60,16 +60,16 @@ object LockscreenNotificationBuilder {
     private const val MAX_SCREEN_WIDTH_DP = 600f
     /** Root padding of notification_hebrew_date.xml (4dp each side). */
     private const val COLLAPSED_LAYOUT_PADDING_DP = 8f
-    /** Root padding of notification_hebrew_date_expanded.xml (8dp each side). */
-    private const val EXPANDED_LAYOUT_PADDING_DP = 16f
+    /** Root side padding of notification_hebrew_date_expanded.xml (4dp each side, as the collapsed layout). */
+    private const val EXPANDED_LAYOUT_PADDING_DP = 8f
     /** Pill text sizes, sp (match textSize in the layouts). */
     private const val COLLAPSED_PILL_TEXT_SP = 9f
-    private const val EXPANDED_PILL_TEXT_SP = 9.5f
+    private const val EXPANDED_PILL_TEXT_SP = 9f
     /** Pill horizontal padding (left + right) and inter-pill margin, dp (match layouts). */
     private const val COLLAPSED_PILL_PADDING_DP = 22f
-    private const val EXPANDED_PILL_PADDING_DP = 24f
+    private const val EXPANDED_PILL_PADDING_DP = 22f
     private const val COLLAPSED_PILL_GAP_DP = 6f
-    private const val EXPANDED_PILL_GAP_DP = 8f
+    private const val EXPANDED_PILL_GAP_DP = 6f
 
     /** Display strings for one row of pills; null where a pill is absent. */
     private data class FittedPills(val tehillim: String?, val parsha: String?, val chitas: String?)
