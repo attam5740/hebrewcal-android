@@ -116,6 +116,24 @@ class HebrewDateWidget : GlanceAppWidget(errorUiLayout = R.layout.widget_error) 
                     .onFailure { Log.e(TAG, "elul portion failed", it) }.getOrNull()
             } else null
 
+            // Same banner as the lockscreen notification; best-effort like the pill data.
+            val shabbatBanner = if (prefs.showShabbatBanner &&
+                prefs.zmanimManualLat != 0.0 && prefs.zmanimManualLng != 0.0
+            ) {
+                runCatching {
+                    val st = ShabbatTimes.calculate(
+                        date                        = now,
+                        latitude                    = prefs.zmanimManualLat,
+                        longitude                   = prefs.zmanimManualLng,
+                        timeZone                    = timeZone,
+                        israel                      = prefs.location == CalendarLocation.ISRAEL,
+                        candleLightingOffsetMinutes = prefs.candleLightingOffsetMinutes,
+                        havdalahOpinion             = prefs.havdalahOpinion
+                    )
+                    ShabbatBanner.text(st, now.time, hebrew, prefs.zmanimTimeFormat)
+                }.onFailure { Log.e(TAG, "shabbat banner failed", it) }.getOrNull()
+            } else null
+
             val block: @Composable () -> Unit = {
                 HebrewDateWidgetContent(
                     context       = context,
@@ -128,7 +146,8 @@ class HebrewDateWidget : GlanceAppWidget(errorUiLayout = R.layout.widget_error) 
                     diaspora      = diaspora,
                     elulRef       = elulRef ?: "",
                     chitasLabel   = chitasLabel,
-                    chitasDate    = chitasDate
+                    chitasDate    = chitasDate,
+                    shabbatBanner = shabbatBanner
                 )
             }
             block
@@ -171,7 +190,8 @@ fun HebrewDateWidgetContent(
     diaspora: Boolean,
     elulRef: String = "",
     chitasLabel: String? = null,
-    chitasDate: String = ""
+    chitasDate: String = "",
+    shabbatBanner: String? = null
 ) {
     val goldColor      = ColorProvider(Color(0xFFD4AF37))
     val pillColor      = ColorProvider(Color(0xFFFFD255))
@@ -233,6 +253,20 @@ fun HebrewDateWidgetContent(
                         fontSize   = TextUnit(13f, TextUnitType.Sp),
                         fontWeight = FontWeight.Medium
                     )
+                )
+            }
+
+            // Candle lighting / Shabbat Shalom · Havdalah, as in the notification. Its gap is
+            // padding (not a Spacer) to stay inside Glance's 10-children-per-container limit.
+            if (shabbatBanner != null) {
+                Text(
+                    text  = shabbatBanner,
+                    style = TextStyle(textAlign = TextAlign.End,
+                        color      = pillColor,
+                        fontSize   = TextUnit(13f, TextUnitType.Sp),
+                        fontWeight = FontWeight.Medium
+                    ),
+                    modifier = GlanceModifier.padding(top = 4.dp)
                 )
             }
 

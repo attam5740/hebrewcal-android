@@ -157,31 +157,9 @@ object LockscreenNotificationBuilder {
 
         val isHeb = languageName == "HEBREW"
         val nowMs = System.currentTimeMillis()
-        var shabbatBannerText: String? = null
-
-        if (showShabbatBanner && shabbatTimes != null) {
-            val timeFmt = java.text.SimpleDateFormat(
-                if (timeFormat == com.hebrewcal.data.ZmanimTimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm",
-                java.util.Locale.getDefault()
-            )
-            val st = shabbatTimes
-            val cl = st.candleLighting
-            val hav = st.havdalah
-            // Fixed times: candle lighting until it is lit, then Shabbat Shalom until Havdalah.
-            shabbatBannerText = when {
-                cl != null && nowMs < cl.time ->
-                    com.hebrewcal.data.ShabbatTimes.candles(isHeb, st.fromExistingFlame) + " " +
-                        com.hebrewcal.data.ShabbatTimes.formatCandleLighting(isHeb, timeFmt.format(cl))
-                hav != null && nowMs >= hav.time -> null
-                cl != null || st.isShabbat || st.isYomTov -> {
-                    val shabbatTitle = if (isHeb) "שַׁבָּת שָׁלוֹם" else "Shabbat Shalom"
-                    val havStr = hav?.let { com.hebrewcal.data.ShabbatTimes.ltr(timeFmt.format(it)) }
-                    if (havStr == null) shabbatTitle
-                    else if (isHeb) "$shabbatTitle · הבדלה $havStr" else "$shabbatTitle · Havdalah $havStr"
-                }
-                else -> null
-            }
-        }
+        val shabbatBannerText: String? = if (showShabbatBanner)
+            com.hebrewcal.data.ShabbatBanner.text(shabbatTimes, nowMs, isHeb, timeFormat)
+        else null
 
         val primaryHolidayText = shabbatBannerText
             ?: dateInfo.holidayName
