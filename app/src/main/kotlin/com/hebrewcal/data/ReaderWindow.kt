@@ -14,12 +14,27 @@ data class ReaderWindow(
 object ReaderWindows {
     private val torah = TorahNavigation.BOOKS.map { it.en }
 
+    private val tanya = NavBooks.TANYA.map { it.ref }
+
     fun chapterCount(bookEn: String): Int? =
         if (bookEn == "Psalms") TorahNavigation.TEHILLIM_CHAPTERS
         else TorahNavigation.BOOKS.firstOrNull { it.en == bookEn }?.chapters
+            ?: NavBooks.TANYA.firstOrNull { it.ref == bookEn }?.chapters
+
+    /** The books [bookEn] reads on through, in order: the five books of the Torah, or Tanya's five parts. */
+    private fun sequence(bookEn: String): List<String> = if (bookEn in tanya) tanya else torah
+
+    /** The Sefaria ref of one chapter: "Genesis.3", but "Tanya, Part I; Likkutei Amarim 3" (no dot). */
+    fun refFor(bookEn: String, chapter: Int): String = if (bookEn in tanya) "$bookEn $chapter" else "$bookEn.$chapter"
 
     /** Verse counts for the partial-edge test; Sefaria refs mark partial edges with a verse component. */
     fun fromRef(ref: String, text: SefariaText): ReaderWindow {
+        // A Tanya chapter ("Tanya, Part I; Likkutei Amarim 4") has no dotted spec and no verse bounds.
+        NavBooks.TANYA.firstOrNull { ref.startsWith(it.ref) }?.let { part ->
+            val chapters = text.chapters
+            val first = chapters.firstOrNull()?.number ?: 1
+            return ReaderWindow(part.ref, chapters, first, chapters.lastOrNull()?.number ?: first, false, false)
+        }
         val book = ref.substringBefore(".")
         val spec = ref.substringAfter(".", "")
         val dashIdx = spec.indexOf("-")
@@ -50,15 +65,17 @@ object ReaderWindows {
         if (w.lastPartial) return w.bookEn to w.lastChapter
         val count = chapterCount(w.bookEn)
         if (count == null || w.lastChapter < count) return w.bookEn to w.lastChapter + 1
-        val i = torah.indexOf(w.bookEn)
-        return if (i in 0 until torah.lastIndex) torah[i + 1] to 1 else null
+        val order = sequence(w.bookEn)
+        val i = order.indexOf(w.bookEn)
+        return if (i in 0 until order.lastIndex) order[i + 1] to 1 else null
     }
 
     fun prevFetch(w: ReaderWindow): Pair<String, Int>? {
         if (w.firstPartial) return w.firstBookEn to w.firstChapter
         if (w.firstChapter > 1) return w.firstBookEn to w.firstChapter - 1
-        val i = torah.indexOf(w.firstBookEn)
-        return if (i > 0) torah[i - 1] to chapterCount(torah[i - 1])!! else null
+        val order = sequence(w.firstBookEn)
+        val i = order.indexOf(w.firstBookEn)
+        return if (i > 0) order[i - 1] to chapterCount(order[i - 1])!! else null
     }
 
     fun appended(w: ReaderWindow, bookEn: String, ch: Chapter): ReaderWindow {

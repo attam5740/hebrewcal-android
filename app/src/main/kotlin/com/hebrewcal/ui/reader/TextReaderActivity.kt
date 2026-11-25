@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.MenuBook
@@ -318,6 +319,9 @@ class TextReaderActivity : ComponentActivity() {
     }
 }
 
+/** How far, in dp, the text must be pulled against its end to load the next or previous chapter. */
+private const val EDGE_PULL_DP = 72
+
 internal val ACTIVE_GOLD = Color(0xFFFFD255)   // vivid warm amber
 private val ACTIVE_BG = Color(0x47FFC94D)     // stronger amber pill behind active toggles
 internal val INACTIVE = Color(0xE6FFFFFF)      // near-white, clearly legible
@@ -457,18 +461,27 @@ private fun rememberEdgeExtension(
     onExtendDown: () -> Unit,
     onPrependConsumed: () -> Unit
 ): NestedScrollConnection {
-    val connection = remember {
+    // A deliberate pull is needed to load more: dragging the text against its end by about half an
+    // inch, once per touch. Flicks that merely reach the end, and small nudges, load nothing.
+    val thresholdPx = with(LocalDensity.current) { EDGE_PULL_DP.dp.toPx() }
+    val pull = remember(thresholdPx) { EdgePull(thresholdPx) }
+    val latestUp = rememberUpdatedState(onExtendUp)
+    val latestDown = rememberUpdatedState(onExtendDown)
+    val connection = remember(pull) {
         object : NestedScrollConnection {
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (available.y < -2f && consumed.y == 0f) {
-                    val info = listState.layoutInfo
-                    if (info.visibleItemsInfo.lastOrNull()?.index == info.totalItemsCount - 1) onExtendDown()
-                } else if (available.y > 2f && consumed.y == 0f &&
-                    listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
-                    onExtendUp()
+                if (source != NestedScrollSource.Drag) return Offset.Zero
+                val info = listState.layoutInfo
+                val atBottom = info.visibleItemsInfo.lastOrNull()?.index == info.totalItemsCount - 1
+                val atTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+                when (pull.onDrag(consumed.y, available.y, atTop, atBottom)) {
+                    1 -> latestDown.value()
+                    -1 -> latestUp.value()
                 }
                 return Offset.Zero
             }
+
+            override suspend fun onPreFling(available: Velocity): Velocity { pull.release(); return Velocity.Zero }
         }
     }
     val previousCount = remember { mutableStateOf(contentCount) }

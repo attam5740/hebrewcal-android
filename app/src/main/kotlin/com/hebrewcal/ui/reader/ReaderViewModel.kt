@@ -220,8 +220,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
             fetchCombined(resolvedRef, cacheFirst = mode == "tefillah").fold(
                 onSuccess = { text ->
                     // A Chitas day is three separate texts, not one range to keep reading through.
-                    // Scroll extension builds "Book.chapter" refs; a Tanya ref has another shape, so it does not extend.
-                    val w = ReaderWindows.fromRef(resolvedRef, text); window = if (mode == "tanya") null else w
+                    val w = ReaderWindows.fromRef(resolvedRef, text); window = w
                     val elulText = if (mode == "tehillim" && elulRef.isNotBlank()) repo.fetchText(elulRef).getOrNull() else null
                     val tikkunLines = if (mode == "parsha") TikkunLayout.parseTorahRef(resolvedRef)?.let { tikkunRepo.linesFor(it) } else null
                     val finalTitle = resolvedTitle.ifBlank { text.heRef }
@@ -346,7 +345,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
             while (rounds < 2) {
                 rounds++
                 val (book, chNum) = (if (down) ReaderWindows.nextFetch(w) else ReaderWindows.prevFetch(w)) ?: break
-                val fetched = repo.fetchText("$book.$chNum").getOrNull()?.chapters?.firstOrNull()
+                val fetched = repo.fetchText(ReaderWindows.refFor(book, chNum)).getOrNull()?.chapters?.firstOrNull()
                 if (gen != generation) return@launch
                 if (fetched == null || fetched.verses.isEmpty()) { fetchFailed = true; break }
                 val prevChapters = w.chapters.size
