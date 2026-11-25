@@ -4,7 +4,7 @@ All notable changes to Hebrew Calendar are listed here, newest first.
 Version codes match `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`,
 which is what F-Droid shows.
 
-## Unreleased
+## 1.25 (version code 32)
 
 ### Added
 - The reader's navigator has its own layouts for the **Haftarah** (the Prophets: pick Early, Later
@@ -12,6 +12,13 @@ which is what F-Droid shows.
   chapter), instead of showing the Tehillim dial. Inside Chitas the book button follows the part
   you are on; picking a place there opens the ordinary reader at it, with a **‹ Chitas** button to
   return to the day's three parts.
+- **Tanya scrolls on**: past the end of a chapter the next one loads, continuing from one part
+  into the next (and back at the top), like the Torah and Tehillim.
+
+### Changed
+- Loading the next or previous chapter by scrolling is **less sensitive**. It now takes a
+  deliberate pull of about half an inch against the end of the text, once per touch, instead of
+  any small drag or a fling that merely reached the end.
 
 ## 1.24 (version code 31)
 

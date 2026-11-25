@@ -43,7 +43,7 @@ See the [changelog](CHANGELOG.md) for what is new.
 - **Torah & Tehillim reader** — daily Tehillim (day-of-month cycle) and weekly parsha buttons on
   the widget, notification, and calendar screen open a translucent Sefaria-backed reader: RTL
   flowing text, pinch-to-zoom, nikkud/te'amim toggles, Hebrew/English, aliyah partitioning, a
-  navigation dial to jump to any chapter or parsha, original petucha/setuma spacing, and the
+  navigation dial (with its own layouts for the Prophets and Tanya) to jump to any chapter or parsha, original petucha/setuma spacing, and the
   customary Elul Tehillim supplement. A Tehillim/Torah switch flips between them without leaving
   the reader, continuous scrolling loads the next (or previous) chapter automatically, and the
   haftarah of the week is available alongside the parsha

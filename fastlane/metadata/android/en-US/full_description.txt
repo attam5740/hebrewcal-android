@@ -43,7 +43,7 @@ Hebrew Calendar displays the current Hebrew date as a persistent lockscreen noti
 • Switch between Tehillim and Torah without leaving the reader
 • Continuous scrolling — reach the end of a chapter and the next (or previous) loads automatically
 • Haftarah of the week alongside the parsha
-• Navigation dial to jump to any chapter or parsha
+• Navigation dial to jump to any chapter or parsha, with layouts for the Prophets (haftarah) and Tanya
 • Daily Chitas (חת"ת) — the Chabad study cycle's Chumash aliyah, Tehillim and Tanya for the day, in one reader, chosen with a three-part toggle (optional, off by default)
 • Offline downloads of upcoming readings on Wi‑Fi (mobile data optional)
 
