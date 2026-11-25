@@ -75,7 +75,9 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         /** Chitas only, per leg: (extending up, extending down). */
         val legExtending: List<Pair<Boolean, Boolean>> = emptyList(),
         /** Chitas only, per leg: (last up attempt failed, last down attempt failed), for a retry line. */
-        val legFailed: List<Pair<Boolean, Boolean>> = emptyList()
+        val legFailed: List<Pair<Boolean, Boolean>> = emptyList(),
+        /** The ref the reader is showing (the navigator opens near it); empty for Chitas and prayers. */
+        val ref: String = ""
     )
     data class WeekInfo(val parsha: ParshaRef? = null)
     private data class Position(val ref: String, val title: String, val aliyot: List<String>)
@@ -97,6 +99,12 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
     private var lastTehillim: Position? = null
     private var lastTorah: Position? = null
     private var extendJob: Job? = null
+    /** The Chitas day last opened (its nightfall-advanced date and title), so the navigator can lead back to it. */
+    private var lastChitas: Pair<String, String>? = null
+    /** Set while the reader is somewhere the Chitas navigator led to: the day to return to. */
+    val chitasReturn = MutableStateFlow<Pair<String, String>?>(null)
+    /** Today's Tanya start ref (from the daily calendar), so the Tanya navigator opens at the lesson. */
+    val tanyaToday = MutableStateFlow<String?>(null)
     /** Chitas: one in-flight extension per leg, so the legs never wait on each other. */
     private val legJobs = HashMap<Int, Job>()
     private var loadJob: Job? = null
@@ -121,6 +129,7 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
         loadedKey = key
         diasporaPref = diaspora
         if (mode == "tehillim") elulRefPref = elulRef
+        if (mode == "chitas") { lastChitas = advancedDate to title; chitasReturn.value = null }
         extendJob?.cancel()
         legJobs.values.forEach { it.cancel() }; legJobs.clear()
         generation++
@@ -168,12 +177,13 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
                 } else listOf(SectionTitle("Chumash", "חומש"), SectionTitle("Tehillim", "תהילים"), SectionTitle("Tanya", "תניא"))
                 val tanyaLeg = p?.let { ChitasSchedule.tanyaLegRef(it, tomorrow) }
                 tanyaStartRef = p?.tanyaRef.orEmpty()
+                tanyaToday.value = tanyaStartRef.ifBlank { null }
                 trimTanya = ref.isBlank() && tanyaLeg?.trimLast == true
                 resolvedRef = if (ref.isNotBlank()) ref else listOf(portion!!.chumashRef, portion.tehillimRef, tanyaLeg!!.ref)
                     .joinToString(Tefillot.REF_SEPARATOR)
                 if (resolvedTitle.isBlank()) resolvedTitle = "Chitas"
             } else resolvedRef = ref
-            val bookNameEn = if (mode != "tehillim" && mode != "chitas") resolvedRef.substringBefore('.', "").ifBlank { null } else null
+            val bookNameEn = if (mode == "parsha" || mode == "haftarah") resolvedRef.substringBefore('.', "").ifBlank { null } else null
             val chitas = mode == "chitas"
             if (chitas) {
                 var legs = fetchLegs(resolvedRef, cacheFirst = false)
@@ -210,13 +220,14 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
             fetchCombined(resolvedRef, cacheFirst = mode == "tefillah").fold(
                 onSuccess = { text ->
                     // A Chitas day is three separate texts, not one range to keep reading through.
-                    val w = ReaderWindows.fromRef(resolvedRef, text); window = w
+                    // Scroll extension builds "Book.chapter" refs; a Tanya ref has another shape, so it does not extend.
+                    val w = ReaderWindows.fromRef(resolvedRef, text); window = if (mode == "tanya") null else w
                     val elulText = if (mode == "tehillim" && elulRef.isNotBlank()) repo.fetchText(elulRef).getOrNull() else null
                     val tikkunLines = if (mode == "parsha") TikkunLayout.parseTorahRef(resolvedRef)?.let { tikkunRepo.linesFor(it) } else null
                     val finalTitle = resolvedTitle.ifBlank { text.heRef }
                     val pos = Position(resolvedRef, finalTitle, aliyot)
                     if (mode == "tehillim") lastTehillim = pos else if (mode == "parsha") lastTorah = pos
-                    _state.value = UiState(false, null, finalTitle, text, mode, bookNameEn, aliyot, elulText, tikkunLines)
+                    _state.value = UiState(false, null, finalTitle, text, mode, bookNameEn, aliyot, elulText, tikkunLines, ref = resolvedRef)
                 },
                 onFailure = { _state.value = UiState(false, OFFLINE, resolvedTitle, null, mode, bookNameEn, aliyot) }
             )
@@ -270,8 +281,18 @@ class ReaderViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Jump to any Tehillim chapter or Torah chapter/parsha from the navigation dial. */
-    fun navigateTo(mode: String, ref: String, title: String, aliyot: List<String> = emptyList()) =
+    fun navigateTo(mode: String, ref: String, title: String, aliyot: List<String> = emptyList()) {
+        // Leaving Chitas through its navigator: remember the day so a button can lead back.
+        val back = if (_state.value.mode == "chitas") lastChitas else chitasReturn.value
         load(mode, ref, title, diaspora = diasporaPref, elulRef = if (mode == "tehillim") elulRefPref else "", presetAliyot = aliyot)
+        chitasReturn.value = back
+    }
+
+    /** Back to the Chitas day the navigator left. */
+    fun returnToChitas() {
+        val back = chitasReturn.value ?: return
+        load("chitas", "", back.second, diasporaPref, advancedDate = back.first)
+    }
 
     /** Tehillim ⇄ Torah: the last place visited in that mode this session, else today's / this week's. */
     fun toggleMode(hebrew: Boolean) {

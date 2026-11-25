@@ -188,7 +188,9 @@ class TextReaderActivity : ComponentActivity() {
                 }
             }
 
-            // Chitas: which part (0 Tehilim, 1 Chumash, 2 Tanya) the reader shows.
+            val chitasReturn by vm.chitasReturn.collectAsState()
+            val tanyaToday by vm.tanyaToday.collectAsState()
+            // Chitas: which part (0 Chumash, 1 Tehilim, 2 Tanya) the reader shows.
             var chitasPart by rememberSaveable { mutableStateOf(0) }
 
             Box(
@@ -217,7 +219,9 @@ class TextReaderActivity : ComponentActivity() {
                         byAliyot = byAliyot,
                         mode = state.mode,
                         torahSide = state.mode != "tehillim",
-                        chitasMode = state.mode == "chitas",
+                        chitasMode = state.mode == "chitas" || state.mode == "tanya",
+                        backLabel = if (chitasReturn != null) (if (textMode != MODE_EN) "‹ חת״ת" else "‹ Chitas") else null,
+                        onBack = { vm.returnToChitas() },
                         onToggleMode = { vm.toggleMode(hebrewUi) },
                         onNav = { showNav = true },
                         onTextMode = { m ->
@@ -264,8 +268,22 @@ class TextReaderActivity : ComponentActivity() {
                 }
                 if (showNav) {
                     val parshiyotMap by vm.parshiyot.collectAsState()
+                    // The dial follows what is being read; in Chitas, the part the toggle is on.
+                    val navKind = when (state.mode) {
+                        "parsha" -> NavKind.TORAH
+                        "haftarah" -> NavKind.PROPHETS
+                        "tanya" -> NavKind.TANYA
+                        "chitas" -> when (chitasPart) { 0 -> NavKind.TORAH; 2 -> NavKind.TANYA; else -> NavKind.TEHILLIM }
+                        else -> NavKind.TEHILLIM
+                    }
+                    val navStart = when (navKind) {
+                        NavKind.PROPHETS -> state.ref.takeIf { state.mode == "haftarah" } ?: week.parsha?.haftarot?.firstOrNull()?.dottedRef
+                        NavKind.TANYA -> state.ref.takeIf { state.mode == "tanya" } ?: tanyaToday
+                        else -> null
+                    }
                     NavDialOverlay(
-                        mode = state.mode,
+                        kind = navKind,
+                        startRef = navStart,
                         hebrew = textMode != MODE_EN,
                         parshiyot = parshiyotMap,
                         ensureParshiyot = { vm.ensureParshiyot(it) },
@@ -481,6 +499,8 @@ private fun ReaderBar(
     mode: String = "tehillim",
     torahSide: Boolean = false,
     chitasMode: Boolean = false,
+    backLabel: String? = null,
+    onBack: () -> Unit = {},
     onToggleMode: () -> Unit = {},
     onNav: () -> Unit = {},
     onTextMode: (String) -> Unit, onNikkud: () -> Unit, onTeamim: () -> Unit,
@@ -491,6 +511,8 @@ private fun ReaderBar(
     Column(Modifier.fillMaxWidth().background(Color(0x73181818))) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onClose) { Text("✕", color = INACTIVE, fontSize = 14.sp) }
+            // Left Chitas through its navigator: one tap back to the day's three parts.
+            if (backLabel != null) TextButton(onClick = onBack) { Text(backLabel, color = ACTIVE_GOLD, fontSize = 13.sp) }
             Text(
                 title, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -1195,7 +1217,8 @@ private fun chapterSections(
 } else text.chapters.map { ch ->
     val header = when {
         hebrew -> "פרק ${gematria.formatHebrewNumber(ch.number)}"
-        mode == "parsha" -> "${bookNameEn ?: "Chapter"} ${ch.number}"
+        mode == "parsha" || mode == "haftarah" -> "${(bookNameEn ?: "Chapter").replace('_', ' ')} ${ch.number}"
+        mode == "tanya" -> "Chapter ${ch.number}"
         else -> "Psalm ${ch.number}"
     }
     ReaderSection(header, ch.verses.map { AliyotPartitioner.TaggedVerse(ch.number, it) }, markChapters = false)

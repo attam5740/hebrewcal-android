@@ -30,6 +30,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hebrewcal.data.NavBooks
 import com.hebrewcal.data.TorahNavigation
 import com.kosherjava.zmanim.hebrewcalendar.HebrewDateFormatter
 import kotlin.math.PI
@@ -75,7 +77,7 @@ internal fun fitFontSp(availablePx: Float, totalAt: (Float) -> Float, maxSp: Flo
 }
 
 /** Chosen book-row layout: font size, whether it is 3 + 2 rows, and per-chip weights (measured widths). */
-private class BooksLayout(val sp: Float, val twoRows: Boolean, val weights: List<Float>)
+private class BooksLayout(val sp: Float, val twoRows: Boolean, val weights: List<Float>, val split: Int = 0)
 
 /** Quiet navigation chip: plain text when inactive; gold text on a faint gold wash with a hairline border when active. */
 @Composable
@@ -104,14 +106,13 @@ private fun NavChip(
  * row at the largest font (15sp down to 11sp) where the whole row fits; if even 11sp does not fit, 3 + 2 rows.
  */
 @Composable
-private fun BooksRow(hebrew: Boolean, selected: Int, onSelect: (Int) -> Unit) {
-    val labels = TorahNavigation.BOOKS.map { if (hebrew) it.he else it.en }
+private fun BooksRow(labels: List<String>, selected: Int, onSelect: (Int) -> Unit) {
     val measurer = rememberTextMeasurer(cacheSize = 32)
     val density = LocalDensity.current
     val chipPad = 4.dp
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val totalPx = with(density) { maxWidth.toPx() }
-        val layout = remember(totalPx, hebrew, density.density, density.fontScale) {
+        val layout = remember(totalPx, labels, density.density, density.fontScale) {
             val padPx = with(density) { (chipPad * 2).toPx() } + 2f // 2px slack for border rounding
             fun need(sp: Float) = labels.map {
                 measurer.measure(it, TextStyle(fontSize = sp.sp, fontWeight = FontWeight.Medium), maxLines = 1)
@@ -121,9 +122,10 @@ private fun BooksRow(hebrew: Boolean, selected: Int, onSelect: (Int) -> Unit) {
             if (one != null) BooksLayout(one, false, need(one))
             else {
                 // 3 + 2: both rows must fit at the same size (the wider row decides).
-                fun rowMax(sp: Float) = need(sp).let { maxOf(it.take(3).sum(), it.drop(3).sum()) }
+                val split = (labels.size + 1) / 2
+                fun rowMax(sp: Float) = need(sp).let { maxOf(it.take(split).sum(), it.drop(split).sum()) }
                 val sp = fitFontSp(totalPx, ::rowMax) ?: 11f
-                BooksLayout(sp, true, need(sp))
+                BooksLayout(sp, true, need(sp), split)
             }
         }
         val sp = layout.sp.sp
@@ -134,8 +136,8 @@ private fun BooksRow(hebrew: Boolean, selected: Int, onSelect: (Int) -> Unit) {
             Row(Modifier.fillMaxWidth()) { for (i in labels.indices) chip(i) }
         } else {
             Column(Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth()) { for (i in 0..2) chip(i) }
-                Row(Modifier.fillMaxWidth().padding(top = 4.dp)) { for (i in 3..4) chip(i) }
+                Row(Modifier.fillMaxWidth()) { for (i in 0 until layout.split) chip(i) }
+                Row(Modifier.fillMaxWidth().padding(top = 4.dp)) { for (i in layout.split until labels.size) chip(i) }
             }
         }
     }
@@ -155,26 +157,38 @@ private fun NavGoButton(onGo: () -> Unit) {
     }
 }
 
+/** Which book family the navigator dials through. */
+internal enum class NavKind { TORAH, TEHILLIM, PROPHETS, TANYA }
+
 /**
- * Semi-transparent navigation overlay. Tehillim: a rotary dial over chapters
- * 1-150. Torah: pick a book, then dial a chapter or choose a parsha.
+ * Semi-transparent navigation overlay. Tehillim: a rotary dial over chapters 1-150. Torah: pick a
+ * book, then dial a chapter or choose a parsha. Prophets (haftarah) and Tanya: pick a group/book or
+ * a part, then dial a chapter. [startRef] is where the reader is (or, failing that, today's
+ * portion), so the dial opens near what the user is reading.
  */
 @Composable
 internal fun NavDialOverlay(
-    mode: String,
+    kind: NavKind,
     hebrew: Boolean,
     parshiyot: Map<String, List<TorahNavigation.Parsha>>,
     ensureParshiyot: (String) -> Unit,
+    startRef: String?,
     onPick: (mode: String, ref: String, title: String, aliyot: List<String>) -> Unit,
     onDismiss: () -> Unit
 ) {
     val gematria = remember { HebrewDateFormatter() }
     fun num(n: Int) = if (hebrew) gematria.formatHebrewNumber(n) else n.toString()
-    val torah = mode == "parsha"
+    val torah = kind == NavKind.TORAH
     var bookIdx by rememberSaveable { mutableStateOf(4) }
     var byParsha by rememberSaveable { mutableStateOf(true) }
     val book = TorahNavigation.BOOKS[bookIdx]
     if (torah && byParsha) LaunchedEffect(book.en) { ensureParshiyot(book.en) }
+
+    val prophetStart = remember(startRef) { startRef?.let { NavBooks.locateProphet(it) } }
+    var groupIdx by rememberSaveable { mutableStateOf(prophetStart?.first ?: 1) }
+    var prophetIdx by rememberSaveable { mutableStateOf(prophetStart?.second ?: 0) }
+    val tanyaStart = remember(startRef) { startRef?.let { NavBooks.locateTanya(it) } }
+    var partIdx by rememberSaveable { mutableStateOf(tanyaStart?.first ?: 0) }
 
     Box(
         Modifier.fillMaxSize().background(Color(0xB3000000))
@@ -186,40 +200,81 @@ internal fun NavDialOverlay(
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (torah) {
-                BooksRow(hebrew, bookIdx) { bookIdx = it }
-                Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    NavChip(if (hebrew) "פרשה" else "Parsha", active = byParsha) { byParsha = true }
-                    NavChip(if (hebrew) "פרק" else "Chapter", active = !byParsha) { byParsha = false }
-                }
-                Spacer(Modifier.height(10.dp))
-                if (byParsha) {
-                    val list = parshiyot[book.en]
-                    if (list == null) {
-                        CircularProgressIndicator(color = ACTIVE_GOLD, modifier = Modifier.padding(24.dp))
-                    } else {
-                        LazyColumn(Modifier.fillMaxHeight(0.55f).fillMaxWidth()) {
-                            items(list) { pr ->
-                                Text(
-                                    if (hebrew) pr.he else pr.en,
-                                    color = INACTIVE, fontSize = 17.sp,
-                                    textAlign = TextAlign.Start, // layout direction already follows the language
-                                    modifier = Modifier.fillMaxWidth()
-                                        .clickable { onPick("parsha", pr.dottedRef, if (hebrew) "פרשת ${pr.he}" else "Parashat ${pr.en}", pr.aliyot) }
-                                        .padding(vertical = 9.dp, horizontal = 12.dp)
-                                )
+            when (kind) {
+                NavKind.TORAH -> {
+                    BooksRow(TorahNavigation.BOOKS.map { if (hebrew) it.he else it.en }, bookIdx) { bookIdx = it }
+                    Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        NavChip(if (hebrew) "פרשה" else "Parsha", active = byParsha) { byParsha = true }
+                        NavChip(if (hebrew) "פרק" else "Chapter", active = !byParsha) { byParsha = false }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    if (byParsha) {
+                        val list = parshiyot[book.en]
+                        if (list == null) {
+                            CircularProgressIndicator(color = ACTIVE_GOLD, modifier = Modifier.padding(24.dp))
+                        } else {
+                            LazyColumn(Modifier.fillMaxHeight(0.55f).fillMaxWidth()) {
+                                items(list) { pr ->
+                                    Text(
+                                        if (hebrew) pr.he else pr.en,
+                                        color = INACTIVE, fontSize = 17.sp,
+                                        textAlign = TextAlign.Start, // layout direction already follows the language
+                                        modifier = Modifier.fillMaxWidth()
+                                            .clickable { onPick("parsha", pr.dottedRef, if (hebrew) "פרשת ${pr.he}" else "Parashat ${pr.en}", pr.aliyot) }
+                                            .padding(vertical = 9.dp, horizontal = 12.dp)
+                                    )
+                                }
                             }
                         }
-                    }
-                } else {
-                    RotaryDial(min = 1, max = book.chapters, label = { num(it) }) { ch ->
-                        onPick("parsha", "${book.en}.$ch", if (hebrew) "${book.he} פרק ${num(ch)}" else "${book.en} $ch", emptyList())
+                    } else key(bookIdx) {
+                        RotaryDial(min = 1, max = book.chapters, initial = 1, label = { num(it) }) { ch ->
+                            onPick("parsha", "${book.en}.$ch", if (hebrew) "${book.he} פרק ${num(ch)}" else "${book.en} $ch", emptyList())
+                        }
                     }
                 }
-            } else {
-                Text(if (hebrew) "תהילים" else "Tehillim", color = ACTIVE_GOLD, fontSize = 14.sp, modifier = Modifier.padding(bottom = 6.dp))
-                RotaryDial(min = 1, max = TorahNavigation.TEHILLIM_CHAPTERS, label = { num(it) }) { ch ->
-                    onPick("tehillim", "Psalms.$ch", if (hebrew) "תהילים פרק ${num(ch)}" else "Psalm $ch", emptyList())
+                NavKind.PROPHETS -> {
+                    val groups = NavBooks.PROPHETS
+                    BooksRow(groups.map { if (hebrew) it.he else it.en }, groupIdx) { groupIdx = it; prophetIdx = 0 }
+                    Spacer(Modifier.height(8.dp))
+                    val books = groups[groupIdx].books
+                    // Up to four to a row, so twelve books take three short rows.
+                    books.chunked(4).forEachIndexed { r, rowBooks ->
+                        Row(Modifier.fillMaxWidth().padding(top = if (r == 0) 0.dp else 4.dp)) {
+                            rowBooks.forEachIndexed { c, bk ->
+                                val i = r * 4 + c
+                                NavChip(
+                                    if (hebrew) bk.he else bk.en, active = i == prophetIdx,
+                                    modifier = Modifier.weight(1f), fontSize = 13.sp, horizontalPadding = 2.dp
+                                ) { prophetIdx = i }
+                            }
+                            repeat(4 - rowBooks.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    val pb = books[prophetIdx.coerceIn(0, books.size - 1)]
+                    val startCh = if (prophetStart != null && prophetStart.first == groupIdx && prophetStart.second == prophetIdx) prophetStart.third else 1
+                    key(groupIdx, prophetIdx) {
+                        RotaryDial(min = 1, max = pb.chapters, initial = startCh, label = { num(it) }) { ch ->
+                            onPick("haftarah", NavBooks.prophetRef(pb, ch), if (hebrew) "${pb.he} פרק ${num(ch)}" else "${pb.en} $ch", emptyList())
+                        }
+                    }
+                }
+                NavKind.TANYA -> {
+                    BooksRow(NavBooks.TANYA.map { if (hebrew) it.he else it.en }, partIdx) { partIdx = it }
+                    Spacer(Modifier.height(14.dp))
+                    val part = NavBooks.TANYA[partIdx]
+                    val startCh = if (tanyaStart != null && tanyaStart.first == partIdx) tanyaStart.second else 1
+                    key(partIdx) {
+                        RotaryDial(min = 1, max = part.chapters, initial = startCh, label = { num(it) }) { ch ->
+                            onPick("tanya", NavBooks.tanyaRef(part, ch), if (hebrew) "${part.he} פרק ${num(ch)}" else "${part.en} $ch", emptyList())
+                        }
+                    }
+                }
+                NavKind.TEHILLIM -> {
+                    Text(if (hebrew) "תהילים" else "Tehillim", color = ACTIVE_GOLD, fontSize = 14.sp, modifier = Modifier.padding(bottom = 6.dp))
+                    RotaryDial(min = 1, max = TorahNavigation.TEHILLIM_CHAPTERS, initial = 1, label = { num(it) }) { ch ->
+                        onPick("tehillim", "Psalms.$ch", if (hebrew) "תהילים פרק ${num(ch)}" else "Psalm $ch", emptyList())
+                    }
                 }
             }
         } }
@@ -231,8 +286,8 @@ internal fun NavDialOverlay(
  * the center to jump. Tiny ± nudges for precision.
  */
 @Composable
-private fun RotaryDial(min: Int, max: Int, label: (Int) -> String, onGo: (Int) -> Unit) {
-    var value by rememberSaveable { mutableStateOf(min) }
+private fun RotaryDial(min: Int, max: Int, initial: Int, label: (Int) -> String, onGo: (Int) -> Unit) {
+    var value by rememberSaveable { mutableStateOf(initial.coerceIn(min, max)) }
     var acc by remember { mutableStateOf(0f) }
     var lastAngle by remember { mutableStateOf<Float?>(null) }
     val stepsPerTurn = TorahNavigation.dialStepsPerTurn(max - min + 1).toFloat()

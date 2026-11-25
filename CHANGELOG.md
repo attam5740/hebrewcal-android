@@ -4,6 +4,15 @@ All notable changes to Hebrew Calendar are listed here, newest first.
 Version codes match `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`,
 which is what F-Droid shows.
 
+## Unreleased
+
+### Added
+- The reader's navigator has its own layouts for the **Haftarah** (the Prophets: pick Early, Later
+  or the Twelve, then a book and a chapter) and for **Tanya** (pick one of its five parts, then a
+  chapter), instead of showing the Tehillim dial. Inside Chitas the book button follows the part
+  you are on; picking a place there opens the ordinary reader at it, with a **‹ Chitas** button to
+  return to the day's three parts.
+
 ## 1.24 (version code 31)
 
 ### Added
